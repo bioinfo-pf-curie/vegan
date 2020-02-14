@@ -1,0 +1,37 @@
+Possible precedence issue with control flow operator at /beegfs/curie_scratch/HPC-bench/tools/conda/envs/sarek-2.5.1/lib/site_perl/5.26.2/Bio/DB/IndexedBase.pm line 805.
+#----------------------------------#
+# ENSEMBL VARIANT EFFECT PREDICTOR #
+#----------------------------------#
+
+Versions:
+  ensembl              : 95.4f83453
+  ensembl-funcgen      : 95.94439f4
+  ensembl-io           : 95.78ccac5
+  ensembl-variation    : 95.858de3e
+  ensembl-vep          : 95.2
+
+Help: dev@ensembl.org , helpdesk@ensembl.org
+Twitter: @ensembl
+
+http://www.ensembl.org/info/docs/tools/vep/script/index.html
+
+Usage:
+./vep [--cache|--offline|--database] [arguments]
+
+Basic options
+=============
+
+--help                 Display this message and quit
+
+-i | --input_file      Input file
+-o | --output_file     Output file
+--force_overwrite      Force overwriting of output file
+--species [species]    Species to use [default: "human"]
+                       
+--everything           Shortcut switch to turn on commonly used options. See web
+                       documentation for details [default: off]                       
+--fork [num_forks]     Use forking to improve script runtime
+
+For full option documentation see:
+http://www.ensembl.org/info/docs/tools/vep/script/vep_options.html
+
