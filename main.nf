@@ -1,33 +1,58 @@
 #!/usr/bin/env nextflow
 
 /*
+Copyright Institut Curie 2019
+This software is a computer program whose purpose is to analyze high-throughput sequencing data.
+You can use, modify and/ or redistribute the software under the terms of license (see the LICENSE file for more details).
+The software is distributed in the hope that it will be useful, but "AS IS" WITHOUT ANY WARRANTY OF ANY KIND.
+Users are therefore encouraged to test the software's suitability as regards their requirements in conditions enabling the security of their systems and/or data.
+The fact that you are presently reading this means that you have had knowledge of the license and that you accept its terms.
+
+This script is based on the nf-core guidelines. See https://nf-co.re/ for more information
+*/
+
+/*
+========================================================================================
+                         data-analysis_demo
+========================================================================================
+ data-analysis_demo analysis Pipeline.
+ #### Homepage / Documentation
+ ssh://git@gitlab.curie.fr:2222/plarosa/data-analysis_demo.git
+----------------------------------------------------------------------------------------
+*/
+/*
 ================================================================================
-                                  nf-core/sarek
+                                 EUCANCAN/nf-wgswes 
 ================================================================================
-Started March 2016.
-Ported to nf-core May 2019.
+Started Febery 2020.
 --------------------------------------------------------------------------------
-nf-core/sarek:
+nf-wgswes:
   An open-source analysis pipeline to detect germline or somatic variants
   from whole genome or targeted sequencing
 --------------------------------------------------------------------------------
  @Homepage
- https://sarek.scilifelab.se/
+ https://gitlab.curie.fr/data-analysis/nf-wgswes 
 --------------------------------------------------------------------------------
  @Documentation
- https://github.com/nf-core/sarek/README.md
+ https://gitlab.curie.fr/data-analysis/nf-wgswes/README.md
 --------------------------------------------------------------------------------
 */
 
 def helpMessage() {
-    log.info nfcoreHeader()
+    //log.info nfcoreHeader()
+    if ("${workflow.manifest.version}" =~ /dev/ ){
+       log.info devMessageFile.text
+    }
+
     log.info"""
+    data-analysis_demo v${workflow.manifest.version}
+    ======================================================================
 
     Usage:
 
     The typical command for running the pipeline is as follows:
 
-    nextflow run nf-core/sarek --input sample.tsv -profile docker
+    nextflow run main.nf --input samples-WGS.tsv -profile multiconda
 
     Mandatory arguments:
         --input                     Path to input TSV file on mapping, recalibrate and variantcalling steps
@@ -287,7 +312,7 @@ ch_targetBED = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 */
 
 // Header log info
-log.info nfcoreHeader()
+// log.info nfcoreHeader()
 def summary = [:]
 if (workflow.revision)          summary['Pipeline Release']    = workflow.revision
 summary['Run Name']          = custom_runName ?: workflow.runName
@@ -1045,6 +1070,401 @@ process SentieonDedup {
 }
 
 
+// STEP 3: CREATING RECALIBRATION TABLES
+
+process BaseRecalibrator {
+    label 'gatk'
+    label 'cpus_1'
+
+    tag {idPatient + "-" + idSample + "-" + intervalBed.baseName}
+
+    input:
+        set idPatient, idSample, file(bam), file(bai), file(intervalBed) from bamBaseRecalibrator
+        file(dbsnp) from ch_dbsnp
+        file(dbsnpIndex) from ch_dbsnpIndex
+        file(fasta) from ch_fasta
+        file(dict) from ch_dict
+        file(fastaFai) from ch_fastaFai
+        file(knownIndels) from ch_knownIndels
+        file(knownIndelsIndex) from ch_knownIndelsIndex
+
+    output:
+        set idPatient, idSample, file("${prefix}${idSample}.recal.table") into tableGatherBQSRReports
+        set idPatient, idSample into recalTableTSVnoInt
+
+    when: params.knownIndels
+
+    script:
+    dbsnpOptions = params.dbsnp ? "--known-sites ${dbsnp}" : ""
+    knownOptions = params.knownIndels ? knownIndels.collect{"--known-sites ${it}"}.join(' ') : ""
+    prefix = params.no_intervals ? "" : "${intervalBed.baseName}_"
+    intervalsOptions = params.no_intervals ? "" : "-L ${intervalBed}"
+    // TODO: --use-original-qualities ???
+    """
+    gatk --java-options -Xmx${task.memory.toGiga()}g \
+        BaseRecalibrator \
+        -I ${bam} \
+        -O ${prefix}${idSample}.recal.table \
+        --tmp-dir /tmp \
+        -R ${fasta} \
+        ${intervalsOptions} \
+        ${dbsnpOptions} \
+        ${knownOptions} \
+        --verbosity INFO
+    """
+}
+
+if (!params.no_intervals) tableGatherBQSRReports = tableGatherBQSRReports.groupTuple(by:[0, 1])
+
+tableGatherBQSRReports = tableGatherBQSRReports.dump(tag:'BQSR REPORTS')
+
+if (params.no_intervals) {
+    (tableGatherBQSRReports, tableGatherBQSRReportsNoInt) = tableGatherBQSRReports.into(2)
+    recalTable = tableGatherBQSRReportsNoInt
+} else recalTableTSVnoInt.close()
+
+// STEP 3.5: MERGING RECALIBRATION TABLES
+
+process GatherBQSRReports {
+    label 'gatk'
+    label 'memory_singleCPU_2_task'
+    label 'cpus_2'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
+
+    input:
+        set idPatient, idSample, file(recal) from tableGatherBQSRReports
+
+    output:
+        set idPatient, idSample, file("${idSample}.recal.table") into recalTable
+        set idPatient, idSample into recalTableTSV
+
+    when: !(params.no_intervals)
+
+    script:
+    input = recal.collect{"-I ${it}"}.join(' ')
+    """
+    gatk --java-options -Xmx${task.memory.toGiga()}g \
+        GatherBQSRReports \
+        ${input} \
+        -O ${idSample}.recal.table \
+    """
+}
+
+recalTable = recalTable.dump(tag:'RECAL TABLE')
+
+(recalTableTSV, recalTableSampleTSV) = recalTableTSV.mix(recalTableTSVnoInt).into(2)
+
+// Create TSV files to restart from this step
+recalTableTSV.map { idPatient, idSample ->
+    status = statusMap[idPatient, idSample]
+    gender = genderMap[idPatient]
+    bam = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bam"
+    bai = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bai"
+    recalTable = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.recal.table"
+    "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\t${recalTable}\n"
+}.collectFile(
+    name: 'duplicateMarked.tsv', sort: true, storeDir: "${params.outdir}/Preprocessing/TSV"
+)
+
+recalTableSampleTSV
+    .collectFile(storeDir: "${params.outdir}/Preprocessing/TSV/") {
+        idPatient, idSample ->
+        status = statusMap[idPatient, idSample]
+        gender = genderMap[idPatient]
+        bam = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bam"
+        bai = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bai"
+        recalTable = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.recal.table"
+        ["duplicateMarked_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\t${recalTable}\n"]
+}
+
+bamApplyBQSR = bamMDToJoin.join(recalTable, by:[0,1])
+
+if (step == 'recalibrate') bamApplyBQSR = inputSample
+
+bamApplyBQSR = bamApplyBQSR.dump(tag:'BAM + BAI + RECAL TABLE')
+// [DUMP: recal.table] ['normal', 'normal', normal.md.bam, normal.md.bai, normal.recal.table]
+
+bamApplyBQSR = bamApplyBQSR.combine(intApplyBQSR)
+
+bamApplyBQSR = bamApplyBQSR.dump(tag:'BAM + BAI + RECAL TABLE + INT')
+// [DUMP: BAM + BAI + RECAL TABLE + INT] ['normal', 'normal', normal.md.bam, normal.md.bai, normal.recal.table, 1_1-200000.bed]
+
+// STEP 4: RECALIBRATING
+
+process ApplyBQSR {
+    label 'gatk'
+    label 'memory_singleCPU_2_task'
+    label 'cpus_2'
+
+    tag {idPatient + "-" + idSample + "-" + intervalBed.baseName}
+
+    input:
+        set idPatient, idSample, file(bam), file(bai), file(recalibrationReport), file(intervalBed) from bamApplyBQSR
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+
+    output:
+        set idPatient, idSample, file("${prefix}${idSample}.recal.bam") into bamMergeBamRecal
+
+    script:
+    prefix = params.no_intervals ? "" : "${intervalBed.baseName}_"
+    intervalsOptions = params.no_intervals ? "" : "-L ${intervalBed}"
+    """
+    gatk --java-options -Xmx${task.memory.toGiga()}g \
+        ApplyBQSR \
+        -R ${fasta} \
+        --input ${bam} \
+        --output ${prefix}${idSample}.recal.bam \
+        ${intervalsOptions} \
+        --bqsr-recal-file ${recalibrationReport}
+    """
+}
+
+bamMergeBamRecal = bamMergeBamRecal.groupTuple(by:[0, 1])
+(bamMergeBamRecal, bamMergeBamRecalNoInt) = bamMergeBamRecal.into(2)
+
+// STEP 4': SENTIEON BQSR
+
+bamDedupedSentieon = bamDedupedSentieon.dump(tag:'deduped.bam')
+
+process SentieonBQSR { 
+    label 'sentieon'
+    label 'cpus_max'
+    label 'memory_max'
+    label 'sentieon'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir params.outdir, mode: params.publishDirMode,
+        saveAs: {
+            if (it == "${idSample}_recal_result.csv" && 'sentieon' in skipQC) "Reports/${idSample}/Sentieon/${it}"
+            else "Preprocessing/${idSample}/RecalSentieon/${it}"
+        }
+
+    input:
+        set idPatient, idSample, file(bam), file(bai) from bamDedupedSentieon
+        file(dbsnp) from ch_dbsnp
+        file(dbsnpIndex) from ch_dbsnpIndex
+        file(fasta) from ch_fasta
+        file(dict) from ch_dict
+        file(fastaFai) from ch_fastaFai
+        file(knownIndels) from ch_knownIndels
+        file(knownIndelsIndex) from ch_knownIndelsIndex
+
+    output:
+        set idPatient, idSample, file("${idSample}.recal.bam"), file("${idSample}.recal.bam.bai") into bamRecalSentieon 
+        set idPatient, idSample into bamRecalSentieonTSV
+        file("${idSample}_recal_result.csv") into bamRecalSentieonQC
+
+    when: params.sentieon
+
+    script:
+    known = knownIndels.collect{"--known-sites ${it}"}.join(' ')
+    """
+    sentieon driver  \
+        -t ${task.cpus} \
+        -r ${fasta} \
+        -i ${idSample}.deduped.bam \
+        --algo QualCal \
+        -k ${dbsnp} \
+        ${idSample}.recal.table
+
+    sentieon driver \
+        -t ${task.cpus} \
+        -r ${fasta} \
+        -i ${idSample}.deduped.bam \
+        -q ${idSample}.recal.table \
+        --algo QualCal \
+        -k ${dbsnp} \
+        ${idSample}.table.post \
+        --algo ReadWriter ${idSample}.recal.bam
+
+    sentieon driver \
+        -t ${task.cpus} \
+        --algo QualCal \
+        --plot \
+        --before ${idSample}.recal.table \
+        --after ${idSample}.table.post \
+        ${idSample}_recal_result.csv
+    """
+}
+
+(bamRecalSentieonTSV, bamRecalSentieonSampleTSV) = bamRecalSentieonTSV.into(2)
+
+// Creating a TSV file to restart from this step
+bamRecalSentieonTSV.map { idPatient, idSample ->
+    gender = genderMap[idPatient]
+    status = statusMap[idPatient, idSample]
+    bam = "${params.outdir}/Preprocessing/${idSample}/RecalSentieon/${idSample}.recal.bam"
+    bai = "${params.outdir}/Preprocessing/${idSample}/RecalSentieon/${idSample}.recal.bam.bai"
+    "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"
+}.collectFile(
+    name: 'recalibrated_sentieon.tsv', sort: true, storeDir: "${params.outdir}/Preprocessing/TSV"
+)
+
+bamRecalSentieonSampleTSV
+    .collectFile(storeDir: "${params.outdir}/Preprocessing/TSV") {
+        idPatient, idSample ->
+        status = statusMap[idPatient, idSample]
+        gender = genderMap[idPatient]
+        bam = "${params.outdir}/Preprocessing/${idSample}/RecalSentieon/${idSample}.recal.bam"
+        bai = "${params.outdir}/Preprocessing/${idSample}/RecalSentieon/${idSample}.recal.bam.bai"
+        ["recalibrated_sentieon_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"]
+}
+
+// STEP 4.5: MERGING THE RECALIBRATED BAM FILES
+
+process MergeBamRecal { 
+    label 'samtools'
+    label 'cpus_8'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir "${params.outdir}/Preprocessing/${idSample}/Recalibrated", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSample, file(bam) from bamMergeBamRecal
+
+    output:
+        set idPatient, idSample, file("${idSample}.recal.bam"), file("${idSample}.recal.bam.bai") into bamRecal
+        set idPatient, idSample, file("${idSample}.recal.bam") into bamRecalQC
+        set idPatient, idSample into bamRecalTSV
+
+    when: !(params.no_intervals)
+
+    script:
+    """
+    samtools merge --threads ${task.cpus} ${idSample}.recal.bam ${bam}
+    samtools index ${idSample}.recal.bam
+    """
+}
+
+// STEP 4.5': INDEXING THE RECALIBRATED BAM FILES
+
+process IndexBamRecal {
+    label 'samtools'
+    label 'cpus_8'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir "${params.outdir}/Preprocessing/${idSample}/Recalibrated", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSample, file("${idSample}.recal.bam") from bamMergeBamRecalNoInt
+
+    output:
+        set idPatient, idSample, file("${idSample}.recal.bam"), file("${idSample}.recal.bam.bai") into bamRecalNoInt
+        set idPatient, idSample, file("${idSample}.recal.bam") into bamRecalQCnoInt
+        set idPatient, idSample into bamRecalTSVnoInt
+
+    when: params.no_intervals
+
+    script:
+    """
+    samtools index ${idSample}.recal.bam
+    """
+}
+
+bamRecal = bamRecal.mix(bamRecalNoInt)
+bamRecalQC = bamRecalQC.mix(bamRecalQCnoInt)
+bamRecalTSV = bamRecalTSV.mix(bamRecalTSVnoInt)
+
+(bamRecalBamQC, bamRecalSamToolsStats) = bamRecalQC.into(2)
+(bamRecalTSV, bamRecalSampleTSV) = bamRecalTSV.into(2)
+
+// Creating a TSV file to restart from this step
+bamRecalTSV.map { idPatient, idSample ->
+    gender = genderMap[idPatient]
+    status = statusMap[idPatient, idSample]
+    bam = "${params.outdir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam"
+    bai = "${params.outdir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam.bai"
+    "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"
+}.collectFile(
+    name: 'recalibrated.tsv', sort: true, storeDir: "${params.outdir}/Preprocessing/TSV"
+)
+
+bamRecalSampleTSV
+    .collectFile(storeDir: "${params.outdir}/Preprocessing/TSV") {
+        idPatient, idSample ->
+        status = statusMap[idPatient, idSample]
+        gender = genderMap[idPatient]
+        bam = "${params.outdir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam"
+        bai = "${params.outdir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam.bai"
+        ["recalibrated_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"]
+}
+
+// STEP 5: QC
+
+process SamtoolsStats {
+    label 'samtools'
+    label 'cpus_2'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir "${params.outdir}/Reports/${idSample}/SamToolsStats", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSample, file(bam) from bamRecalSamToolsStats
+
+    output:
+        file ("${bam}.samtools.stats.out") into samtoolsStatsReport
+
+    when: !('samtools' in skipQC)
+
+    script:
+    """
+    samtools stats ${bam} > ${bam}.samtools.stats.out
+    """
+}
+
+samtoolsStatsReport = samtoolsStatsReport.dump(tag:'SAMTools')
+
+bamBamQC = bamMappedBamQC.mix(bamRecalBamQC)
+
+process BamQC {
+    label 'qualimap'
+    label 'memory_max'
+    label 'cpus_16'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir "${params.outdir}/Reports/${idSample}/bamQC", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSample, file(bam) from bamBamQC
+        file(targetBED) from ch_targetBED
+
+    output:
+        file("${bam.baseName}") into bamQCReport
+
+    when: !('bamqc' in skipQC)
+
+    script:
+    use_bed = params.targetBED ? "-gff ${targetBED}" : ''
+    """
+    qualimap --java-mem-size=${task.memory.toGiga()}G \
+        bamqc \
+        -bam ${bam} \
+        --paint-chromosome-limits \
+        --genome-gc-distr HUMAN \
+        $use_bed \
+        -nt ${task.cpus} \
+        -skip-duplicated \
+        --skip-dup-mode 0 \
+        -outdir ${bam.baseName} \
+        -outformat HTML
+    """
+}
+
+bamQCReport = bamQCReport.dump(tag:'BamQC')
+
+
+
+
 
 
  
@@ -1085,8 +1505,8 @@ multiQCOut.dump(tag:'MultiQC')
 workflow.onComplete {
 
     // Set up the e-mail variables
-    def subject = "[nf-core/sarek] Successful: ${workflow.runName}"
-    if (!workflow.success) subject = "[nf-core/sarek] FAILED: ${workflow.runName}"
+    def subject = "[EUCANCAN/nf-wgswes] Successful: ${workflow.runName}"
+    if (!workflow.success) subject = "[EUCANCAN/nf-wgswes] FAILED: ${workflow.runName}"
     def email_fields = [:]
     email_fields['version'] = workflow.manifest.version
     email_fields['runName'] = custom_runName ?: workflow.runName
@@ -1117,12 +1537,12 @@ workflow.onComplete {
         if (workflow.success) {
             mqc_report = multiqc_report.getVal()
             if (mqc_report.getClass() == ArrayList) {
-                log.warn "[nf-core/sarek] Found multiple reports from process 'multiqc', will use only one"
+                log.warn "[EUCANCAN/nf-wgswes] Found multiple reports from process 'multiqc', will use only one"
                 mqc_report = mqc_report[0]
             }
         }
     } catch (all) {
-        log.warn "[nf-core/sarek] Could not attach MultiQC report to summary email"
+        log.warn "[EUCANCAN/nf-wgswes] Could not attach MultiQC report to summary email"
     }
 
     // Render the TXT template
@@ -1148,11 +1568,11 @@ workflow.onComplete {
             if (params.plaintext_email) { throw GroovyException('Send plaintext e-mail, not HTML') }
             // Try to send HTML e-mail using sendmail
             [ 'sendmail', '-t' ].execute() << sendmail_html
-            log.info "[nf-core/sarek] Sent summary e-mail to $params.email (sendmail)"
+            log.info "[EUCANCAN/nf-wgswes] Sent summary e-mail to $params.email (sendmail)"
         } catch (all) {
             // Catch failures and try with plaintext
             [ 'mail', '-s', subject, params.email ].execute() << email_txt
-            log.info "[nf-core/sarek] Sent summary e-mail to $params.email (mail)"
+            log.info "[EUCANCAN/nf-wgswes] Sent summary e-mail to $params.email (mail)"
         }
     }
 
@@ -1175,16 +1595,16 @@ workflow.onComplete {
         log.info "${c_green}Number of successfully ran process(es) : ${workflow.stats.succeedCountFmt}${c_reset}"
     }
 
-    if (workflow.success) log.info "${c_purple}[nf-core/sarek]${c_green} Pipeline completed successfully${c_reset}"
+    if (workflow.success) log.info "${c_purple}[EUCANCAN/nf-wgswes]${c_green} Pipeline completed successfully${c_reset}"
     else {
         checkHostname()
-        log.info "${c_purple}[nf-core/sarek]${c_red} Pipeline completed with errors${c_reset}"
+        log.info "${c_purple}[EUCANCAN/nf-wgswes]${c_red} Pipeline completed with errors${c_reset}"
     }
 }
 
 /*
 ================================================================================
-                                nf-core functions
+                                functions
 ================================================================================
 */
 
@@ -1193,8 +1613,8 @@ def create_workflow_summary(summary) {
     yaml_file.text  = """
     id: 'nf-core-sarek-summary'
     description: " - this information is collected when the pipeline is started."
-    section_name: 'nf-core/sarek Workflow Summary'
-    section_href: 'https://github.com/nf-core/sarek'
+    section_name: 'EUCANCAN/nf-wgswes Workflow Summary'
+    section_href: 'https://github.com/EUCANCAN/nf-wgswes'
     plot_type: 'html'
     data: |
         <dl class=\"dl-horizontal\">
@@ -1231,7 +1651,7 @@ def nfcoreHeader() {
      ${c_white}\\ ${c_green}|   \\${c_reset}  /${c_reset}     ${c_blue}.__| /¯¯\\ |  \\ |___ |  \\${c_reset}
       ${c_white}`${c_green}|${c_reset}____${c_green}\\${c_reset}´${c_reset}
 
-    ${c_purple}  nf-core/sarek v${workflow.manifest.version}${c_reset}
+    ${c_purple}  EUCANCAN/nf-wgswes v${workflow.manifest.version}${c_reset}
     ${c_dim}----------------------------------------------------${c_reset}
     """.stripIndent()
 }
@@ -1256,12 +1676,6 @@ def checkHostname() {
         }
     }
 }
-
-/*
-================================================================================
-                                 sarek functions
-================================================================================
-*/
 
 // Check if a row has the expected number of item
 def checkNumberOfItem(row, number) {
