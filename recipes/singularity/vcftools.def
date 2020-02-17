@@ -1,0 +1,20 @@
+Bootstrap: docker
+From: conda/miniconda3-centos7
+
+%labels
+    gitUrl ssh://git@gitlab.curie.fr:2222/plarosa/data-analysis_demo.git
+    gitCommit f33c260a09e8495527e3af24a330543224848a2d / devel
+
+%environment
+    PATH=/usr/local/envs/vcftools_env/bin:$PATH
+    LC_ALL=en_US.utf-8
+    LANG=en_US.utf-8
+
+%post
+    yum install -y which   \
+    && yum clean all \
+    && conda create -y -n vcftools_env  \
+&& conda install -y -c bioconda -n vcftools_env vcftools=0.1.16 \
+    && echo "source activate vcftools_env" > ~/.bashrc \
+    && conda clean -a
+

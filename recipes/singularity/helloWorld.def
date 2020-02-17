@@ -1,0 +1,33 @@
+Bootstrap: docker
+From: centos:7
+Stage: devel
+
+%setup
+    mkdir -p ${SINGULARITY_ROOTFS}/opt/modules
+
+%files
+    modules/helloWorld.sh /opt/modules
+    modules/helloWorld/ /opt/modules
+
+%post
+    yum install -y epel-release which gcc gcc-c++ make \
+    && cd /opt/modules \
+    && bash helloWorld.sh \
+
+Bootstrap: docker
+From: centos:7
+Stage: final
+
+%labels
+    gitUrl ssh://git@gitlab.curie.fr:2222/plarosa/data-analysis_demo.git
+    gitCommit f33c260a09e8495527e3af24a330543224848a2d / devel
+
+%files from devel
+    /usr/local/bin /usr/local/bin
+
+
+%environment
+    LC_ALL=en_US.utf-8
+    LANG=en_US.utf-8
+    PATH=/usr/local/bin:$PATH
+
