@@ -802,6 +802,7 @@ process MapReads {
     output:
         set idPatient, idSample, idRun, file("${idSample}_${idRun}.bam") into bamMapped
         set idPatient, val("${idSample}_${idRun}"), file("${idSample}_${idRun}.bam") into bamMappedBamQC
+        set idPatient, val("${idSample}_${idRun}"), file("${idSample}_${idRun}.bam") into bamMappedMapQ
 
     script:
     // -K is an hidden option, used to fix the number of reads processed by bwa mem
@@ -818,7 +819,7 @@ process MapReads {
     input = hasExtension(inputFile1, "bam") ? "-p /dev/stdin - 2> >(tee ${inputFile1}.bwa.stderr.log >&2)" : "${inputFile1} ${inputFile2}"
     """
         ${convertToFastq}
-        bwa mem -K 100000000 -R \"${readGroup}\" ${extra} -t ${task.cpus} -M ${fasta} \
+        bwa mem ${params.bwaOptions} -R \"${readGroup}\" ${extra} -t ${task.cpus} -M ${fasta} \
         ${input} | \
         samtools sort --threads ${task.cpus} -m 2G - > ${idSample}_${idRun}.bam
     """
@@ -1373,7 +1374,7 @@ bamRecal = bamRecal.mix(bamRecalNoInt)
 bamRecalQC = bamRecalQC.mix(bamRecalQCnoInt)
 bamRecalTSV = bamRecalTSV.mix(bamRecalTSVnoInt)
 
-(bamRecalBamQC, bamRecalSamToolsStats) = bamRecalQC.into(2)
+(bamRecalBamQC, bamRecalSamToolsStats, bamRecalMapQ) = bamRecalQC.into(3)
 (bamRecalTSV, bamRecalSampleTSV) = bamRecalTSV.into(2)
 
 // Creating a TSV file to restart from this step
@@ -1413,7 +1414,7 @@ process SamtoolsStats {
     output:
         file ("${bam}.samtools.stats.out") into samtoolsStatsReport
 
-    when: !('samtools' in skipQC)
+    when: !('samtoolsStats' in skipQC)
 
     script:
     """
@@ -1462,7 +1463,39 @@ process BamQC {
 
 bamQCReport = bamQCReport.dump(tag:'BamQC')
 
+bamMapQ = bamMappedMapQ.mix(bamRecalMapQ)
 
+// Mapping Quality Filter 
+process MapQ {
+    label 'samtools'
+    label 'cpus_2'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir "${params.outdir}/Reports/${idSample}/MapQ", mode: params.publishDirMode
+   // publishDir "${params.outdir}/Reports/${idSample}/MapQ", pattern: '*.{bam,bam.bai}', mode: 'copy', overwrite: true
+
+
+    input:
+        set idPatient, idSample, file(bam) from bamMapQ 
+
+    output:
+        file("${bam.baseName}.${params.mapQual}.mapping.stats") into mapQReport
+
+    when: !('samtools' in skipQC)
+
+    script:
+
+    """
+    samtools view -@ ${task.cpus} -q ${params.mapQual} -b ${bam} > ${idSample}.recal.bam
+    samtools index ${idSample}.recal.bam
+    samtools idxstats ${idSample}.recal.bam |  awk -v id_sample="${idSample}" -v map_qual="${params.mapQual}" '{
+    mapped+=\$3; unmapped+=\$4 } END {
+          printf("SAMPLE\\t%s\\nNB\\t%d\\nNB_MAPPED\\t%d\\n.q%d(%%)\\t%.2f \\n", id_sample, mapped+unmapped, mapped, map_qual, (mapped*100/(mapped+unmapped))) 
+    }' > ${bam.baseName}.${params.mapQual}.mapping.stats 
+
+    """
+}
 
 
 
@@ -1728,6 +1761,7 @@ def defineSkipQClist() {
         'markduplicates',
         'multiqc',
         'samtools',
+        'samtoolsstats',
         'sentieon',
         'vcftools',
         'versions'
@@ -1929,4 +1963,3 @@ def returnStatus(it) {
     if (!(it in [0, 1])) exit 1, "Status is not recognized in TSV file: ${it}, see --help for more information"
     return it
 }
-
