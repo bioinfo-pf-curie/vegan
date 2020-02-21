@@ -87,8 +87,6 @@ def helpMessage() {
         --annotateTools             Specify from which tools Sarek will look for VCF files to annotate, only for step annotate
                                     Available: HaplotypeCaller, Manta, Mutect2, Strelka, TIDDIT
                                     Default: None
-        --sentieon                  If sentieon is available, will enable it for preprocessing, and variant calling
-                                    Adds the following tools for --tools: DNAseq, DNAscope and TNscope
         --annotation_cache          Enable the use of cache for annotation, to be used with --snpEff_cache and/or --vep_cache
         --snpEff_cache              Specity the path to snpEff cache, to be used with --annotation_cache
         --vep_cache                 Specity the path to VEP cache, to be used with --annotation_cache
@@ -211,13 +209,7 @@ if (params.sampleDir) tsvPath = params.sampleDir
 // If no input file specified, trying to get TSV files corresponding to step in the TSV directory
 // only for steps recalibrate and variantCalling
 if (!params.input && step != 'mapping' && step != 'annotate') {
-    if (params.sentieon) {
-        if (step == 'variantcalling') tsvPath =  "${params.outdir}/Preprocessing/TSV/recalibrated_sentieon.tsv"
-        else exit 1, "Not possible to restart from that step"
-    }
-    else {
-        tsvPath = step == 'recalibrate' ? "${params.outdir}/Preprocessing/TSV/duplicateMarked.tsv" : "${params.outdir}/Preprocessing/TSV/recalibrated.tsv"
-    }
+    tsvPath = step == 'recalibrate' ? "${params.outdir}/Preprocessing/TSV/duplicateMarked.tsv" : "${params.outdir}/Preprocessing/TSV/recalibrated.tsv"
 }
 
 inputSample = Channel.empty()
@@ -783,9 +775,9 @@ inputPairReads = inputPairReads.dump(tag:'INPUT')
 
 inputPairReads = inputPairReads.mix(inputBam)
 
-(inputPairReads, inputPairReadsSentieon) = inputPairReads.into(2)
-if (params.sentieon) inputPairReads.close()
-else inputPairReadsSentieon.close()
+//(inputPairReads, inputPairReadsSentieon) = inputPairReads.into(2)
+//if (params.sentieon) inputPairReads.close()
+//else inputPairReadsSentieon.close()
 
 process MapReads {
     label 'gatk_bwa_samtools' 
@@ -840,59 +832,12 @@ singleBam = singleBam.dump(tag:'Single BAM')
 
 // STEP 1': MAPPING READS TO REFERENCE GENOME WITH SENTIEON BWA MEM
 
-process SentieonMapReads {
-    label 'sentieon'
-    label 'cpus_max'
-    label 'memory_max'
-
-    tag {idPatient + "-" + idRun}
-
-    input:
-        set idPatient, idSample, idRun, file(inputFile1), file(inputFile2) from inputPairReadsSentieon
-        file(bwaIndex) from ch_bwaIndex
-        file(fasta) from ch_fasta
-        file(fastaFai) from ch_fastaFai
-
-    output:
-        set idPatient, idSample, idRun, file("${idSample}_${idRun}.bam") into bamMappedSentieon
-        set idPatient, idSample, file("${idSample}_${idRun}.bam") into bamMappedSentieonBamQC
-
-    when: params.sentieon
-
-    script:
-    // -K is an hidden option, used to fix the number of reads processed by bwa mem
-    // Chunk size can affect bwa results, if not specified,
-    // the number of threads can change which can give not deterministic result.
-    // cf https://github.com/CCDG/Pipeline-Standardization/blob/master/PipelineStandard.md
-    // and https://github.com/gatk-workflows/gatk4-data-processing/blob/8ffa26ff4580df4ac3a5aa9e272a4ff6bab44ba2/processing-for-variant-discovery-gatk4.b37.wgs.inputs.json#L29
-    CN = params.sequencing_center ? "CN:${params.sequencing_center}\\t" : ""
-    readGroup = "@RG\\tID:${idRun}\\t${CN}PU:${idRun}\\tSM:${idSample}\\tLB:${idSample}\\tPL:illumina"
-    // adjust mismatch penalty for tumor samples
-    status = statusMap[idPatient, idSample]
-    extra = status == 1 ? "-B 3" : ""
-    """
-    sentieon bwa mem -K 100000000 -R \"${readGroup}\" ${extra} -t ${task.cpus} -M ${fasta} \
-    ${inputFile1} ${inputFile2} | \
-    sentieon util sort -r ${fasta} -o ${idSample}_${idRun}.bam -t ${task.cpus} --sam2bam -i - 
-    """
-}
-
-bamMappedSentieon = bamMappedSentieon.dump(tag:'Sentieon Mapped BAM')
 // Sort BAM whether they are standalone or should be merged
 
-singleBamSentieon = Channel.create()
-multipleBamSentieon = Channel.create()
-bamMappedSentieon.groupTuple(by:[0, 1])
-    .choice(singleBamSentieon, multipleBamSentieon) {it[2].size() > 1 ? 1 : 0}
-singleBamSentieon = singleBamSentieon.map {
-    idPatient, idSample, idRun, bam ->
-    [idPatient, idSample, bam]
-}
-singleBamSentieon = singleBamSentieon.dump(tag:'Single BAM')
 
 // STEP 1.5: MERGING BAM FROM MULTIPLE LANES
 
-multipleBam = multipleBam.mix(multipleBamSentieon)
+//multipleBam = multipleBam.mix(multipleBamSentieon)
 
 process MergeBamMapped {
     label 'samtools' 
@@ -914,33 +859,14 @@ process MergeBamMapped {
 
 mergedBam = mergedBam.dump(tag:'Merged BAM')
 
-mergedBam = mergedBam.mix(singleBam,singleBamSentieon)
+// mergedBam = mergedBam.mix(singleBam,singleBamSentieon)
 
-(mergedBam, mergedBamForSentieon) = mergedBam.into(2)
+//(mergedBam, mergedBamForSentieon) = mergedBam.into(2)
 
-if (!params.sentieon) mergedBamForSentieon.close()
-else mergedBam.close()
+
+mergedBam.close()
 
 mergedBam = mergedBam.dump(tag:'BAMs for MD')
-mergedBamForSentieon = mergedBamForSentieon.dump(tag:'Sentieon BAMs to Index')
-
-process IndexBamMergedForSentieon { 
-    label 'samtools' 
-    label 'cpus_8'
-
-    tag {idPatient + "-" + idSample}
-
-    input:
-        set idPatient, idSample, file(bam) from mergedBamForSentieon
-
-    output:
-        set idPatient, idSample, file(bam), file("${idSample}.bam.bai") into bamForSentieonDedup
-
-    script:
-    """
-    samtools index ${bam}
-    """
-}
 
 (mergedBam, mergedBamToIndex) = mergedBam.into(2)
 
@@ -1015,60 +941,6 @@ bamBaseRecalibrator = bamMD.combine(intBaseRecalibrator)
 
 bamBaseRecalibrator = bamBaseRecalibrator.dump(tag:'BAM FOR BASERECALIBRATOR')
 
-// STEP 2': SENTIEON DEDUP
-
-process SentieonDedup { 
-    label 'sentieon'
-    label 'cpus_max'
-    label 'memory_max'
-
-    tag {idPatient + "-" + idSample}
-
-    publishDir params.outdir, mode: params.publishDirMode,
-        saveAs: {
-            if (it == "${idSample}_*.txt" && 'sentieon' in skipQC) null
-            else if (it == "${idSample}_*.txt") "Reports/${idSample}/Sentieon/${it}"
-            else null
-        }
-
-    input:
-        set idPatient, idSample, file(bam), file(bai) from bamForSentieonDedup
-        file(fasta) from ch_fasta
-        file(fastaFai) from ch_fastaFai
-
-    output:
-        set idPatient, idSample, file("${idSample}.deduped.bam"), file("${idSample}.deduped.bam.bai") into bamDedupedSentieon
-        file("${idSample}_*.txt") into bamDedupedSentieonQC
-
-    when: params.sentieon
-
-    script:
-    """
-    sentieon driver \
-        -t ${task.cpus} \
-        -i ${bam} \
-        -r ${fasta} \
-        --algo GCBias --summary ${idSample}_gc_summary.txt ${idSample}_gc_metric.txt \
-        --algo MeanQualityByCycle ${idSample}_mq_metric.txt \
-        --algo QualDistribution ${idSample}_qd_metric.txt \
-        --algo InsertSizeMetricAlgo ${idSample}_is_metric.txt  \
-        --algo AlignmentStat ${idSample}_aln_metric.txt
-
-    sentieon driver \
-        -t ${task.cpus} \
-        -i ${bam} \
-        --algo LocusCollector \
-        --fun score_info ${idSample}_score.gz
-
-    sentieon driver \
-        -t ${task.cpus} \
-        -i ${bam} \
-        --algo Dedup \
-        --rmdup \
-        --score_info ${idSample}_score.gz  \
-        --metrics ${idSample}_dedup_metric.txt ${idSample}.deduped.bam
-    """
-}
 
 
 // STEP 3: CREATING RECALIBRATION TABLES
@@ -1228,94 +1100,6 @@ process ApplyBQSR {
 bamMergeBamRecal = bamMergeBamRecal.groupTuple(by:[0, 1])
 (bamMergeBamRecal, bamMergeBamRecalNoInt) = bamMergeBamRecal.into(2)
 
-// STEP 4': SENTIEON BQSR
-
-bamDedupedSentieon = bamDedupedSentieon.dump(tag:'deduped.bam')
-
-process SentieonBQSR { 
-    label 'sentieon'
-    label 'cpus_max'
-    label 'memory_max'
-    label 'sentieon'
-
-    tag {idPatient + "-" + idSample}
-
-    publishDir params.outdir, mode: params.publishDirMode,
-        saveAs: {
-            if (it == "${idSample}_recal_result.csv" && 'sentieon' in skipQC) "Reports/${idSample}/Sentieon/${it}"
-            else "Preprocessing/${idSample}/RecalSentieon/${it}"
-        }
-
-    input:
-        set idPatient, idSample, file(bam), file(bai) from bamDedupedSentieon
-        file(dbsnp) from ch_dbsnp
-        file(dbsnpIndex) from ch_dbsnpIndex
-        file(fasta) from ch_fasta
-        file(dict) from ch_dict
-        file(fastaFai) from ch_fastaFai
-        file(knownIndels) from ch_knownIndels
-        file(knownIndelsIndex) from ch_knownIndelsIndex
-
-    output:
-        set idPatient, idSample, file("${idSample}.recal.bam"), file("${idSample}.recal.bam.bai") into bamRecalSentieon 
-        set idPatient, idSample into bamRecalSentieonTSV
-        file("${idSample}_recal_result.csv") into bamRecalSentieonQC
-
-    when: params.sentieon
-
-    script:
-    known = knownIndels.collect{"--known-sites ${it}"}.join(' ')
-    """
-    sentieon driver  \
-        -t ${task.cpus} \
-        -r ${fasta} \
-        -i ${idSample}.deduped.bam \
-        --algo QualCal \
-        -k ${dbsnp} \
-        ${idSample}.recal.table
-
-    sentieon driver \
-        -t ${task.cpus} \
-        -r ${fasta} \
-        -i ${idSample}.deduped.bam \
-        -q ${idSample}.recal.table \
-        --algo QualCal \
-        -k ${dbsnp} \
-        ${idSample}.table.post \
-        --algo ReadWriter ${idSample}.recal.bam
-
-    sentieon driver \
-        -t ${task.cpus} \
-        --algo QualCal \
-        --plot \
-        --before ${idSample}.recal.table \
-        --after ${idSample}.table.post \
-        ${idSample}_recal_result.csv
-    """
-}
-
-(bamRecalSentieonTSV, bamRecalSentieonSampleTSV) = bamRecalSentieonTSV.into(2)
-
-// Creating a TSV file to restart from this step
-bamRecalSentieonTSV.map { idPatient, idSample ->
-    gender = genderMap[idPatient]
-    status = statusMap[idPatient, idSample]
-    bam = "${params.outdir}/Preprocessing/${idSample}/RecalSentieon/${idSample}.recal.bam"
-    bai = "${params.outdir}/Preprocessing/${idSample}/RecalSentieon/${idSample}.recal.bam.bai"
-    "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"
-}.collectFile(
-    name: 'recalibrated_sentieon.tsv', sort: true, storeDir: "${params.outdir}/Preprocessing/TSV"
-)
-
-bamRecalSentieonSampleTSV
-    .collectFile(storeDir: "${params.outdir}/Preprocessing/TSV") {
-        idPatient, idSample ->
-        status = statusMap[idPatient, idSample]
-        gender = genderMap[idPatient]
-        bam = "${params.outdir}/Preprocessing/${idSample}/RecalSentieon/${idSample}.recal.bam"
-        bai = "${params.outdir}/Preprocessing/${idSample}/RecalSentieon/${idSample}.recal.bam.bai"
-        ["recalibrated_sentieon_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"]
-}
 
 // STEP 4.5: MERGING THE RECALIBRATED BAM FILES
 
