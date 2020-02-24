@@ -209,7 +209,13 @@ if (params.sampleDir) tsvPath = params.sampleDir
 // If no input file specified, trying to get TSV files corresponding to step in the TSV directory
 // only for steps recalibrate and variantCalling
 if (!params.input && step != 'mapping' && step != 'annotate') {
-    tsvPath = step == 'recalibrate' ? "${params.outdir}/Preprocessing/TSV/duplicateMarked.tsv" : "${params.outdir}/Preprocessing/TSV/recalibrated.tsv"
+    if (params.sentieon) {
+        if (step == 'variantcalling') tsvPath =  "${params.outdir}/Preprocessing/TSV/recalibrated_sentieon.tsv"
+        else exit 1, "Not possible to restart from that step"
+    }
+    else {
+        tsvPath = step == 'recalibrate' ? "${params.outdir}/Preprocessing/TSV/duplicateMarked.tsv" : "${params.outdir}/Preprocessing/TSV/recalibrated.tsv"
+    }
 }
 
 inputSample = Channel.empty()
@@ -775,10 +781,6 @@ inputPairReads = inputPairReads.dump(tag:'INPUT')
 
 inputPairReads = inputPairReads.mix(inputBam)
 
-//(inputPairReads, inputPairReadsSentieon) = inputPairReads.into(2)
-//if (params.sentieon) inputPairReads.close()
-//else inputPairReadsSentieon.close()
-
 process MapReads {
     label 'gatk_bwa_samtools' 
     label 'cpus_max'
@@ -832,8 +834,6 @@ singleBam = singleBam.dump(tag:'Single BAM')
 
 // STEP 1': MAPPING READS TO REFERENCE GENOME WITH SENTIEON BWA MEM
 
-// Sort BAM whether they are standalone or should be merged
-
 
 // STEP 1.5: MERGING BAM FROM MULTIPLE LANES
 
@@ -859,12 +859,8 @@ process MergeBamMapped {
 
 mergedBam = mergedBam.dump(tag:'Merged BAM')
 
-// mergedBam = mergedBam.mix(singleBam,singleBamSentieon)
-
-//(mergedBam, mergedBamForSentieon) = mergedBam.into(2)
-
-
-mergedBam.close()
+//mergedBam = mergedBam.mix(singleBam,singleBamSentieon)
+mergedBam = mergedBam.mix(singleBam)
 
 mergedBam = mergedBam.dump(tag:'BAMs for MD')
 
@@ -940,8 +936,6 @@ markDuplicatesReport = markDuplicatesReport.dump(tag:'MD Report')
 bamBaseRecalibrator = bamMD.combine(intBaseRecalibrator)
 
 bamBaseRecalibrator = bamBaseRecalibrator.dump(tag:'BAM FOR BASERECALIBRATOR')
-
-
 
 // STEP 3: CREATING RECALIBRATION TABLES
 
@@ -1100,8 +1094,7 @@ process ApplyBQSR {
 bamMergeBamRecal = bamMergeBamRecal.groupTuple(by:[0, 1])
 (bamMergeBamRecal, bamMergeBamRecalNoInt) = bamMergeBamRecal.into(2)
 
-
-// STEP 4.5: MERGING THE RECALIBRATED BAM FILES
+// EP 4.5: MERGING THE RECALIBRATED BAM FILES
 
 process MergeBamRecal { 
     label 'samtools'
@@ -1208,7 +1201,9 @@ process SamtoolsStats {
 
 samtoolsStatsReport = samtoolsStatsReport.dump(tag:'SAMTools')
 
-bamBamQC = bamMappedBamQC.mix(bamRecalBamQC)
+//bamBamQC = bamMappedBamQC.mix(bamRecalBamQC)
+// mapreads + ApplyBQSR 
+bamBamQC = bamMappedBamQC
 
 process BamQC {
     label 'qualimap'
@@ -1247,7 +1242,9 @@ process BamQC {
 
 bamQCReport = bamQCReport.dump(tag:'BamQC')
 
-bamMapQ = bamMappedMapQ.mix(bamRecalMapQ)
+// bamMapQ = bamMappedMapQ.mix(bamRecalMapQ)
+// mapreads + ApplyBQSR 
+bamMapQ = bamMappedMapQ
 
 // Mapping Quality Filter 
 process MapQ {
@@ -1567,8 +1564,6 @@ def defineToolList() {
     return [
         'ascat',
         'controlfreec',
-        'dnascope',
-        'dnaseq',
         'freebayes',
         'haplotypecaller',
         'manta',
@@ -1747,4 +1742,3 @@ def returnStatus(it) {
     if (!(it in [0, 1])) exit 1, "Status is not recognized in TSV file: ${it}, see --help for more information"
     return it
 }
-
