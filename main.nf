@@ -796,7 +796,6 @@ process MapReads {
     output:
         set idPatient, idSample, idRun, file("${idSample}_${idRun}.bam") into bamMapped
         set idPatient, val("${idSample}_${idRun}"), file("${idSample}_${idRun}.bam") into bamMappedBamQC
-        set idPatient, val("${idSample}_${idRun}"), file("${idSample}_${idRun}.bam") into bamMappedMapQ
 
     script:
     // -K is an hidden option, used to fix the number of reads processed by bwa mem
@@ -832,12 +831,8 @@ singleBam = singleBam.map {
 }
 singleBam = singleBam.dump(tag:'Single BAM')
 
-// STEP 1': MAPPING READS TO REFERENCE GENOME WITH SENTIEON BWA MEM
 
-
-// STEP 1.5: MERGING BAM FROM MULTIPLE LANES
-
-//multipleBam = multipleBam.mix(multipleBamSentieon)
+// STEP 1': MERGING BAM FROM MULTIPLE LANES
 
 process MergeBamMapped {
     label 'samtools' 
@@ -859,12 +854,11 @@ process MergeBamMapped {
 
 mergedBam = mergedBam.dump(tag:'Merged BAM')
 
-//mergedBam = mergedBam.mix(singleBam,singleBamSentieon)
 mergedBam = mergedBam.mix(singleBam)
 
 mergedBam = mergedBam.dump(tag:'BAMs for MD')
 
-(mergedBam, mergedBamToIndex) = mergedBam.into(2)
+(mergedBam, mergedBamToIndex, mergedBamM) = mergedBam.into(3)
 
 process IndexBamFile {
     label 'samtools'  
@@ -887,7 +881,51 @@ process IndexBamFile {
     """
 }
 
+// STEP QC
+
+bamMapQ = mergedBam 
+
+// Mapping Quality Filter
+process MapQ {
+    label 'samtools'
+    label 'cpus_2'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir "${params.outdir}/Reports/${idSample}/MapQ", mode: params.publishDirMode
+   // publishDir "${params.outdir}/Reports/${idSample}/MapQ", pattern: '*.{bam,bam.bai}', mode: 'copy', overwrite: true
+
+
+    input:
+        set idPatient, idSample, file(bam) from bamMapQ
+
+    output:
+        set idPatient, idSample, file("${idSample}.recal.bam") into mapQbam
+        file("${bam.baseName}.${params.mapQual}.mapping.stats") into mapQReport
+
+    when: !('mapq' in skipQC)
+
+    script:
+
+    """
+    samtools view -@ ${task.cpus} -q ${params.mapQual} -b ${bam} > ${idSample}.recal.bam
+    samtools index ${idSample}.recal.bam
+    samtools idxstats ${idSample}.recal.bam |  awk -v id_sample="${idSample}" -v map_qual="${params.mapQual}" '{
+    mapped+=\$3; unmapped+=\$4 } END {
+          printf("SAMPLE\\t%s\\nNB\\t%d\\nNB_MAPPED\\t%d\\n.q%d(%%)\\t%.2f \\n", id_sample, mapped+unmapped, mapped, map_qual, (mapped*100/(mapped+unmapped)))
+    }' > ${bam.baseName}.${params.mapQual}.mapping.stats
+
+    """
+}
+
+
 // STEP 2: MARKING DUPLICATES
+
+mapMbam = mapQbam 
+if ('mapq' in skipQC) {
+	mapQbam.close()
+  mapMbam = mergedBamM 
+}
 
 process MarkDuplicates { 
     label 'gatk' 
@@ -903,7 +941,7 @@ process MarkDuplicates {
         }
 
     input:
-        set idPatient, idSample, file("${idSample}.bam") from mergedBam
+        set idPatient, idSample, file("${idSample}.recal.bam") from mapMbam 
 
     output:
         set idPatient, idSample, file("${idSample}.md.bam"), file("${idSample}.md.bai") into duplicateMarkedBams
@@ -917,7 +955,7 @@ process MarkDuplicates {
     gatk --java-options ${markdup_java_options} \
         MarkDuplicates \
         --MAX_RECORDS_IN_RAM 50000 \
-        --INPUT ${idSample}.bam \
+        --INPUT ${idSample}.recal.bam \
         --METRICS_FILE ${idSample}.bam.metrics \
         --TMP_DIR . \
         --ASSUME_SORT_ORDER coordinate \
@@ -1151,7 +1189,7 @@ bamRecal = bamRecal.mix(bamRecalNoInt)
 bamRecalQC = bamRecalQC.mix(bamRecalQCnoInt)
 bamRecalTSV = bamRecalTSV.mix(bamRecalTSVnoInt)
 
-(bamRecalBamQC, bamRecalSamToolsStats, bamRecalMapQ) = bamRecalQC.into(3)
+(bamRecalBamQC, bamRecalSamToolsStats) = bamRecalQC.into(2)
 (bamRecalTSV, bamRecalSampleTSV) = bamRecalTSV.into(2)
 
 // Creating a TSV file to restart from this step
@@ -1201,9 +1239,8 @@ process SamtoolsStats {
 
 samtoolsStatsReport = samtoolsStatsReport.dump(tag:'SAMTools')
 
-//bamBamQC = bamMappedBamQC.mix(bamRecalBamQC)
-// mapreads + ApplyBQSR 
-bamBamQC = bamMappedBamQC
+// bamBamQC = bamMappedBamQC // Mapreads only
+bamBamQC = bamMappedBamQC.mix(bamRecalBamQC) // Mapreads + MapQ + MarkDuplicates + ApplyBQSR 
 
 process BamQC {
     label 'qualimap'
@@ -1242,46 +1279,6 @@ process BamQC {
 
 bamQCReport = bamQCReport.dump(tag:'BamQC')
 
-// bamMapQ = bamMappedMapQ.mix(bamRecalMapQ)
-// mapreads + ApplyBQSR 
-bamMapQ = bamMappedMapQ
-
-// Mapping Quality Filter 
-process MapQ {
-    label 'samtools'
-    label 'cpus_2'
-
-    tag {idPatient + "-" + idSample}
-
-    publishDir "${params.outdir}/Reports/${idSample}/MapQ", mode: params.publishDirMode
-   // publishDir "${params.outdir}/Reports/${idSample}/MapQ", pattern: '*.{bam,bam.bai}', mode: 'copy', overwrite: true
-
-
-    input:
-        set idPatient, idSample, file(bam) from bamMapQ 
-
-    output:
-        file("${bam.baseName}.${params.mapQual}.mapping.stats") into mapQReport
-
-    when: !('samtools' in skipQC)
-
-    script:
-
-    """
-    samtools view -@ ${task.cpus} -q ${params.mapQual} -b ${bam} > ${idSample}.recal.bam
-    samtools index ${idSample}.recal.bam
-    samtools idxstats ${idSample}.recal.bam |  awk -v id_sample="${idSample}" -v map_qual="${params.mapQual}" '{
-    mapped+=\$3; unmapped+=\$4 } END {
-          printf("SAMPLE\\t%s\\nNB\\t%d\\nNB_MAPPED\\t%d\\n.q%d(%%)\\t%.2f \\n", id_sample, mapped+unmapped, mapped, map_qual, (mapped*100/(mapped+unmapped))) 
-    }' > ${bam.baseName}.${params.mapQual}.mapping.stats 
-
-    """
-}
-
-
-
-
- 
 /*
 ================================================================================
                                      MultiQC
@@ -1537,13 +1534,13 @@ def defineAnnoList() {
 def defineSkipQClist() {
     return [
         'bamqc',
+        'mapq',
         'bcftools',
         'fastqc',
         'markduplicates',
         'multiqc',
         'samtools',
         'samtoolsstats',
-        'sentieon',
         'vcftools',
         'versions'
     ]
