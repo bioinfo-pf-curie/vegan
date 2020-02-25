@@ -1359,6 +1359,365 @@ process MantaSingle {
 
 vcfMantaSingle = vcfMantaSingle.dump(tag:'Single Manta')
 
+/*
+================================================================================
+                             SOMATIC VARIANT CALLING
+================================================================================
+*/
+// Ascat
+(bamAscat, bamMpileup, bamMpileupNoInt, bamRecalAll) = bamRecalAll.into(4)
+
+// separate BAM by status
+bamNormal = Channel.create()
+bamTumor = Channel.create()
+
+bamRecalAll
+    .choice(bamTumor, bamNormal) {statusMap[it[0], it[1]] == 0 ? 1 : 0}
+
+// Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
+// Remapping channel to remove common key idPatient
+pairBam = bamNormal.cross(bamTumor).map {
+    normal, tumor ->
+    [normal[0], normal[1], normal[2], normal[3], tumor[1], tumor[2], tumor[3]]
+}
+
+pairBam = pairBam.dump(tag:'BAM Somatic Pair')
+
+// Manta,  Mutect2
+(pairBamManta, pairBamStrelka, pairBamStrelkaBP, pairBamCalculateContamination, pairBamFilterMutect2, pairBamTNscope, pairBam) = pairBam.into(7)
+
+intervalPairBam = pairBam.spread(bedIntervals)
+
+bamMpileup = bamMpileup.spread(intMpileup)
+
+
+// intervals for Mutect2 calls, FreeBayes and pileups for Mutect2 filtering
+(pairBamMutect2, pairBamFreeBayes, pairBamPileupSummaries) = intervalPairBam.into(3)
+
+
+// STEP MANTA.2 - SOMATIC PAIR
+
+process Manta {
+    label 'manta'
+    label 'cpus_max'
+    label 'memory_max'
+
+    tag {idSampleTumor + "_vs_" + idSampleNormal}
+
+    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/Manta", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor) from pairBamManta
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+        file(targetBED) from ch_targetBED
+
+    output:
+        set val("Manta"), idPatient, val("${idSampleTumor}_vs_${idSampleNormal}"), file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfManta
+        set idPatient, idSampleNormal, idSampleTumor, file("*.candidateSmallIndels.vcf.gz"), file("*.candidateSmallIndels.vcf.gz.tbi") into mantaToStrelka
+
+    when: 'manta' in tools
+
+    script:
+    beforeScript = params.targetBED ? "bgzip --threads ${task.cpus} -c ${targetBED} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
+    options = params.targetBED ? "--exome --callRegions call_targets.bed.gz" : ""
+    """
+    ${beforeScript}
+    configManta.py \
+        --normalBam ${bamNormal} \
+        --tumorBam ${bamTumor} \
+        --reference ${fasta} \
+        ${options} \
+        --runDir Manta
+
+    python Manta/runWorkflow.py -m local -j ${task.cpus}
+
+    mv Manta/results/variants/candidateSmallIndels.vcf.gz \
+        Manta_${idSampleTumor}_vs_${idSampleNormal}.candidateSmallIndels.vcf.gz
+    mv Manta/results/variants/candidateSmallIndels.vcf.gz.tbi \
+        Manta_${idSampleTumor}_vs_${idSampleNormal}.candidateSmallIndels.vcf.gz.tbi
+    mv Manta/results/variants/candidateSV.vcf.gz \
+        Manta_${idSampleTumor}_vs_${idSampleNormal}.candidateSV.vcf.gz
+    mv Manta/results/variants/candidateSV.vcf.gz.tbi \
+        Manta_${idSampleTumor}_vs_${idSampleNormal}.candidateSV.vcf.gz.tbi
+    mv Manta/results/variants/diploidSV.vcf.gz \
+        Manta_${idSampleTumor}_vs_${idSampleNormal}.diploidSV.vcf.gz
+    mv Manta/results/variants/diploidSV.vcf.gz.tbi \
+        Manta_${idSampleTumor}_vs_${idSampleNormal}.diploidSV.vcf.gz.tbi
+    mv Manta/results/variants/somaticSV.vcf.gz \
+        Manta_${idSampleTumor}_vs_${idSampleNormal}.somaticSV.vcf.gz
+    mv Manta/results/variants/somaticSV.vcf.gz.tbi \
+        Manta_${idSampleTumor}_vs_${idSampleNormal}.somaticSV.vcf.gz.tbi
+    """
+}
+
+vcfManta = vcfManta.dump(tag:'Manta')
+
+// STEP GATK MUTECT2.1 - RAW CALLS
+
+process Mutect2 {
+    tag {idSampleTumor + "_vs_" + idSampleNormal + "-" + intervalBed.baseName}
+    label 'gatk'
+    label 'cpus_1'
+
+    input:
+        set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamMutect2
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+        file(germlineResource) from ch_germlineResource
+        file(germlineResourceIndex) from ch_germlineResourceIndex
+        file(intervals) from ch_intervals
+        file(pon) from ch_pon
+        file(ponIndex) from ch_ponIndex
+
+    output:
+        set val("Mutect2"), 
+            idPatient,
+            val("${idSampleTumor}_vs_${idSampleNormal}"),
+            file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf") into mutect2Output
+        set idPatient,
+            idSampleTumor,
+            idSampleNormal,
+            file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf.stats") optional true into mutect2Stats
+
+    when: 'mutect2' in tools
+
+    script:
+    // please make a panel-of-normals, using at least 40 samples
+    // https://gatkforums.broadinstitute.org/gatk/discussion/11136/how-to-call-somatic-mutations-using-gatk4-mutect2
+    PON = params.pon ? "--panel-of-normals ${pon}" : ""
+    """
+    # Get raw calls
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+      Mutect2 \
+      -R ${fasta}\
+      -I ${bamTumor}  -tumor ${idSampleTumor} \
+      -I ${bamNormal} -normal ${idSampleNormal} \
+      -L ${intervalBed} \
+      --germline-resource ${germlineResource} \
+      ${PON} \
+      -O ${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf
+    """
+}
+
+mutect2Output = mutect2Output.groupTuple(by:[0,1,2])
+(mutect2Output, mutect2OutForStats) = mutect2Output.into(2)
+
+(mutect2Stats, intervalStatsFiles) = mutect2Stats.into(2)
+mutect2Stats = mutect2Stats.groupTuple(by:[0,1,2])
+
+// STEP GATK MUTECT2.2 - MERGING STATS
+
+process MergeMutect2Stats {
+    tag {idSampleTumor + "_vs_" + idSampleNormal}
+    label 'gatk'
+
+    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/Mutect2", mode: params.publishDirMode
+
+    input:
+        set caller, idPatient, idSampleTumor_vs_idSampleNormal, file(vcfFiles) from mutect2OutForStats // corresponding small VCF chunks
+        set idPatient, idSampleTumor, idSampleNormal, file(statsFiles) from mutect2Stats               // the actual stats files
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+        file(germlineResource) from ch_germlineResource
+        file(germlineResourceIndex) from ch_germlineResourceIndex
+        file(intervals) from ch_intervals
+
+    output:
+        file("${idSampleTumor_vs_idSampleNormal}.vcf.gz.stats") into mergedStatsFile
+
+    when: 'mutect2' in tools
+
+    script:     
+      stats = statsFiles.collect{ "-stats ${it} " }.join(' ')
+    """
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        MergeMutectStats \
+        ${stats} \
+        -O ${idSampleTumor}_vs_${idSampleNormal}.vcf.gz.stats
+    """
+}
+
+// we are merging the VCFs that are called separatelly for different intervals
+// so we can have a single sorted VCF containing all the calls for a given caller
+
+// STEP MERGING VCF - FREEBAYES, GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED)
+
+// vcfConcatenateVCFs = mutect2Output.mix(vcfFreeBayes, vcfGenotypeGVCFs, gvcfHaplotypeCaller)
+vcfConcatenateVCFs = mutect2Output
+vcfConcatenateVCFs = vcfConcatenateVCFs.dump(tag:'VCF to merge')
+
+process ConcatVCF {
+    label 'onlyLinux'
+    label 'cpus_8'
+
+    tag {variantCaller + "-" + idSample}
+
+    publishDir "${params.outdir}/VariantCalling/${idSample}/${"$variantCaller"}", mode: params.publishDirMode
+
+    input:
+        set variantCaller, idPatient, idSample, file(vcFiles) from vcfConcatenateVCFs
+        file(fastaFai) from ch_fastaFai
+        file(targetBED) from ch_targetBED
+
+    output:
+    // we have this funny *_* pattern to avoid copying the raw calls to publishdir
+        set variantCaller, idPatient, idSample, file("*_*.vcf.gz"), file("*_*.vcf.gz.tbi") into vcfConcatenated
+
+    when: ('haplotypecaller' in tools || 'mutect2' in tools || 'freebayes' in tools)
+
+    script:
+    if (variantCaller == 'HaplotypeCallerGVCF') 
+      outputFile = "HaplotypeCaller_${idSample}.g.vcf"
+    else if (variantCaller == "Mutect2") 
+      outputFile = "unfiltered_${variantCaller}_${idSample}.vcf"
+    else 
+      outputFile = "${variantCaller}_${idSample}.vcf"
+    options = params.targetBED ? "-t ${targetBED}" : ""
+    """
+    concatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options}
+    """
+}
+
+(vcfConcatenated, vcfConcatenatedForFilter) = vcfConcatenated.into(2)
+vcfConcatenated = vcfConcatenated.dump(tag:'VCF')
+
+// STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
+
+process PileupSummariesForMutect2 {
+    tag {idSampleTumor + "_vs_" + idSampleNormal + "_" + intervalBed.baseName }
+    label 'gatk'
+    label 'cpus_1'
+
+    input:
+        set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummaries 
+        set idPatient, idSampleNormal, idSampleTumor, file(statsFile) from intervalStatsFiles
+        file(germlineResource) from ch_germlineResource
+        file(germlineResourceIndex) from ch_germlineResourceIndex
+
+    output:
+        set idPatient,
+            idSampleTumor,
+            file("${intervalBed.baseName}_${idSampleTumor}_pileupsummaries.table") into pileupSummaries
+
+    when: 'mutect2' in tools && params.pon
+
+    script:
+    """
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        GetPileupSummaries \
+        -I ${bamTumor} \
+        -V ${germlineResource} \
+        -L ${intervalBed} \
+        -O ${intervalBed.baseName}_${idSampleTumor}_pileupsummaries.table
+    """
+}
+
+pileupSummaries = pileupSummaries.groupTuple(by:[0,1])
+
+// STEP GATK MUTECT2.4 - MERGING PILEUP SUMMARIES
+
+process MergePileupSummaries {
+    label 'gatk'
+    label 'cpus_1'
+
+    tag {idPatient + "_" + idSampleTumor}
+
+    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSampleTumor, file(pileupSums) from pileupSummaries
+        file(dict) from ch_dict
+
+    output:
+        file("${idSampleTumor}_pileupsummaries.table.tsv") into mergedPileupFile
+
+    when: 'mutect2' in tools
+    script:
+        allPileups = pileupSums.collect{ "-I ${it} " }.join(' ')
+    """
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        GatherPileupSummaries \
+        --sequence-dictionary ${dict} \
+        ${allPileups} \
+        -O ${idSampleTumor}_pileupsummaries.table.tsv
+    """
+}
+
+// STEP GATK MUTECT2.5 - CALCULATING CONTAMINATION
+
+process CalculateContamination {
+    label 'gatk'
+    label 'cpus_1'
+
+    tag {idSampleTumor + "_vs_" + idSampleNormal}
+
+    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor) from pairBamCalculateContamination 
+        file("${idSampleTumor}_pileupsummaries.table") from mergedPileupFile
+  
+    output:
+        file("${idSampleTumor}_contamination.table") into contaminationTable
+
+    when: 'mutect2' in tools && params.pon
+
+    script:     
+    """
+    # calculate contamination
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        CalculateContamination \
+        -I ${idSampleTumor}_pileupsummaries.table \
+        -O ${idSampleTumor}_contamination.table
+    """
+}
+
+// STEP GATK MUTECT2.6 - FILTERING CALLS
+
+process FilterMutect2Calls {
+    label 'gatk'
+    label 'cpus_1'
+
+    tag {idSampleTN}
+
+    publishDir "${params.outdir}/VariantCalling/${idSampleTN}/${"$variantCaller"}", mode: params.publishDirMode
+
+    input:
+        set variantCaller, idPatient, idSampleTN, file(unfiltered), file(unfilteredIndex) from vcfConcatenatedForFilter
+        file("${idSampleTN}.vcf.gz.stats") from mergedStatsFile
+        file("${idSampleTN}_contamination.table") from contaminationTable
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+        file(germlineResource) from ch_germlineResource
+        file(germlineResourceIndex) from ch_germlineResourceIndex
+        file(intervals) from ch_intervals
+        
+    output:
+        set val("Mutect2"), idPatient, idSampleTN,
+            file("filtered_${variantCaller}_${idSampleTN}.vcf.gz"),
+            file("filtered_${variantCaller}_${idSampleTN}.vcf.gz.tbi"),
+            file("filtered_${variantCaller}_${idSampleTN}.vcf.gz.filteringStats.tsv") into filteredMutect2Output
+
+    when: 'mutect2' in tools && params.pon
+
+    script:
+    """
+    # do the actual filtering
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        FilterMutectCalls \
+        -V ${unfiltered} \
+        --contamination-table ${idSampleTN}_contamination.table \
+        --stats ${idSampleTN}.vcf.gz.stats \
+        -R ${fasta} \
+        -O filtered_${variantCaller}_${idSampleTN}.vcf.gz
+    """
+}
+
+
 
 
 
@@ -1643,7 +2002,6 @@ def defineStepList() {
 def defineToolList() {
     return [
         'ascat',
-        'controlfreec',
         'freebayes',
         'haplotypecaller',
         'manta',
@@ -1653,7 +2011,6 @@ def defineToolList() {
         'snpeff',
         'strelka',
         'tiddit',
-        'tnscope',
         'vep'
     ]
 }
