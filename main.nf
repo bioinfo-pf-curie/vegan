@@ -1279,6 +1279,89 @@ process BamQC {
 
 bamQCReport = bamQCReport.dump(tag:'BamQC')
 
+
+/*
+================================================================================
+                            GERMLINE VARIANT CALLING
+================================================================================
+*/
+
+// When no knownIndels for mapping, Channel bamRecal is indexedBam
+bamRecal = (params.knownIndels && step == 'mapping') ? bamRecal : indexedBam
+
+// When starting with variant calling, Channel bamRecal is inputSample
+if (step == 'variantcalling') bamRecal = inputSample
+
+bamRecal = bamRecal.dump(tag:'BAM')
+
+// Here we have a recalibrated bam set
+// The TSV file is formatted like: "idPatient status idSample bamFile baiFile"
+// Manta will be run in Germline mode, or in Tumor mode depending on status
+// HaplotypeCaller, TIDDIT and Strelka will be run for Normal and Tumor samples
+
+(bamMantaSingle, bamStrelkaSingle, bamTIDDIT, bamRecalAll, bamRecalAllTemp) = bamRecal.into(5)
+
+// To speed Variant Callers up we are chopping the reference into smaller pieces
+// Do variant calling by this intervals, and re-merge the VCFs
+
+// STEP MANTA.1 - SINGLE MODE
+
+process MantaSingle {
+    label 'manta'
+    label 'cpus_max'
+    label 'memory_max'
+
+    tag {idSample}
+
+    publishDir "${params.outdir}/VariantCalling/${idSample}/Manta", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSample, file(bam), file(bai) from bamMantaSingle
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+        file(targetBED) from ch_targetBED
+
+    output:
+        set val("Manta"), idPatient, idSample, file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaSingle
+
+    when: 'manta' in tools
+
+    script:
+    beforeScript = params.targetBED ? "bgzip --threads ${task.cpus} -c ${targetBED} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
+    options = params.targetBED ? "--exome --callRegions call_targets.bed.gz" : ""
+    status = statusMap[idPatient, idSample]
+    inputbam = status == 0 ? "--bam" : "--tumorBam"
+    vcftype = status == 0 ? "diploid" : "tumor"
+    """
+    ${beforeScript}
+    configManta.py \
+        ${inputbam} ${bam} \
+        --reference ${fasta} \
+        ${options} \
+        --runDir Manta
+
+    python Manta/runWorkflow.py -m local -j ${task.cpus}
+
+    mv Manta/results/variants/candidateSmallIndels.vcf.gz \
+        Manta_${idSample}.candidateSmallIndels.vcf.gz
+    mv Manta/results/variants/candidateSmallIndels.vcf.gz.tbi \
+        Manta_${idSample}.candidateSmallIndels.vcf.gz.tbi
+    mv Manta/results/variants/candidateSV.vcf.gz \
+        Manta_${idSample}.candidateSV.vcf.gz
+    mv Manta/results/variants/candidateSV.vcf.gz.tbi \
+        Manta_${idSample}.candidateSV.vcf.gz.tbi
+    mv Manta/results/variants/${vcftype}SV.vcf.gz \
+        Manta_${idSample}.${vcftype}SV.vcf.gz
+    mv Manta/results/variants/${vcftype}SV.vcf.gz.tbi \
+        Manta_${idSample}.${vcftype}SV.vcf.gz.tbi
+    """
+}
+
+vcfMantaSingle = vcfMantaSingle.dump(tag:'Single Manta')
+
+
+
+
 /*
 ================================================================================
                                      MultiQC
