@@ -884,15 +884,9 @@ process IndexBamFile {
 // STEP 2: FILTRES : MARKING DUPLICATES
 
 mapMbam = mergedBam 
-//if ('mapq' in skipQC) {
-//	mapQbam.close()
- // mapMbam = mergedBamM 
-//}
-
-mapMbam = mergedBam 
 
 process MarkDuplicates { 
-    label 'gatk' 
+    label 'sambamba' 
     label 'cpus_16'
 
     tag {idPatient + "-" + idSample}
@@ -908,24 +902,18 @@ process MarkDuplicates {
         set idPatient, idSample, file("${idSample}.bam") from mapMbam 
 
     output:
-        set idPatient, idSample, file("${idSample}.md.bam"), file("${idSample}.md.bai") into duplicateMarkedBams
+        set idPatient, idSample, file("${idSample}.md.bam"), file("${idSample}.md.bam.bai") into duplicateMarkedBams
         //set idPatient, idSample, file("${idSample}.md.bam") into duplicateMarkedBams
         file ("${idSample}.bam.metrics") into markDuplicatesReport
 
     when: params.knownIndels
 
     script:
-    markdup_java_options = task.memory.toGiga() > 8 ? params.markdupJavaOptions : "\"-Xms" +  (task.memory.toGiga() / 2).trunc() + "g -Xmx" + (task.memory.toGiga() - 1) + "g\""
     """
-    gatk --java-options ${markdup_java_options} \
-        MarkDuplicates \
-        --MAX_RECORDS_IN_RAM 50000 \
-        --INPUT ${idSample}.bam \
-        --METRICS_FILE ${idSample}.bam.metrics \
-        --TMP_DIR . \
-        --ASSUME_SORT_ORDER coordinate \
-        --CREATE_INDEX true \
-        --OUTPUT ${idSample}.md.bam
+
+    sambamba markdup --remove-duplicates --nthreads ${task.cpus} --tmpdir . ${idSample}.bam ${idSample}.md.bam 
+    echo "markDuplicatesReport"  > ${idSample}.bam.metrics
+
     """
 }
 
@@ -948,7 +936,6 @@ process MapQ {
         set idPatient, idSample, file(bam), file(bai) from bamMapQ
 
     output:
-        // set idPatient, idSample, file("${idSample}.recal.bam") into mapQbam
         set idPatient, idSample, file("${idSample}.recal.bam"), file("${idSample}.recal.bam.bai") into mapQbam 
         file("${bam.baseName}.${params.mapQual}.mapping.stats") into mapQReport
 
@@ -972,7 +959,7 @@ markDuplicatesReport = markDuplicatesReport.dump(tag:'MD Report')
 
 //if ('mapq' in skipQC) {
 //	mapQbam.close()
- // mapMbam = mergedBamM 
+ // mapQbam = duplicateMarkedBams 
 //}
 
 (bamMD, bamMDToJoin) = mapQbam.into(2) // duplicateMarked + MapQ 
