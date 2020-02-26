@@ -881,51 +881,15 @@ process IndexBamFile {
     """
 }
 
-// STEP QC
+// STEP 2: FILTRES : MARKING DUPLICATES
 
-bamMapQ = mergedBam 
+mapMbam = mergedBam 
+//if ('mapq' in skipQC) {
+//	mapQbam.close()
+ // mapMbam = mergedBamM 
+//}
 
-// Mapping Quality Filter
-process MapQ {
-    label 'samtools'
-    label 'cpus_2'
-
-    tag {idPatient + "-" + idSample}
-
-    publishDir "${params.outdir}/Reports/${idSample}/MapQ", mode: params.publishDirMode
-   // publishDir "${params.outdir}/Reports/${idSample}/MapQ", pattern: '*.{bam,bam.bai}', mode: 'copy', overwrite: true
-
-
-    input:
-        set idPatient, idSample, file(bam) from bamMapQ
-
-    output:
-        set idPatient, idSample, file("${idSample}.recal.bam") into mapQbam
-        file("${bam.baseName}.${params.mapQual}.mapping.stats") into mapQReport
-
-    when: !('mapq' in skipQC)
-
-    script:
-
-    """
-    samtools view -@ ${task.cpus} -q ${params.mapQual} -b ${bam} > ${idSample}.recal.bam
-    samtools index ${idSample}.recal.bam
-    samtools idxstats ${idSample}.recal.bam |  awk -v id_sample="${idSample}" -v map_qual="${params.mapQual}" '{
-    mapped+=\$3; unmapped+=\$4 } END {
-          printf("SAMPLE\\t%s\\nNB\\t%d\\nNB_MAPPED\\t%d\\n.q%d(%%)\\t%.2f \\n", id_sample, mapped+unmapped, mapped, map_qual, (mapped*100/(mapped+unmapped)))
-    }' > ${bam.baseName}.${params.mapQual}.mapping.stats
-
-    """
-}
-
-
-// STEP 2: MARKING DUPLICATES
-
-mapMbam = mapQbam 
-if ('mapq' in skipQC) {
-	mapQbam.close()
-  mapMbam = mergedBamM 
-}
+mapMbam = mergedBam 
 
 process MarkDuplicates { 
     label 'gatk' 
@@ -941,10 +905,11 @@ process MarkDuplicates {
         }
 
     input:
-        set idPatient, idSample, file("${idSample}.recal.bam") from mapMbam 
+        set idPatient, idSample, file("${idSample}.bam") from mapMbam 
 
     output:
         set idPatient, idSample, file("${idSample}.md.bam"), file("${idSample}.md.bai") into duplicateMarkedBams
+        //set idPatient, idSample, file("${idSample}.md.bam") into duplicateMarkedBams
         file ("${idSample}.bam.metrics") into markDuplicatesReport
 
     when: params.knownIndels
@@ -955,7 +920,7 @@ process MarkDuplicates {
     gatk --java-options ${markdup_java_options} \
         MarkDuplicates \
         --MAX_RECORDS_IN_RAM 50000 \
-        --INPUT ${idSample}.recal.bam \
+        --INPUT ${idSample}.bam \
         --METRICS_FILE ${idSample}.bam.metrics \
         --TMP_DIR . \
         --ASSUME_SORT_ORDER coordinate \
@@ -966,10 +931,51 @@ process MarkDuplicates {
 
 if ('markduplicates' in skipQC) markDuplicatesReport.close()
 
+bamMapQ = duplicateMarkedBams 
+
+// Mapping Quality Filter
+process MapQ {
+    label 'samtools'
+    label 'cpus_2'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir "${params.outdir}/Reports/${idSample}/MapQ", mode: params.publishDirMode
+   // publishDir "${params.outdir}/Reports/${idSample}/MapQ", pattern: '*.{bam,bam.bai}', mode: 'copy', overwrite: true
+
+
+    input:
+        set idPatient, idSample, file(bam), file(bai) from bamMapQ
+
+    output:
+        // set idPatient, idSample, file("${idSample}.recal.bam") into mapQbam
+        set idPatient, idSample, file("${idSample}.recal.bam"), file("${idSample}.recal.bam.bai") into mapQbam 
+        file("${bam.baseName}.${params.mapQual}.mapping.stats") into mapQReport
+
+    when: !('mapq' in skipQC)
+
+    script:
+
+    """
+    samtools view -@ ${task.cpus} -q ${params.mapQual} -b ${bam} > ${idSample}.recal.bam
+    samtools index ${idSample}.recal.bam 
+    samtools idxstats ${idSample}.recal.bam |  awk -v id_sample="${idSample}" -v map_qual="${params.mapQual}" '{
+    mapped+=\$3; unmapped+=\$4 } END {
+          printf("SAMPLE\\t%s\\nNB\\t%d\\nNB_MAPPED\\t%d\\n.q%d(%%)\\t%.2f \\n", id_sample, mapped+unmapped, mapped, map_qual, (mapped*100/(mapped+unmapped)))
+    }' > ${bam.baseName}.${params.mapQual}.mapping.stats
+
+    """
+}
+
 duplicateMarkedBams = duplicateMarkedBams.dump(tag:'MD BAM')
 markDuplicatesReport = markDuplicatesReport.dump(tag:'MD Report')
 
-(bamMD, bamMDToJoin) = duplicateMarkedBams.into(2)
+//if ('mapq' in skipQC) {
+//	mapQbam.close()
+ // mapMbam = mergedBamM 
+//}
+
+(bamMD, bamMDToJoin) = mapQbam.into(2) // duplicateMarked + MapQ 
 
 bamBaseRecalibrator = bamMD.combine(intBaseRecalibrator)
 
