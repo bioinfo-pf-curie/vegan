@@ -209,13 +209,7 @@ if (params.sampleDir) tsvPath = params.sampleDir
 // If no input file specified, trying to get TSV files corresponding to step in the TSV directory
 // only for steps recalibrate and variantCalling
 if (!params.input && step != 'mapping' && step != 'annotate') {
-    if (params.sentieon) {
-        if (step == 'variantcalling') tsvPath =  "${params.outdir}/Preprocessing/TSV/recalibrated_sentieon.tsv"
-        else exit 1, "Not possible to restart from that step"
-    }
-    else {
-        tsvPath = step == 'recalibrate' ? "${params.outdir}/Preprocessing/TSV/duplicateMarked.tsv" : "${params.outdir}/Preprocessing/TSV/recalibrated.tsv"
-    }
+	tsvPath = step == 'recalibrate' ? "${params.outdir}/Preprocessing/TSV/duplicateMarked.tsv" : "${params.outdir}/Preprocessing/TSV/recalibrated.tsv"
 }
 
 inputSample = Channel.empty()
@@ -902,8 +896,7 @@ process MarkDuplicates {
         set idPatient, idSample, file("${idSample}.bam") from mapMbam 
 
     output:
-        set idPatient, idSample, file("${idSample}.md.bam"), file("${idSample}.md.bam.bai") into duplicateMarkedBams
-        //set idPatient, idSample, file("${idSample}.md.bam") into duplicateMarkedBams
+        set idPatient, idSample, file("${idSample}.md.bam"), file("${idSample}.md.bam.bai") into duplicateMarkedBams, duplicateMarkedBamsMQ
         file ("${idSample}.bam.metrics") into markDuplicatesReport
 
     when: params.knownIndels
@@ -919,8 +912,6 @@ process MarkDuplicates {
 
 if ('markduplicates' in skipQC) markDuplicatesReport.close()
 
-bamMapQ = duplicateMarkedBams 
-
 // Mapping Quality Filter
 process MapQ {
     label 'samtools'
@@ -933,7 +924,7 @@ process MapQ {
 
 
     input:
-        set idPatient, idSample, file(bam), file(bai) from bamMapQ
+        set idPatient, idSample, file(bam), file(bai) from duplicateMarkedBamsMQ 
 
     output:
         set idPatient, idSample, file("${idSample}.recal.bam"), file("${idSample}.recal.bam.bai") into mapQbam 
@@ -957,10 +948,9 @@ process MapQ {
 duplicateMarkedBams = duplicateMarkedBams.dump(tag:'MD BAM')
 markDuplicatesReport = markDuplicatesReport.dump(tag:'MD Report')
 
-//if ('mapq' in skipQC) {
-//	mapQbam.close()
- // mapQbam = duplicateMarkedBams 
-//}
+if ('mapq' in skipQC) {
+ 	mapQbam = duplicateMarkedBams 
+}
 
 (bamMD, bamMDToJoin) = mapQbam.into(2) // duplicateMarked + MapQ 
 
@@ -1461,8 +1451,6 @@ process Mutect2 {
         file(germlineResource) from ch_germlineResource
         file(germlineResourceIndex) from ch_germlineResourceIndex
         file(intervals) from ch_intervals
-        file(pon) from ch_pon
-        file(ponIndex) from ch_ponIndex
 
     output:
         set val("Mutect2"), 
@@ -1595,7 +1583,7 @@ process PileupSummariesForMutect2 {
             idSampleTumor,
             file("${intervalBed.baseName}_${idSampleTumor}_pileupsummaries.table") into pileupSummaries
 
-    when: 'mutect2' in tools && params.pon
+    when: 'mutect2' in tools
 
     script:
     """
@@ -1656,7 +1644,7 @@ process CalculateContamination {
     output:
         file("${idSampleTumor}_contamination.table") into contaminationTable
 
-    when: 'mutect2' in tools && params.pon
+    when: 'mutect2' in tools
 
     script:     
     """
@@ -1695,7 +1683,7 @@ process FilterMutect2Calls {
             file("filtered_${variantCaller}_${idSampleTN}.vcf.gz.tbi"),
             file("filtered_${variantCaller}_${idSampleTN}.vcf.gz.filteringStats.tsv") into filteredMutect2Output
 
-    when: 'mutect2' in tools && params.pon
+    when: 'mutect2' in tools
 
     script:
     """
@@ -1729,8 +1717,10 @@ process MultiQC {
     input:
         file (multiqcConfig) from Channel.value(params.multiqc_config ? file(params.multiqc_config) : "")
         file (versions) from yamlSoftwareVersion
+        file ('bamQC/*') from bamQCReport.collect().ifEmpty([])
         file ('FastQC/*') from fastQCReport.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReport.collect().ifEmpty([])
+        file ('SamToolsStats/*') from samtoolsStatsReport.collect().ifEmpty([])
 
     output:
         set file("*multiqc_report.html"), file("*multiqc_data") into multiQCOut
