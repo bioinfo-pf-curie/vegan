@@ -1287,6 +1287,85 @@ bamRecal = bamRecal.dump(tag:'BAM')
 // To speed Variant Callers up we are chopping the reference into smaller pieces
 // Do variant calling by this intervals, and re-merge the VCFs
 
+bamHaplotypeCaller = bamRecalAllTemp.combine(intHaplotypeCaller)
+
+// STEP GATK HAPLOTYPECALLER.1
+
+process HaplotypeCaller {
+    label 'gatk'
+    label 'memory_singleCPU_task_sq'
+    label 'cpus_2'
+
+    tag {idSample + "-" + intervalBed.baseName}
+
+    input:
+        set idPatient, idSample, file(bam), file(bai), file(intervalBed) from bamHaplotypeCaller
+        file(dbsnp) from ch_dbsnp
+        file(dbsnpIndex) from ch_dbsnpIndex
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+
+    output:
+        set val("HaplotypeCallerGVCF"), idPatient, idSample, file("${intervalBed.baseName}_${idSample}.g.vcf") into gvcfHaplotypeCaller
+        set idPatient, idSample, file(intervalBed), file("${intervalBed.baseName}_${idSample}.g.vcf") into gvcfGenotypeGVCFs
+
+    when: 'haplotypecaller' in tools
+
+    script:
+    """
+    gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
+        HaplotypeCaller \
+        -R ${fasta} \
+        -I ${bam} \
+        -L ${intervalBed} \
+        -D ${dbsnp} \
+        -O ${intervalBed.baseName}_${idSample}.g.vcf \
+        -ERC GVCF
+    """
+}
+
+gvcfHaplotypeCaller = gvcfHaplotypeCaller.groupTuple(by:[0, 1, 2])
+
+if (params.noGVCF) gvcfHaplotypeCaller.close()
+else gvcfHaplotypeCaller = gvcfHaplotypeCaller.dump(tag:'GVCF HaplotypeCaller')
+
+// STEP GATK HAPLOTYPECALLER.2
+
+process GenotypeGVCFs {
+    label 'gatk'
+    tag {idSample + "-" + intervalBed.baseName}
+
+    input:
+        set idPatient, idSample, file(intervalBed), file(gvcf) from gvcfGenotypeGVCFs
+        file(dbsnp) from ch_dbsnp
+        file(dbsnpIndex) from ch_dbsnpIndex
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+
+    output:
+    set val("HaplotypeCaller"), idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf") into vcfGenotypeGVCFs
+
+    when: 'haplotypecaller' in tools
+
+    script:
+    // Using -L is important for speed and we have to index the interval files also
+    """
+    gatk --java-options -Xmx${task.memory.toGiga()}g \
+        IndexFeatureFile -F ${gvcf}
+
+    gatk --java-options -Xmx${task.memory.toGiga()}g \
+        GenotypeGVCFs \
+        -R ${fasta} \
+        -L ${intervalBed} \
+        -D ${dbsnp} \
+        -V ${gvcf} \
+        -O ${intervalBed.baseName}_${idSample}.vcf
+    """
+}
+vcfGenotypeGVCFs = vcfGenotypeGVCFs.groupTuple(by:[0, 1, 2])
+
 // STEP MANTA.1 - SINGLE MODE
 
 process MantaSingle {
@@ -1526,12 +1605,12 @@ process MergeMutect2Stats {
 
 // STEP MERGING VCF - FREEBAYES, GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED)
 
-// vcfConcatenateVCFs = mutect2Output.mix(vcfFreeBayes, vcfGenotypeGVCFs, gvcfHaplotypeCaller)
-vcfConcatenateVCFs = mutect2Output
+//vcfConcatenateVCFs = mutect2Output.mix(vcfFreeBayes, vcfGenotypeGVCFs, gvcfHaplotypeCaller)
+vcfConcatenateVCFs = mutect2Output.mix(vcfGenotypeGVCFs, gvcfHaplotypeCaller)
 vcfConcatenateVCFs = vcfConcatenateVCFs.dump(tag:'VCF to merge')
 
 process ConcatVCF {
-    label 'onlyLinux'
+    label 'bcftools'
     label 'cpus_8'
 
     tag {variantCaller + "-" + idSample}
@@ -1697,6 +1776,109 @@ process FilterMutect2Calls {
         -O filtered_${variantCaller}_${idSampleTN}.vcf.gz
     """
 }
+
+// STEP ASCAT.1 - ALLELECOUNTER
+
+// Run commands and code from Malin Larsson
+// Based on Jesper Eisfeldt's code
+process AlleleCounter {
+    label 'canceritAllelecount'
+    label 'memory_singleCPU_2_task'
+
+    tag {idSample}
+
+    input:
+        set idPatient, idSample, file(bam), file(bai) from bamAscat
+        file(acLoci) from ch_acLoci
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+
+    output:
+        set idPatient, idSample, file("${idSample}.alleleCount") into alleleCounterOut
+
+    when: 'ascat' in tools
+
+    script:
+    """
+    alleleCounter \
+        -l ${acLoci} \
+        -r ${fasta} \
+        -b ${bam} \
+        -o ${idSample}.alleleCount;
+    """
+}
+
+alleleCountOutNormal = Channel.create()
+alleleCountOutTumor = Channel.create()
+
+alleleCounterOut
+    .choice(alleleCountOutTumor, alleleCountOutNormal) {statusMap[it[0], it[1]] == 0 ? 1 : 0}
+
+alleleCounterOut = alleleCountOutNormal.combine(alleleCountOutTumor)
+
+alleleCounterOut = alleleCounterOut.map {
+    idPatientNormal, idSampleNormal, alleleCountOutNormal,
+    idPatientTumor, idSampleTumor, alleleCountOutTumor ->
+    [idPatientNormal, idSampleNormal, idSampleTumor, alleleCountOutNormal, alleleCountOutTumor]
+}
+// STEP ASCAT.2 - CONVERTALLELECOUNTS
+
+// R script from Malin Larssons bitbucket repo:
+// https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
+process ConvertAlleleCounts {
+    label 'ascat'
+    label 'memory_singleCPU_2_task'
+
+    tag {idSampleTumor + "_vs_" + idSampleNormal}
+
+    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/ASCAT", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSampleNormal, idSampleTumor, file(alleleCountNormal), file(alleleCountTumor) from alleleCounterOut
+
+    output:
+        set idPatient, idSampleNormal, idSampleTumor, file("${idSampleNormal}.BAF"), file("${idSampleNormal}.LogR"), file("${idSampleTumor}.BAF"), file("${idSampleTumor}.LogR") into convertAlleleCountsOut
+
+    when: 'ascat' in tools
+
+    script:
+    gender = genderMap[idPatient]
+    """
+    Rscript ${workflow.projectDir}/bin/convertAlleleCounts.r ${idSampleTumor} ${alleleCountTumor} ${idSampleNormal} ${alleleCountNormal} ${gender}
+    """
+}
+
+// STEP ASCAT.3 - ASCAT
+
+// R scripts from Malin Larssons bitbucket repo:
+// https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
+process Ascat {
+    label 'ascat'
+    label 'memory_singleCPU_2_task'
+
+    tag {idSampleTumor + "_vs_" + idSampleNormal}
+
+    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/ASCAT", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSampleNormal, idSampleTumor, file(bafNormal), file(logrNormal), file(bafTumor), file(logrTumor) from convertAlleleCountsOut
+        file(acLociGC) from ch_acLociGC
+
+    output:
+        set val("ASCAT"), idPatient, idSampleNormal, idSampleTumor, file("${idSampleTumor}.*.{png,txt}") into ascatOut
+
+    when: 'ascat' in tools
+
+    script:
+    """
+    # get rid of "chr" string if there is any
+    for f in *BAF *LogR; do sed 's/chr//g' \$f > tmpFile; mv tmpFile \$f;done
+    Rscript ${workflow.projectDir}/bin/run_ascat.r ${bafTumor} ${logrTumor} ${bafNormal} ${logrNormal} ${idSampleTumor} ${baseDir} ${acLociGC}
+    """
+}
+
+ascatOut.dump(tag:'ASCAT')
 
 
 
