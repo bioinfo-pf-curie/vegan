@@ -911,7 +911,7 @@ process BwaMemUniq {
     Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
           printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
           Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
-    }' > ${idSample}.mapping.stats || mv  ${idSample}.temp.bam ${idSample}.bam 
+    }' > ${idSample}.mapping.stats 
     # clean
     rm ./${idSample}.temp.* ./*.bam.bai 
 
