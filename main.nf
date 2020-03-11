@@ -120,7 +120,7 @@ def helpMessage() {
         --vepCacheVersion           VEP Cache version
 
     Other options:
-        --outdir                    The output directory where the results will be saved
+        --outputDir                 The output directory where the results will be saved
         --sequencing_center         Name of sequencing center to be displayed in BAM file
         --multiqc_config            Specify a custom config file for MultiQC
         --monochrome_logs           Logs will be without colors
@@ -187,9 +187,9 @@ if (!(workflow.runName ==~ /[a-z]+_[a-z]+/)) custom_runName = workflow.runName
 if (workflow.profile == 'awsbatch') {
     // AWSBatch sanity checking
     if (!params.awsqueue || !params.awsregion) exit 1, "Specify correct --awsqueue and --awsregion parameters on AWSBatch!"
-    // Check outdir paths to be S3 buckets if running on AWSBatch
+    // Check outputDir paths to be S3 buckets if running on AWSBatch
     // related: https://github.com/nextflow-io/nextflow/issues/813
-    if (!params.outdir.startsWith('s3:')) exit 1, "Outdir not on S3 - specify S3 Bucket to run on AWSBatch!"
+    if (!params.outputDir.startsWith('s3:')) exit 1, "Outdir not on S3 - specify S3 Bucket to run on AWSBatch!"
     // Prevent trace files to be stored on S3 since S3 does not support rolling files.
     if (workflow.tracedir.startsWith('s3:')) exit 1, "Specify a local tracedir or run without trace! S3 cannot be used for tracefiles."
 }
@@ -209,7 +209,7 @@ if (params.sampleDir) tsvPath = params.sampleDir
 // If no input file specified, trying to get TSV files corresponding to step in the TSV directory
 // only for steps recalibrate and variantCalling
 if (!params.input && step != 'mapping' && step != 'annotate') {
-	tsvPath = step == 'recalibrate' ? "${params.outdir}/Preprocessing/TSV/duplicateMarked.tsv" : "${params.outdir}/Preprocessing/TSV/recalibrated.tsv"
+	tsvPath = step == 'recalibrate' ? "${params.outputDir}/Preprocessing/TSV/duplicateMarked.tsv" : "${params.outputDir}/Preprocessing/TSV/recalibrated.tsv"
 }
 
 inputSample = Channel.empty()
@@ -324,7 +324,7 @@ if (params.pon && 'mutect2' in tools)          summary['Panel of normals']  = pa
 
 summary['Save Genome Index'] = params.saveGenomeIndex ? 'Yes' : 'No'
 summary['Nucleotides/s']     = params.nucleotidesPerSecond
-summary['Output dir']        = params.outdir
+summary['Output dir']        = params.outputDir
 summary['Launch dir']        = workflow.launchDir
 summary['Working dir']       = workflow.workDir
 summary['Script dir']        = workflow.projectDir
@@ -378,7 +378,7 @@ checkHostname()
 process GetSoftwareVersions {
     label 'onlyLinux'
 
-    publishDir path:"${params.outdir}/pipeline_info", mode: params.publishDirMode
+    publishDir path:"${params.outputDir}/pipeline_info", mode: params.publishDirMode
 
     output:
         file 'software_versions_mqc.yaml' into yamlSoftwareVersion
@@ -409,7 +409,7 @@ process BuildBWAindexes {
     label 'bwa'
     tag {fasta}
 
-    publishDir params.outdir, mode: params.publishDirMode,
+    publishDir params.outputDir, mode: params.publishDirMode,
         saveAs: {params.saveGenomeIndex ? "reference_genome/BWAIndex/${it}" : null }
 
     input:
@@ -432,7 +432,7 @@ process BuildDict {
     label 'gatk'
     tag {fasta}
 
-    publishDir params.outdir, mode: params.publishDirMode,
+    publishDir params.outputDir, mode: params.publishDirMode,
         saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
     input:
@@ -458,7 +458,7 @@ process BuildFastaFai {
     label 'samtools'
     tag {fasta}
 
-    publishDir params.outdir, mode: params.publishDirMode,
+    publishDir params.outputDir, mode: params.publishDirMode,
         saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
     input:
@@ -481,7 +481,7 @@ process BuildDbsnpIndex {
     label 'tabix'
     tag {dbsnp}
 
-    publishDir params.outdir, mode: params.publishDirMode,
+    publishDir params.outputDir, mode: params.publishDirMode,
         saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
     input:
@@ -504,7 +504,7 @@ process BuildGermlineResourceIndex {
     label 'tabix'
     tag {germlineResource}
 
-    publishDir params.outdir, mode: params.publishDirMode,
+    publishDir params.outputDir, mode: params.publishDirMode,
         saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
     input:
@@ -527,7 +527,7 @@ process BuildKnownIndelsIndex {
     label 'tabix'
     tag {knownIndels}
 
-    publishDir params.outdir, mode: params.publishDirMode,
+    publishDir params.outputDir, mode: params.publishDirMode,
         saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
     input:
@@ -550,7 +550,7 @@ process BuildPonIndex {
     label 'tabix'
     tag {pon}
 
-    publishDir params.outdir, mode: params.publishDirMode,
+    publishDir params.outputDir, mode: params.publishDirMode,
         saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
     input:
@@ -573,7 +573,7 @@ process BuildIntervals {
   label 'onlyLinux'
   tag {fastaFai}
 
-  publishDir params.outdir, mode: params.publishDirMode,
+  publishDir params.outputDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
   input:
@@ -726,7 +726,7 @@ process FastQCFQ {
 
     tag {idPatient + "-" + idRun}
 
-    publishDir "${params.outdir}/Reports/${idSample}/FastQC/${idSample}_${idRun}", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Reports/${idSample}/FastQC/${idSample}_${idRun}", mode: params.publishDirMode
 
     input:
         set idPatient, idSample, idRun, file("${idSample}_${idRun}_R1.fastq.gz"), file("${idSample}_${idRun}_R2.fastq.gz") from inputPairReadsFastQC
@@ -749,7 +749,7 @@ process FastQCBAM {
 
     tag {idPatient + "-" + idRun}
 
-    publishDir "${params.outdir}/Reports/${idSample}/FastQC/${idSample}_${idRun}", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Reports/${idSample}/FastQC/${idSample}_${idRun}", mode: params.publishDirMode
 
     input:
         set idPatient, idSample, idRun, file("${idSample}_${idRun}.bam") from inputBamFastQC
@@ -838,7 +838,7 @@ process MergeBamMapped {
         set idPatient, idSample, idRun, file(bam) from multipleBam
 
     output:
-        set idPatient, idSample, file("${idSample}.bam") into mergedBam
+        set idPatient, idSample, file("${idSample}.bam") into mergedBam, mergedBamU
 
     script:
     """
@@ -849,10 +849,11 @@ process MergeBamMapped {
 mergedBam = mergedBam.dump(tag:'Merged BAM')
 
 mergedBam = mergedBam.mix(singleBam)
+//mergedBamU = mergedBamU.mix(singleBam)
 
 mergedBam = mergedBam.dump(tag:'BAMs for MD')
 
-(mergedBam, mergedBamToIndex, mergedBamM) = mergedBam.into(3)
+(mergedBam, mergedBamToIndex, mergedBamU) = mergedBam.into(3)
 
 process IndexBamFile {
     label 'samtools'  
@@ -875,9 +876,53 @@ process IndexBamFile {
     """
 }
 
-// STEP 2: FILTRES : MARKING DUPLICATES
-
 mapMbam = mergedBam 
+
+// STEP 2: FILTRES : BWAMEM UNIQ
+// Mapping Quality Filter
+process BwaMemUniq {
+    label 'samtools'
+    label 'cpus_2'
+
+    tag {idPatient + "-" + idSample}
+
+    publishDir "${params.outputDir}/Reports/${idSample}/Uniq", mode: params.publishDirMode
+
+    input:
+        set idPatient, idSample, file(bam) from mapMbam 
+
+    output:
+        set idPatient, idSample, file("${idSample}.bam") into memUbam
+        file("${idSample}.mapping.stats") into mapUReport
+
+    when: !('uniq' in skipQC)
+
+    script:
+
+    """
+    samtools view  -@ ${task.cpus} -h -F 4 ${bam} | grep -v \"XA:Z\" > ${idSample}.temp.sam #removed unmapped also with -F 4
+    samtools view  -@ ${task.cpus} -bS ${idSample}.temp.sam > ${idSample}.temp.bam 2> ${idSample}.temp.txt
+    samtools sort -@ ${task.cpus} -o ${idSample}.bam ${idSample}.temp.bam
+    samtools index ${idSample}.bam
+    samtools index ${bam}
+
+    UniqueHits=\$(samtools idxstats ${idSample}.bam |  awk '{ UNIQ_HIT+=\$3 } END { print UNIQ_HIT }')
+    samtools idxstats ${bam} |  awk -v Unique_hits="\$UniqueHits" '{
+    Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
+          printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
+          Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
+    }' > ${idSample}.mapping.stats || mv  ${idSample}.temp.bam ${idSample}.bam 
+    # clean
+    rm ./${idSample}.temp.* ./*.bam.bai 
+
+    """
+}
+
+if ('uniq' in skipQC) {
+ 	memUbam = mergedBamU  
+}
+
+// STEP 2: FILTRES : MARKING DUPLICATES 
 
 process MarkDuplicates { 
     label 'sambamba' 
@@ -885,7 +930,7 @@ process MarkDuplicates {
 
     tag {idPatient + "-" + idSample}
 
-    publishDir params.outdir, mode: params.publishDirMode,
+    publishDir params.outputDir, mode: params.publishDirMode,
         saveAs: {
             if (it == "${idSample}.bam.metrics" && 'markduplicates' in skipQC) null
             else if (it == "${idSample}.bam.metrics") "Reports/${idSample}/MarkDuplicates/${it}"
@@ -893,7 +938,7 @@ process MarkDuplicates {
         }
 
     input:
-        set idPatient, idSample, file("${idSample}.bam") from mapMbam 
+        set idPatient, idSample, file("${idSample}.bam") from memUbam 
 
     output:
         set idPatient, idSample, file("${idSample}.md.bam"), file("${idSample}.md.bam.bai") into duplicateMarkedBams, duplicateMarkedBamsMQ
@@ -919,8 +964,8 @@ process MapQ {
 
     tag {idPatient + "-" + idSample}
 
-    publishDir "${params.outdir}/Reports/${idSample}/MapQ", mode: params.publishDirMode
-   // publishDir "${params.outdir}/Reports/${idSample}/MapQ", pattern: '*.{bam,bam.bai}', mode: 'copy', overwrite: true
+    publishDir "${params.outputDir}/Reports/${idSample}/MapQ", mode: params.publishDirMode
+   // publishDir "${params.outputDir}/Reports/${idSample}/MapQ", pattern: '*.{bam,bam.bai}', mode: 'copy', overwrite: true
 
 
     input:
@@ -1020,7 +1065,7 @@ process GatherBQSRReports {
 
     tag {idPatient + "-" + idSample}
 
-    publishDir "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
+    publishDir "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
 
     input:
         set idPatient, idSample, file(recal) from tableGatherBQSRReports
@@ -1049,22 +1094,22 @@ recalTable = recalTable.dump(tag:'RECAL TABLE')
 recalTableTSV.map { idPatient, idSample ->
     status = statusMap[idPatient, idSample]
     gender = genderMap[idPatient]
-    bam = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bam"
-    bai = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bai"
-    recalTable = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.recal.table"
+    bam = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bam"
+    bai = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bai"
+    recalTable = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.recal.table"
     "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\t${recalTable}\n"
 }.collectFile(
-    name: 'duplicateMarked.tsv', sort: true, storeDir: "${params.outdir}/Preprocessing/TSV"
+    name: 'duplicateMarked.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
 )
 
 recalTableSampleTSV
-    .collectFile(storeDir: "${params.outdir}/Preprocessing/TSV/") {
+    .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV/") {
         idPatient, idSample ->
         status = statusMap[idPatient, idSample]
         gender = genderMap[idPatient]
-        bam = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bam"
-        bai = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bai"
-        recalTable = "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.recal.table"
+        bam = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bam"
+        bai = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bai"
+        recalTable = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.recal.table"
         ["duplicateMarked_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\t${recalTable}\n"]
 }
 
@@ -1123,7 +1168,7 @@ process MergeBamRecal {
 
     tag {idPatient + "-" + idSample}
 
-    publishDir "${params.outdir}/Preprocessing/${idSample}/Recalibrated", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Preprocessing/${idSample}/Recalibrated", mode: params.publishDirMode
 
     input:
         set idPatient, idSample, file(bam) from bamMergeBamRecal
@@ -1150,7 +1195,7 @@ process IndexBamRecal {
 
     tag {idPatient + "-" + idSample}
 
-    publishDir "${params.outdir}/Preprocessing/${idSample}/Recalibrated", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Preprocessing/${idSample}/Recalibrated", mode: params.publishDirMode
 
     input:
         set idPatient, idSample, file("${idSample}.recal.bam") from bamMergeBamRecalNoInt
@@ -1179,20 +1224,20 @@ bamRecalTSV = bamRecalTSV.mix(bamRecalTSVnoInt)
 bamRecalTSV.map { idPatient, idSample ->
     gender = genderMap[idPatient]
     status = statusMap[idPatient, idSample]
-    bam = "${params.outdir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam"
-    bai = "${params.outdir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam.bai"
+    bam = "${params.outputDir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam"
+    bai = "${params.outputDir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam.bai"
     "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"
 }.collectFile(
-    name: 'recalibrated.tsv', sort: true, storeDir: "${params.outdir}/Preprocessing/TSV"
+    name: 'recalibrated.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
 )
 
 bamRecalSampleTSV
-    .collectFile(storeDir: "${params.outdir}/Preprocessing/TSV") {
+    .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV") {
         idPatient, idSample ->
         status = statusMap[idPatient, idSample]
         gender = genderMap[idPatient]
-        bam = "${params.outdir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam"
-        bai = "${params.outdir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam.bai"
+        bam = "${params.outputDir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam"
+        bai = "${params.outputDir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam.bai"
         ["recalibrated_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"]
 }
 
@@ -1204,7 +1249,7 @@ process SamtoolsStats {
 
     tag {idPatient + "-" + idSample}
 
-    publishDir "${params.outdir}/Reports/${idSample}/SamToolsStats", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Reports/${idSample}/SamToolsStats", mode: params.publishDirMode
 
     input:
         set idPatient, idSample, file(bam) from bamRecalSamToolsStats
@@ -1232,7 +1277,7 @@ process BamQC {
 
     tag {idPatient + "-" + idSample}
 
-    publishDir "${params.outdir}/Reports/${idSample}/bamQC", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Reports/${idSample}/bamQC", mode: params.publishDirMode
 
     input:
         set idPatient, idSample, file(bam) from bamBamQC
@@ -1375,7 +1420,7 @@ process MantaSingle {
 
     tag {idSample}
 
-    publishDir "${params.outdir}/VariantCalling/${idSample}/Manta", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${idSample}/Manta", mode: params.publishDirMode
 
     input:
         set idPatient, idSample, file(bam), file(bai) from bamMantaSingle
@@ -1466,7 +1511,7 @@ process Manta {
 
     tag {idSampleTumor + "_vs_" + idSampleNormal}
 
-    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/Manta", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/Manta", mode: params.publishDirMode
 
     input:
         set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor) from pairBamManta
@@ -1573,7 +1618,7 @@ process MergeMutect2Stats {
     tag {idSampleTumor + "_vs_" + idSampleNormal}
     label 'gatk'
 
-    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/Mutect2", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/Mutect2", mode: params.publishDirMode
 
     input:
         set caller, idPatient, idSampleTumor_vs_idSampleNormal, file(vcfFiles) from mutect2OutForStats // corresponding small VCF chunks
@@ -1615,7 +1660,7 @@ process ConcatVCF {
 
     tag {variantCaller + "-" + idSample}
 
-    publishDir "${params.outdir}/VariantCalling/${idSample}/${"$variantCaller"}", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${idSample}/${"$variantCaller"}", mode: params.publishDirMode
 
     input:
         set variantCaller, idPatient, idSample, file(vcFiles) from vcfConcatenateVCFs
@@ -1685,7 +1730,7 @@ process MergePileupSummaries {
 
     tag {idPatient + "_" + idSampleTumor}
 
-    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
 
     input:
         set idPatient, idSampleTumor, file(pileupSums) from pileupSummaries
@@ -1714,7 +1759,7 @@ process CalculateContamination {
 
     tag {idSampleTumor + "_vs_" + idSampleNormal}
 
-    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
 
     input:
         set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor) from pairBamCalculateContamination 
@@ -1743,7 +1788,7 @@ process FilterMutect2Calls {
 
     tag {idSampleTN}
 
-    publishDir "${params.outdir}/VariantCalling/${idSampleTN}/${"$variantCaller"}", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTN}/${"$variantCaller"}", mode: params.publishDirMode
 
     input:
         set variantCaller, idPatient, idSampleTN, file(unfiltered), file(unfilteredIndex) from vcfConcatenatedForFilter
@@ -1832,7 +1877,7 @@ process ConvertAlleleCounts {
 
     tag {idSampleTumor + "_vs_" + idSampleNormal}
 
-    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/ASCAT", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/ASCAT", mode: params.publishDirMode
 
     input:
         set idPatient, idSampleNormal, idSampleTumor, file(alleleCountNormal), file(alleleCountTumor) from alleleCounterOut
@@ -1859,7 +1904,7 @@ process Ascat {
 
     tag {idSampleTumor + "_vs_" + idSampleNormal}
 
-    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/ASCAT", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/ASCAT", mode: params.publishDirMode
 
     input:
         set idPatient, idSampleNormal, idSampleTumor, file(bafNormal), file(logrNormal), file(bafTumor), file(logrTumor) from convertAlleleCountsOut
@@ -1894,7 +1939,7 @@ ascatOut.dump(tag:'ASCAT')
 
 process MultiQC { 
     label 'multiqc' 
-    publishDir "${params.outdir}/Reports/MultiQC", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Reports/MultiQC", mode: params.publishDirMode
 
     input:
         file (multiqcConfig) from Channel.value(params.multiqc_config ? file(params.multiqc_config) : "")
@@ -1995,7 +2040,7 @@ workflow.onComplete {
     }
 
     // Write summary e-mail HTML to a file
-    def output_d = new File("${params.outdir}/pipeline_info/")
+    def output_d = new File("${params.outputDir}/pipeline_info/")
     if (!output_d.exists()) output_d.mkdirs()
     def output_hf = new File(output_d, "pipeline_report.html")
     output_hf.withWriter { w -> w << email_html }
@@ -2140,6 +2185,7 @@ def defineAnnoList() {
 // Define list of skipable QC tools
 def defineSkipQClist() {
     return [
+        'uniq',
         'bamqc',
         'mapq',
         'bcftools',
