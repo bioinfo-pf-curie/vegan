@@ -1925,6 +1925,127 @@ process Ascat {
 
 ascatOut.dump(tag:'ASCAT')
 
+/*
+================================================================================
+                                   ANNOTATION
+================================================================================
+*/
+
+if (step == 'annotate') {
+    vcfToAnnotate = Channel.create()
+    vcfNoAnnotate = Channel.create()
+
+    if (tsvPath == []) {
+    // Sarek, by default, annotates all available vcfs that it can find in the VariantCalling directory
+    // Excluding vcfs from FreeBayes, and g.vcf from HaplotypeCaller
+    // Basically it's: results/VariantCalling/*/{HaplotypeCaller,Manta,Mutect2,SentieonDNAseq,SentieonDNAscope,SentieonTNscope,Strelka,TIDDIT}/*.vcf.gz
+    // Without *SmallIndels.vcf.gz from Manta, and *.genome.vcf.gz from Strelka
+    // The small snippet `vcf.minus(vcf.fileName)[-2]` catches idSample
+    // This field is used to output final annotated VCFs in the correct directory
+      Channel.empty().mix(
+        Channel.fromPath("${params.outdir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
+          .flatten().map{vcf -> ['HaplotypeCaller', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+        Channel.fromPath("${params.outdir}/VariantCalling/*/Manta/*[!candidate]SV.vcf.gz")
+          .flatten().map{vcf -> ['Manta', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+        Channel.fromPath("${params.outdir}/VariantCalling/*/Mutect2/*.vcf.gz")
+          .flatten().map{vcf -> ['Mutect2', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+        Channel.fromPath("${params.outdir}/VariantCalling/*/SentieonDNAseq/*.vcf.gz")
+          .flatten().map{vcf -> ['SentieonDNAseq', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+        Channel.fromPath("${params.outdir}/VariantCalling/*/SentieonDNAscope/*.vcf.gz")
+          .flatten().map{vcf -> ['SentieonDNAscope', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+        Channel.fromPath("${params.outdir}/VariantCalling/*/SentieonTNscope/*.vcf.gz")
+          .flatten().map{vcf -> ['SentieonTNscope', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+        Channel.fromPath("${params.outdir}/VariantCalling/*/Strelka/*{somatic,variant}*.vcf.gz")
+          .flatten().map{vcf -> ['Strelka', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+        Channel.fromPath("${params.outdir}/VariantCalling/*/TIDDIT/*.vcf.gz")
+          .flatten().map{vcf -> ['TIDDIT', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
+      ).choice(vcfToAnnotate, vcfNoAnnotate) {
+        annotateTools == [] || (annotateTools != [] && it[0] in annotateTools) ? 0 : 1
+      }
+    } else if (annotateTools == []) {
+    // Annotate user-submitted VCFs
+    // If user-submitted, Sarek assume that the idSample should be assumed automatically
+      vcfToAnnotate = Channel.fromPath(tsvPath)
+        .map{vcf -> ['userspecified', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
+    } else exit 1, "specify only tools or files to annotate, not both"
+
+    vcfNoAnnotate.close()
+    vcfAnnotation = vcfAnnotation.mix(vcfToAnnotate)
+}
+// as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
+
+(vcfSnpeff, vcfVep) = vcfAnnotation.into(2)
+
+vcfVep = vcfVep.map {
+  variantCaller, idSample, vcf ->
+  [variantCaller, idSample, vcf, null]
+}
+
+// STEP SNPEFF
+
+process Snpeff {
+    tag {"${idSample} - ${variantCaller} - ${vcf}"}
+
+    publishDir params.outdir, mode: params.publishDirMode, saveAs: {
+        if (it == "${reducedVCF}_snpEff.ann.vcf") null
+        else "Reports/${idSample}/snpEff/${it}"
+    }
+
+    input:
+        set variantCaller, idSample, file(vcf) from vcfSnpeff
+        file(dataDir) from ch_snpEff_cache
+        val snpeffDb from ch_snpeffDb
+
+    output:
+        set file("${reducedVCF}_snpEff.txt"), file("${reducedVCF}_snpEff.html"), file("${reducedVCF}_snpEff.csv") into snpeffReport
+        set variantCaller, idSample, file("${reducedVCF}_snpEff.ann.vcf") into snpeffVCF
+
+    when: 'snpeff' in tools || 'merge' in tools
+
+    script:
+    reducedVCF = reduceVCF(vcf.fileName)
+    cache = (params.snpEff_cache && params.annotation_cache) ? "-dataDir \${PWD}/${dataDir}" : ""
+    """
+    snpEff -Xmx${task.memory.toGiga()}g \
+        ${snpeffDb} \
+        -csvStats ${reducedVCF}_snpEff.csv \
+        -nodownload \
+        ${cache} \
+        -canon \
+        -v \
+        ${vcf} \
+        > ${reducedVCF}_snpEff.ann.vcf
+
+    mv snpEff_summary.html ${reducedVCF}_snpEff.html
+    mv ${reducedVCF}_snpEff.genes.txt ${reducedVCF}_snpEff.txt
+    """
+}
+
+snpeffReport = snpeffReport.dump(tag:'snpEff report')
+
+// STEP COMPRESS AND INDEX VCF.1 - SNPEFF
+
+process CompressVCFsnpEff {
+    tag {"${idSample} - ${vcf}"}
+
+    publishDir "${params.outdir}/Annotation/${idSample}/snpEff", mode: params.publishDirMode
+
+    input:
+        set variantCaller, idSample, file(vcf) from snpeffVCF
+
+    output:
+        set variantCaller, idSample, file("*.vcf.gz"), file("*.vcf.gz.tbi") into (compressVCFsnpEffOut)
+
+    script:
+    """
+    bgzip < ${vcf} > ${vcf}.gz
+    tabix ${vcf}.gz
+    """
+}
+
+compressVCFsnpEffOut = compressVCFsnpEffOut.dump(tag:'VCF')
+
+
 
 
 
@@ -1948,6 +2069,7 @@ process MultiQC {
         file ('FastQC/*') from fastQCReport.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReport.collect().ifEmpty([])
         file ('SamToolsStats/*') from samtoolsStatsReport.collect().ifEmpty([])
+        file ('snpEff/*') from snpeffReport.collect().ifEmpty([])
 
     output:
         set file("*multiqc_report.html"), file("*multiqc_data") into multiQCOut
