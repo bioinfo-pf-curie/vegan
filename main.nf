@@ -901,8 +901,7 @@ process BwaMemUniq {
 
     """
     #removed unmapped also with -F 4
-    samtools view  -@ ${task.cpus} -h -F 4 ${bam} | grep -v \"XA:Z\" > ${idSample}.temp.sam 
-    samtools view  -@ ${task.cpus} -bS ${idSample}.temp.sam > ${idSample}.temp.bam 2> ${idSample}.temp.txt
+    samtools view  -@ ${task.cpus} -h -F 4 ${bam} | grep -v \"XA:Z\" | samtools view  -@ ${task.cpus} -bS > ${idSample}.temp.bam 2> ${idSample}.temp.txt 
     samtools sort -@ ${task.cpus} -o ${idSample}.bam ${idSample}.temp.bam
     samtools index ${idSample}.bam
     samtools index ${bam}
