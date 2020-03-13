@@ -1925,6 +1925,27 @@ process Ascat {
 
 ascatOut.dump(tag:'ASCAT')
 
+// Remapping channels for QC and annotation
+
+(vcfMantaSomaticSV, vcfMantaDiploidSV) = vcfManta.into(2)
+
+vcfKeep = Channel.empty().mix(
+    vcfMantaSingle.map {
+        variantcaller, idPatient, idSample, vcf, tbi ->
+        [variantcaller, idSample, vcf[2]]
+    },
+    vcfMantaDiploidSV.map {
+        variantcaller, idPatient, idSample, vcf, tbi ->
+        [variantcaller, idSample, vcf[2]]
+    },
+    vcfMantaSomaticSV.map {
+        variantcaller, idPatient, idSample, vcf, tbi ->
+        [variantcaller, idSample, vcf[3]]
+    })
+
+
+(vcfBCFtools, vcfVCFtools, vcfAnnotation) = vcfKeep.into(3)
+
 /*
 ================================================================================
                                    ANNOTATION
@@ -1943,21 +1964,21 @@ if (step == 'annotate') {
     // The small snippet `vcf.minus(vcf.fileName)[-2]` catches idSample
     // This field is used to output final annotated VCFs in the correct directory
       Channel.empty().mix(
-        Channel.fromPath("${params.outdir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
+        Channel.fromPath("${params.outputDir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
           .flatten().map{vcf -> ['HaplotypeCaller', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-        Channel.fromPath("${params.outdir}/VariantCalling/*/Manta/*[!candidate]SV.vcf.gz")
+        Channel.fromPath("${params.outputDir}/VariantCalling/*/Manta/*[!candidate]SV.vcf.gz")
           .flatten().map{vcf -> ['Manta', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-        Channel.fromPath("${params.outdir}/VariantCalling/*/Mutect2/*.vcf.gz")
+        Channel.fromPath("${params.outputDir}/VariantCalling/*/Mutect2/*.vcf.gz")
           .flatten().map{vcf -> ['Mutect2', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-        Channel.fromPath("${params.outdir}/VariantCalling/*/SentieonDNAseq/*.vcf.gz")
+        Channel.fromPath("${params.outputDir}/VariantCalling/*/SentieonDNAseq/*.vcf.gz")
           .flatten().map{vcf -> ['SentieonDNAseq', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-        Channel.fromPath("${params.outdir}/VariantCalling/*/SentieonDNAscope/*.vcf.gz")
+        Channel.fromPath("${params.outputDir}/VariantCalling/*/SentieonDNAscope/*.vcf.gz")
           .flatten().map{vcf -> ['SentieonDNAscope', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-        Channel.fromPath("${params.outdir}/VariantCalling/*/SentieonTNscope/*.vcf.gz")
+        Channel.fromPath("${params.outputDir}/VariantCalling/*/SentieonTNscope/*.vcf.gz")
           .flatten().map{vcf -> ['SentieonTNscope', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-        Channel.fromPath("${params.outdir}/VariantCalling/*/Strelka/*{somatic,variant}*.vcf.gz")
+        Channel.fromPath("${params.outputDir}/VariantCalling/*/Strelka/*{somatic,variant}*.vcf.gz")
           .flatten().map{vcf -> ['Strelka', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-        Channel.fromPath("${params.outdir}/VariantCalling/*/TIDDIT/*.vcf.gz")
+        Channel.fromPath("${params.outputDir}/VariantCalling/*/TIDDIT/*.vcf.gz")
           .flatten().map{vcf -> ['TIDDIT', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
       ).choice(vcfToAnnotate, vcfNoAnnotate) {
         annotateTools == [] || (annotateTools != [] && it[0] in annotateTools) ? 0 : 1
@@ -1986,7 +2007,7 @@ vcfVep = vcfVep.map {
 process Snpeff {
     tag {"${idSample} - ${variantCaller} - ${vcf}"}
 
-    publishDir params.outdir, mode: params.publishDirMode, saveAs: {
+    publishDir params.outputDir, mode: params.publishDirMode, saveAs: {
         if (it == "${reducedVCF}_snpEff.ann.vcf") null
         else "Reports/${idSample}/snpEff/${it}"
     }
@@ -2028,7 +2049,7 @@ snpeffReport = snpeffReport.dump(tag:'snpEff report')
 process CompressVCFsnpEff {
     tag {"${idSample} - ${vcf}"}
 
-    publishDir "${params.outdir}/Annotation/${idSample}/snpEff", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Annotation/${idSample}/snpEff", mode: params.publishDirMode
 
     input:
         set variantCaller, idSample, file(vcf) from snpeffVCF
