@@ -39,7 +39,7 @@ nf-wgswes:
 */
 
 def helpMessage() {
-    //log.info nfcoreHeader()
+    //log.info nf-veganHeader()
     if ("${workflow.manifest.version}" =~ /dev/ ){
        log.info devMessageFile.text
     }
@@ -76,7 +76,7 @@ def helpMessage() {
                                     Available: Mapping, Recalibrate, VariantCalling, Annotate
                                     Default: Mapping
         --tools                     Specify tools to use for variant calling:
-                                    Available: ASCAT, ControlFREEC, FreeBayes, HaplotypeCaller
+                                    Available: ASCAT, ControlFREEC, HaplotypeCaller
                                     Manta, mpileup, Mutect2, Strelka, TIDDIT
                                     and/or for annotation:
                                     snpEff, VEP, merge
@@ -304,7 +304,7 @@ ch_targetBED = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 */
 
 // Header log info
-// log.info nfcoreHeader()
+// log.info nf-veganHeader()
 def summary = [:]
 if (workflow.revision)          summary['Pipeline Release']    = workflow.revision
 summary['Run Name']          = custom_runName ?: workflow.runName
@@ -1498,8 +1498,8 @@ intervalPairBam = pairBam.spread(bedIntervals)
 bamMpileup = bamMpileup.spread(intMpileup)
 
 
-// intervals for Mutect2 calls, FreeBayes and pileups for Mutect2 filtering
-(pairBamMutect2, pairBamFreeBayes, pairBamPileupSummaries) = intervalPairBam.into(3)
+// intervals for Mutect2 calls and pileups for Mutect2 filtering
+(pairBamMutect2, pairBamPileupSummaries) = intervalPairBam.into(3)
 
 
 // STEP MANTA.2 - SOMATIC PAIR
@@ -1648,9 +1648,8 @@ process MergeMutect2Stats {
 // we are merging the VCFs that are called separatelly for different intervals
 // so we can have a single sorted VCF containing all the calls for a given caller
 
-// STEP MERGING VCF - FREEBAYES, GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED)
+// STEP MERGING VCF - GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED)
 
-//vcfConcatenateVCFs = mutect2Output.mix(vcfFreeBayes, vcfGenotypeGVCFs, gvcfHaplotypeCaller)
 vcfConcatenateVCFs = mutect2Output.mix(vcfGenotypeGVCFs, gvcfHaplotypeCaller)
 vcfConcatenateVCFs = vcfConcatenateVCFs.dump(tag:'VCF to merge')
 
@@ -1671,7 +1670,7 @@ process ConcatVCF {
     // we have this funny *_* pattern to avoid copying the raw calls to publishdir
         set variantCaller, idPatient, idSample, file("*_*.vcf.gz"), file("*_*.vcf.gz.tbi") into vcfConcatenated
 
-    when: ('haplotypecaller' in tools || 'mutect2' in tools || 'freebayes' in tools)
+    when: ('haplotypecaller' in tools || 'mutect2' in tools)
 
     script:
     if (variantCaller == 'HaplotypeCallerGVCF') 
@@ -1958,7 +1957,7 @@ if (step == 'annotate') {
 
     if (tsvPath == []) {
     // Sarek, by default, annotates all available vcfs that it can find in the VariantCalling directory
-    // Excluding vcfs from FreeBayes, and g.vcf from HaplotypeCaller
+    // Excluding vcfs from and g.vcf from HaplotypeCaller
     // Basically it's: results/VariantCalling/*/{HaplotypeCaller,Manta,Mutect2,SentieonDNAseq,SentieonDNAscope,SentieonTNscope,Strelka,TIDDIT}/*.vcf.gz
     // Without *SmallIndels.vcf.gz from Manta, and *.genome.vcf.gz from Strelka
     // The small snippet `vcf.minus(vcf.fileName)[-2]` catches idSample
@@ -2231,37 +2230,6 @@ ${summary.collect { k, v -> "            <dt>$k</dt><dd><samp>${v ?: '<span styl
    return yaml_file
 }
 
-def nfcoreHeader() {
-    // Log colors ANSI codes
-    c_reset  = params.monochrome_logs ? '' : "\033[0m";
-    c_dim    = params.monochrome_logs ? '' : "\033[2m";
-    c_black  = params.monochrome_logs ? '' : "\033[0;30m";
-    c_red    = params.monochrome_logs ? '' : "\033[0;31m";
-    c_green  = params.monochrome_logs ? '' : "\033[0;32m";
-    c_yellow = params.monochrome_logs ? '' : "\033[0;33m";
-    c_blue   = params.monochrome_logs ? '' : "\033[0;34m";
-    c_purple = params.monochrome_logs ? '' : "\033[0;35m";
-    c_cyan   = params.monochrome_logs ? '' : "\033[0;36m";
-    c_white  = params.monochrome_logs ? '' : "\033[0;37m";
-
-    return """    ${c_dim}----------------------------------------------------${c_reset}
-                                            ${c_green},--.${c_black}/${c_green},-.${c_reset}
-    ${c_blue}        ___     __   __   __   ___     ${c_green}/,-._.--~\'${c_reset}
-    ${c_blue}  |\\ | |__  __ /  ` /  \\ |__) |__         ${c_yellow}}  {${c_reset}
-    ${c_blue}  | \\| |       \\__, \\__/ |  \\ |___     ${c_green}\\`-._,-`-,${c_reset}
-                                            ${c_green}`._,._,\'${c_reset}
-        ${c_white}____${c_reset}
-      ${c_white}.´ _  `.${c_reset}
-     ${c_white}/  ${c_green}|\\${c_reset}`-_ \\${c_reset}     ${c_blue} __        __   ___     ${c_reset}
-    ${c_white}|   ${c_green}| \\${c_reset}  `-|${c_reset}    ${c_blue}|__`  /\\  |__) |__  |__/${c_reset}
-     ${c_white}\\ ${c_green}|   \\${c_reset}  /${c_reset}     ${c_blue}.__| /¯¯\\ |  \\ |___ |  \\${c_reset}
-      ${c_white}`${c_green}|${c_reset}____${c_green}\\${c_reset}´${c_reset}
-
-    ${c_purple}  EUCANCAN/nf-wgswes v${workflow.manifest.version}${c_reset}
-    ${c_dim}----------------------------------------------------${c_reset}
-    """.stripIndent()
-}
-
 def checkHostname() {
     def c_reset = params.monochrome_logs ? '' : "\033[0m"
     def c_white = params.monochrome_logs ? '' : "\033[0;37m"
@@ -2319,9 +2287,7 @@ def defineAnnoList() {
     return [
         'HaplotypeCaller',
         'Manta',
-        'Mutect2',
-        'Strelka',
-        'TIDDIT'
+        'Mutect2'
     ]
 }
 
@@ -2356,16 +2322,12 @@ def defineStepList() {
 def defineToolList() {
     return [
         'ascat',
-        'freebayes',
         'haplotypecaller',
         'manta',
         'merge',
         'mpileup',
         'mutect2',
-        'snpeff',
-        'strelka',
-        'tiddit',
-        'vep'
+        'snpeff'
     ]
 }
 
