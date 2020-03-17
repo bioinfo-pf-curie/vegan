@@ -2005,6 +2005,7 @@ vcfVep = vcfVep.map {
 
 process Snpeff {
     tag {"${idSample} - ${variantCaller} - ${vcf}"}
+    label 'snpeff'
 
     publishDir params.outputDir, mode: params.publishDirMode, saveAs: {
         if (it == "${reducedVCF}_snpEff.ann.vcf") null
@@ -2047,6 +2048,7 @@ snpeffReport = snpeffReport.dump(tag:'snpEff report')
 
 process CompressVCFsnpEff {
     tag {"${idSample} - ${vcf}"}
+    label 'tabix'
 
     publishDir "${params.outputDir}/Annotation/${idSample}/snpEff", mode: params.publishDirMode
 
