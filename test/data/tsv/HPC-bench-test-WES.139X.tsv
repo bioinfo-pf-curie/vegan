@@ -1,0 +1,2 @@
+1234	XX	0	1234N	1234N_M1	https://gitlab.curie.fr/data-analysis/nf-wgswes/raw/devel/test/data/SRP162370/WES_IL_N_2/139X/SRR7890875_1.fastq.gz	https://gitlab.curie.fr/data-analysis/nf-wgswes/raw/devel/test/data/SRP162370/WES_IL_N_2/139X/SRR7890875_2.fastq.gz
+1234	XX	1	9876T	9876T_M1	https://gitlab.curie.fr/data-analysis/nf-wgswes/raw/devel/test/data/SRP162370/WES_IL_T_2/139X/SRR7890849_1.fastq.gz	https://gitlab.curie.fr/data-analysis/nf-wgswes/raw/devel/test/data/SRP162370/WES_IL_T_2/139X/SRR7890849_2.fastq.gz
