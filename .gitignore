@@ -6,3 +6,7 @@
 utils/docs/_build/
 .idea/
 .vscode/
+
+nf-wgswes-icnuc/nf-wgswes-icnuc.iml
+
+main.test.nf
