@@ -9,4 +9,8 @@ utils/docs/_build/
 
 nf-wgswes-icnuc/nf-wgswes-icnuc.iml
 
+# Nextflow output
 main.test.nf
+.nextflow*
+work
+results
