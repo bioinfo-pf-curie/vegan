@@ -176,9 +176,9 @@ skipFilterSVlist = defineSkipFilterSV()
 skipFilterSV = params.skipFilterSV ? params.skipFilterSV == 'all' ? skipFilterSVlist : params.skipFilterSV.split(',').collect{it.trim().toLowerCase()} : []
 if (!checkParameterList(skipFilterSV, skipFilterSVlist)) exit 1, 'Unknown FilterSV tool(s), see --help for more information'
 
-skipFilterSVNlist = defineSkipFilterSVN()
-skipFilterSVN = params.skipFilterSVN ? params.skipFilterSVN == 'all' ? skipFilterSVNlist : params.skipFilterSVN.split(',').collect{it.trim().toLowerCase()} : []
-if (!checkParameterList(skipFilterSVN, skipFilterSVNlist)) exit 1, 'Unknown FilterSVN tool(s), see --help for more information'
+skipFilterSNVlist = defineSkipFilterSNV()
+skipFilterSNV = params.skipFilterSNV ? params.skipFilterSNV == 'all' ? skipFilterSNVlist : params.skipFilterSNV.split(',').collect{it.trim().toLowerCase()} : []
+if (!checkParameterList(skipFilterSNV, skipFilterSNVlist)) exit 1, 'Unknown FilterSVN tool(s), see --help for more information'
 
 annoList = defineAnnoList()
 annotateTools = params.annotateTools ? params.annotateTools.split(',').collect{it.trim().toLowerCase()} : []
@@ -324,7 +324,7 @@ if (step)                       summary['Step']              = step
 if (params.tools)               summary['Tools']             = tools.join(', ')
 if (params.skipQC)              summary['QC tools skip']     = skipQC.join(', ')
 if (params.skipFilterSV)              summary['SV tools skip']     = skipFilterSV.join(', ')
-if (params.skipFilterSVN)              summary['SVN tools skip']     = skipFilterSVN.join(', ')
+if (params.skipFilterSNV)              summary['SVN tools skip']     = skipFilterSNV.join(', ')
 
 if (params.no_intervals && step != 'annotate') summary['Intervals']         = 'Do not use'
 if ('haplotypecaller' in tools)                summary['GVCF']              = params.noGVCF ? 'No' : 'Yes'
@@ -905,7 +905,7 @@ process BwaMemUniq {
         set idPatient, idSample, file("${idSample}.bam") into memUbam
         file("${idSample}.mapping.stats") into mapUReport
 
-    when: !('uniq' in skipFilterSVN)
+    when: !('uniq' in skipFilterSNV)
 
     script:
 
@@ -928,7 +928,7 @@ process BwaMemUniq {
     """
 }
 
-if ('uniq' in skipFilterSVN) {
+if ('uniq' in skipFilterSNV) {
  	memUbam = mergedBamU  
 }
 
@@ -942,7 +942,7 @@ process MarkDuplicates {
 
     publishDir params.outputDir, mode: params.publishDirMode,
         saveAs: {
-            if (it == "${idSample}.bam.metrics" && (('markduplicates' in skipFilterSVN) || ('markduplicates' in skipFilterSV))) null
+            if (it == "${idSample}.bam.metrics" && (('markduplicates' in skipFilterSNV) || ('markduplicates' in skipFilterSV))) null
             else if (it == "${idSample}.bam.metrics") "Reports/${idSample}/MarkDuplicates/${it}"
             else "Preprocessing/${idSample}/DuplicateMarked/${it}"
         }
@@ -954,7 +954,7 @@ process MarkDuplicates {
         set idPatient, idSample, file("${idSample}.md.bam"), file("${idSample}.md.bam.bai") into duplicateMarkedBams, duplicateMarkedBamsMQ
         file ("${idSample}.bam.metrics") into markDuplicatesReport
 
-    when: (params.knownIndels && (!('markduplicates' in skipFilterSVN) || !('markduplicates' in skipFilterSV))
+    when: (params.knownIndels && (!('markduplicates' in skipFilterSNV) || !('markduplicates' in skipFilterSV)))
 
     script:
     """
@@ -965,7 +965,7 @@ process MarkDuplicates {
     """
 }
 
-if (('markduplicates' in skipFilterSVN) || ('markduplicates' in skipFilterSV)) markDuplicatesReport.close()
+if (('markduplicates' in skipFilterSNV) || ('markduplicates' in skipFilterSV)) markDuplicatesReport.close()
 
 // Mapping Quality Filter
 process MapQ {
@@ -985,7 +985,7 @@ process MapQ {
         set idPatient, idSample, file("${idSample}.recal.bam"), file("${idSample}.recal.bam.bai") into mapQbam 
         file("${bam.baseName}.${params.mapQual}.mapping.stats") into mapQReport
 
-    when: !('mapq' in skipFilterSVN)
+    when: !('mapq' in skipFilterSNV)
 
     script:
 
@@ -1003,7 +1003,7 @@ process MapQ {
 duplicateMarkedBams = duplicateMarkedBams.dump(tag:'MD BAM')
 markDuplicatesReport = markDuplicatesReport.dump(tag:'MD Report')
 
-if ('mapq' in skipFilterSVN) {
+if ('mapq' in skipFilterSNV) {
  	mapQbam = duplicateMarkedBams 
 }
 
