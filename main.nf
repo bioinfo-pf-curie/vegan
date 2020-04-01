@@ -177,7 +177,7 @@ skipFilterSV = params.skipFilterSV ? params.skipFilterSV == 'all' ? skipFilterSV
 if (!checkParameterList(skipFilterSV, skipFilterSVlist)) exit 1, 'Unknown FilterSV tool(s), see --help for more information'
 
 skipFilterSVNlist = defineSkipFilterSVN()
-skipFilterSVN = params.skipFilterSVN ? params.skipFilterSVN == 'all' ? skipFilterSVN?list : params.skipFilterSVN.split(',').collect{it.trim().toLowerCase()} : []
+skipFilterSVN = params.skipFilterSVN ? params.skipFilterSVN == 'all' ? skipFilterSVNlist : params.skipFilterSVN.split(',').collect{it.trim().toLowerCase()} : []
 if (!checkParameterList(skipFilterSVN, skipFilterSVNlist)) exit 1, 'Unknown FilterSVN tool(s), see --help for more information'
 
 annoList = defineAnnoList()
