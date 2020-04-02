@@ -12,29 +12,20 @@ This script is based on the nf-core guidelines. See https://nf-co.re/ for more i
 */
 
 /*
-========================================================================================
-                         data-analysis_demo
-========================================================================================
- data-analysis_demo analysis Pipeline.
- #### Homepage / Documentation
- ssh://git@gitlab.curie.fr:2222/plarosa/data-analysis_demo.git
-----------------------------------------------------------------------------------------
-*/
-/*
 ================================================================================
-                                 EUCANCAN/nf-wgswes 
+                        project : EUCANCAN/nf-vegan
 ================================================================================
 Started Febery 2020.
 --------------------------------------------------------------------------------
-nf-wgswes:
+nf-vegan: Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data Pipeline.
   An open-source analysis pipeline to detect germline or somatic variants
   from whole genome or targeted sequencing
 --------------------------------------------------------------------------------
  @Homepage
- https://gitlab.curie.fr/data-analysis/nf-wgswes 
+ https://gitlab.curie.fr/data-analysis/nf-vegan
 --------------------------------------------------------------------------------
  @Documentation
- https://gitlab.curie.fr/data-analysis/nf-wgswes/README.md
+ https://gitlab.curie.fr/data-analysis/nf-vegan/README.md
 --------------------------------------------------------------------------------
 */
 
@@ -81,8 +72,14 @@ def helpMessage() {
                                     and/or for annotation:
                                     snpEff, VEP, merge
                                     Default: None
-        --skipQC                    Specify which QC tools to skip when running Sarek
+        --skipQC                    Specify which QC tools to skip when running nf-vegan
                                     Available: all, bamQC, BCFtools, FastQC, MultiQC, samtools, vcftools, versions
+                                    Default: None
+        --skipFilterSV              Specify which SV tools to skip when running nf-vegan
+                                    Available: all, bamQC, BCFtools, FastQC, MultiQC, samtools, vcftools, versions
+                                    Default: None
+        --skipFilterSNV             Specify which QC tools to skip when running nf-vegan
+                                    Available: all, markduplicates
                                     Default: None
         --annotateTools             Specify from which tools Sarek will look for VCF files to annotate, only for step annotate
                                     Available: HaplotypeCaller, Manta, Mutect2, Strelka, TIDDIT
@@ -142,13 +139,15 @@ def helpMessage() {
 if (params.help) exit 0, helpMessage()
 
 // Print warning message
-if (params.noReports) log.warn "The params `--noReports` is deprecated -- it will be removed in a future release.\n\tPlease check: https://github.com/nf-core/sarek/blob/master/docs/usage.md#--skipQC"
-if (params.annotateVCF) log.warn "The params `--annotateVCF` is deprecated -- it will be removed in a future release.\n\tPlease check: https://github.com/nf-core/sarek/blob/master/docs/usage.md#--input"
-if (params.genomeDict) log.warn "The params `--genomeDict` is deprecated -- it will be removed in a future release.\n\tPlease check: https://github.com/nf-core/sarek/blob/master/docs/usage.md#--dict"
-if (params.genomeFile) log.warn "The params `--genomeFile` is deprecated -- it will be removed in a future release.\n\tPlease check: https://github.com/nf-core/sarek/blob/master/docs/usage.md#--fasta"
-if (params.genomeIndex) log.warn "The params `--genomeIndex` is deprecated -- it will be removed in a future release.\n\tPlease check: https://github.com/nf-core/sarek/blob/master/docs/usage.md#--fastaFai"
-if (params.sample) log.warn "The params `--sample` is deprecated -- it will be removed in a future release.\n\tPlease check: https://github.com/nf-core/sarek/blob/master/docs/usage.md#--input"
-if (params.sampleDir) log.warn "The params `--sampleDir` is deprecated -- it will be removed in a future release.\n\tPlease check: https://github.com/nf-core/sarek/blob/master/docs/usage.md#--input"
+if (params.noReports) log.warn "The params `--noReports` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--skipQC"
+if (params.noFilterSV) log.warn "The params `--noFilterSV` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--skipFilterSV"
+if (params.noFilterSNV) log.warn "The params `--noFilterSNV` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--skipFilterSNV"
+if (params.annotateVCF) log.warn "The params `--annotateVCF` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--input"
+if (params.genomeDict) log.warn "The params `--genomeDict` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--dict"
+if (params.genomeFile) log.warn "The params `--genomeFile` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--fasta"
+if (params.genomeIndex) log.warn "The params `--genomeIndex` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--fastaFai"
+if (params.sample) log.warn "The params `--sample` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--input"
+if (params.sampleDir) log.warn "The params `--sampleDir` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--input"
 
 // Check if genome exists in the config file
 if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
@@ -186,6 +185,8 @@ if (!checkParameterList(annotateTools,annoList)) exit 1, 'Unknown tool(s) to ann
 
 // Handle deprecation
 if (params.noReports) skipQC = skipQClist
+if (params.noFilterSV) skipFilterSV = skipFilterSVlist
+if (params.noFilterSNV) skipFilterSNV = skipFilterSNVlist
 
 // Has the run name been specified by the user?
 // This has the bonus effect of catching both -name and --name
@@ -911,7 +912,7 @@ process BwaMemUniq {
 
     """
     #removed unmapped also with -F 4
-    samtools view  -@ ${task.cpus} -h -F 4 ${bam} | grep -v \"XA:Z\" | samtools view  -@ ${task.cpus} -bS > ${idSample}.temp.bam 2> ${idSample}.temp.txt 
+    samtools view  -@ ${task.cpus} -h ${params.samtoolsUniqOptions} ${bam} | grep -v \"XA:Z\" | samtools view  -@ ${task.cpus} -bS > ${idSample}.temp.bam 2> ${idSample}.temp.txt 
     samtools sort -@ ${task.cpus} -o ${idSample}.bam ${idSample}.temp.bam
     samtools index ${idSample}.bam
     samtools index ${bam}
