@@ -138,17 +138,6 @@ def helpMessage() {
 // Show help message
 if (params.help) exit 0, helpMessage()
 
-// Print warning message
-if (params.noReports) log.warn "The params `--noReports` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--skipQC"
-if (params.noFilterSV) log.warn "The params `--noFilterSV` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--skipFilterSV"
-if (params.noFilterSNV) log.warn "The params `--noFilterSNV` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--skipFilterSNV"
-if (params.annotateVCF) log.warn "The params `--annotateVCF` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--input"
-if (params.genomeDict) log.warn "The params `--genomeDict` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--dict"
-if (params.genomeFile) log.warn "The params `--genomeFile` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--fasta"
-if (params.genomeIndex) log.warn "The params `--genomeIndex` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--fastaFai"
-if (params.sample) log.warn "The params `--sample` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--input"
-if (params.sampleDir) log.warn "The params `--sampleDir` is deprecated -- it will be removed in a future release.\n\tPlease check: https://gitlab.curie.fr/data-analysis/nf-vegan/master/docs/usage.md#--input"
-
 // Check if genome exists in the config file
 if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
     exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
@@ -183,11 +172,6 @@ annoList = defineAnnoList()
 annotateTools = params.annotateTools ? params.annotateTools.split(',').collect{it.trim().toLowerCase()} : []
 if (!checkParameterList(annotateTools,annoList)) exit 1, 'Unknown tool(s) to annotate, see --help for more information'
 
-// Handle deprecation
-if (params.noReports) skipQC = skipQClist
-if (params.noFilterSV) skipFilterSV = skipFilterSVlist
-if (params.noFilterSNV) skipFilterSNV = skipFilterSNVlist
-
 // Has the run name been specified by the user?
 // This has the bonus effect of catching both -name and --name
 custom_runName = params.name
@@ -209,11 +193,6 @@ ch_output_docs = Channel.fromPath("${baseDir}/docs/output.md")
 tsvPath = null
 if (params.input && (hasExtension(params.input, "tsv") || hasExtension(params.input, "vcf") || hasExtension(params.input, "vcf.gz"))) tsvPath = params.input
 if (params.input && (hasExtension(params.input, "vcf") || hasExtension(params.input, "vcf.gz"))) step = "annotate"
-
-// Handle deprecation
-if (params.annotateVCF) tsvPath = params.annotateVCF
-if (params.sample) tsvPath = params.sample
-if (params.sampleDir) tsvPath = params.sampleDir
 
 // If no input file specified, trying to get TSV files corresponding to step in the TSV directory
 // only for steps recalibrate and variantCalling
@@ -2286,11 +2265,6 @@ def checkParameterList(list, realList) {
 
 // Check if params.item exists and return params.genomes[params.genome].item otherwise
 def checkParamReturnFile(item) {
-    // Handle deprecation
-    if (params.genomeDict && item == "dict") return file(params.genomeDict)
-    if (params.genomeFile && item == "fasta") return file(params.genomeFile)
-    if (params.genomeIndex && item == "fastaFai") return file(params.genomeIndex)
-
     params."${item}" = params.genomes[params.genome]."${item}"
     return file(params."${item}")
 }
