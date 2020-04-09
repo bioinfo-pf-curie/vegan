@@ -8,7 +8,7 @@ set(CMAKE_BUILD_TYPE Release)
 # Include some functions
 # ##############################################################################
 
-include("utils/cmake/functionColorMessage.cmake")
+include("geniac/cmake/functionColorMessage.cmake")
 
 # ##############################################################################
 # Force out-of-source build
@@ -31,7 +31,7 @@ endif()
 # ##############################################################################
 # Set variable to define name of subdirectories where will be installed the
 # pipeline and its dependencies such as singularity images. These variables are
-# used in utils/CMakeLists.txt
+# used in geniac/CMakeLists.txt
 # ##############################################################################
 
 set(pipeline_dir "pipeline")
@@ -53,7 +53,7 @@ install(
     PATTERN ".git*" EXCLUDE
     PATTERN "CMakeLists.txt" EXCLUDE
     PATTERN "*.example" EXCLUDE
-    PATTERN "utils" EXCLUDE
+    PATTERN "geniac" EXCLUDE
     PATTERN "work" EXCLUDE)
 
 # ##############################################################################
@@ -62,7 +62,7 @@ install(
 # Provide the set of utilities to configure the installation of the pipeline
 # ##############################################################################
 
-add_subdirectory(utils)
+add_subdirectory(geniac)
 
 # ##############################################################################
 # STEP 4
