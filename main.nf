@@ -1028,7 +1028,7 @@ process BaseRecalibrator {
         BaseRecalibrator \
         -I ${bam} \
         -O ${prefix}${idSample}.recal.table \
-        --tmp-dir /tmp \
+        --tmp-dir ${params.baseRecalibratorOpts} \
         -R ${fasta} \
         ${intervalsOptions} \
         ${dbsnpOptions} \
@@ -2096,6 +2096,9 @@ process MultiQC {
 
 multiQCOut.dump(tag:'MultiQC')
 
+/*
+ * Completion e-mail notification
+ */
 /*
  * Completion e-mail notification
  */
