@@ -682,10 +682,10 @@ inputBamFastQC = inputBamFastQC.map {
     [idPatient, idSample, idRun, inputFile1]
 }
 
-if (params.split_fastq){
+if (params.splitFastq){
     inputPairReads = inputPairReads
         // newly splitfastq are named based on split, so the name is easier to catch
-        .splitFastq(by: params.split_fastq, compress:true, file:"split", pe:true)
+        .splitFastq(by: params.splitFastq, compress:true, file:"split", pe:true)
         .map {idPatient, idSample, idRun, reads1, reads2 ->
             // The split fastq read1 is the 4th element (indexed 3) its name is split_3
             // The split fastq read2's name is split_4
