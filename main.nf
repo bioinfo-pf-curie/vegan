@@ -940,7 +940,7 @@ process MarkDuplicates {
     """
 
     sambamba markdup --remove-duplicates --nthreads ${task.cpus} --tmpdir . ${idSample}.bam ${idSample}.md.bam 
-    sambamba flagstat --nthreads ${task.cpus} ${idSample}.bam > ${idSample}.bam.metrics
+    sambamba flagstat --nthreads ${task.cpus} ${idSample}.md.bam > ${idSample}.bam.metrics
 
     """
 }
