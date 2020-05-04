@@ -768,6 +768,7 @@ inputPairReads = inputPairReads.mix(inputBam)
 process MapReads {
     label 'gatk_bwa_samtools' 
     label 'cpus_max'
+    label 'maxMem'    
 
     tag {idPatient + "-" + idRun}
 
@@ -917,6 +918,7 @@ if ('uniq' in skipFilterSNV) {
 process MarkDuplicates { 
     label 'sambamba' 
     label 'cpus_16'
+    label 'maxMem'
 
     tag {idPatient + "-" + idSample}
 
@@ -1774,6 +1776,8 @@ process CalculateContamination {
 process FilterMutect2Calls {
     label 'gatk'
     label 'cpus_1'
+    label 'medMem'
+    label 'medCpu'
 
     tag {idSampleTN}
 
