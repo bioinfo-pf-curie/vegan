@@ -1775,7 +1775,6 @@ process CalculateContamination {
 
 process FilterMutect2Calls {
     label 'gatk'
-    label 'cpus_1'
     label 'medMem'
     label 'medCpu'
 
