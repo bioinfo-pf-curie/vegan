@@ -768,7 +768,7 @@ inputPairReads = inputPairReads.mix(inputBam)
 process MapReads {
     label 'gatk_bwa_samtools' 
     label 'cpus_max'
-    label 'maxMem'    
+    label 'memory_max'
 
     tag {idPatient + "-" + idRun}
 
@@ -918,7 +918,7 @@ if ('uniq' in skipFilterSNV) {
 process MarkDuplicates { 
     label 'sambamba' 
     label 'cpus_16'
-    label 'maxMem'
+    label 'memory_max'
 
     tag {idPatient + "-" + idSample}
 
@@ -1775,8 +1775,8 @@ process CalculateContamination {
 
 process FilterMutect2Calls {
     label 'gatk'
-    label 'medMem'
     label 'medCpu'
+    label 'medMem'
 
     tag {idSampleTN}
 
@@ -2078,8 +2078,8 @@ process MultiQC {
     publishDir "${params.outputDir}/Reports/MultiQC", mode: params.publishDirMode
 
     input:
-        file (multiqcConfig) from Channel.value(params.multiqc_config ? file(params.multiqc_config) : "")
-        file (versions) from yamlSoftwareVersion
+        file multiqcConfig from Channel.value(params.multiqc_config ? file(params.multiqc_config) : "")
+        // file (versions) from yamlSoftwareVersion
         file ('bamQC/*') from bamQCReport.collect().ifEmpty([])
         file ('FastQC/*') from fastQCReport.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReport.collect().ifEmpty([])
@@ -2087,13 +2087,16 @@ process MultiQC {
         file ('snpEff/*') from snpeffReport.collect().ifEmpty([])
 
     output:
-        set file("*multiqc_report.html"), file("*multiqc_data") into multiQCOut
+        set file("*multiqc_report.html") into multiQCOut
+        file "*_data"
 
     when: !('multiqc' in skipQC)
 
     script:
+    rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
+    rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
     """
-    multiqc -f -v .
+    multiqc -f ${rtitle} ${rfilename} --config ${multiqcConfig} .
     """
 }
 
@@ -2102,14 +2105,11 @@ multiQCOut.dump(tag:'MultiQC')
 /*
  * Completion e-mail notification
  */
-/*
- * Completion e-mail notification
- */
 workflow.onComplete {
 
     // Set up the e-mail variables
-    def subject = "[EUCANCAN/nf-wgswes] Successful: ${workflow.runName}"
-    if (!workflow.success) subject = "[EUCANCAN/nf-wgswes] FAILED: ${workflow.runName}"
+    def subject = "[EUCANCAN/nf-vegan] Successful: ${workflow.runName}"
+    if (!workflow.success) subject = "[EUCANCAN/nf-vegan] FAILED: ${workflow.runName}"
     def email_fields = [:]
     email_fields['version'] = workflow.manifest.version
     email_fields['runName'] = custom_runName ?: workflow.runName
@@ -2138,14 +2138,14 @@ workflow.onComplete {
     def mqc_report = null
     try {
         if (workflow.success) {
-            mqc_report = multiqc_report.getVal()
+            mqc_report = multiQCOut.getVal()
             if (mqc_report.getClass() == ArrayList) {
-                log.warn "[EUCANCAN/nf-wgswes] Found multiple reports from process 'multiqc', will use only one"
+                log.warn "[EUCANCAN/nf-vegan] Found multiple reports from process 'multiqc', will use only one"
                 mqc_report = mqc_report[0]
             }
         }
     } catch (all) {
-        log.warn "[EUCANCAN/nf-wgswes] Could not attach MultiQC report to summary email"
+        log.warn "[EUCANCAN/nf-vegan] Could not attach MultiQC report to summary email"
     }
 
     // Render the TXT template
@@ -2171,11 +2171,11 @@ workflow.onComplete {
             if (params.plaintext_email) { throw GroovyException('Send plaintext e-mail, not HTML') }
             // Try to send HTML e-mail using sendmail
             [ 'sendmail', '-t' ].execute() << sendmail_html
-            log.info "[EUCANCAN/nf-wgswes] Sent summary e-mail to $params.email (sendmail)"
+            log.info "[EUCANCAN/nf-vegan] Sent summary e-mail to $params.email (sendmail)"
         } catch (all) {
             // Catch failures and try with plaintext
             [ 'mail', '-s', subject, params.email ].execute() << email_txt
-            log.info "[EUCANCAN/nf-wgswes] Sent summary e-mail to $params.email (mail)"
+            log.info "[EUCANCAN/nf-vegan] Sent summary e-mail to $params.email (mail)"
         }
     }
 
@@ -2198,10 +2198,10 @@ workflow.onComplete {
         log.info "${c_green}Number of successfully ran process(es) : ${workflow.stats.succeedCountFmt}${c_reset}"
     }
 
-    if (workflow.success) log.info "${c_purple}[EUCANCAN/nf-wgswes]${c_green} Pipeline completed successfully${c_reset}"
+    if (workflow.success) log.info "${c_purple}[EUCANCAN/nf-vegan]${c_green} Pipeline completed successfully${c_reset}"
     else {
         checkHostname()
-        log.info "${c_purple}[EUCANCAN/nf-wgswes]${c_red} Pipeline completed with errors${c_reset}"
+        log.info "${c_purple}[EUCANCAN/nf-vegan]${c_red} Pipeline completed with errors${c_reset}"
     }
 }
 
@@ -2216,8 +2216,8 @@ def create_workflow_summary(summary) {
     yaml_file.text  = """
     id: 'nf-core-sarek-summary'
     description: " - this information is collected when the pipeline is started."
-    section_name: 'EUCANCAN/nf-wgswes Workflow Summary'
-    section_href: 'https://github.com/EUCANCAN/nf-wgswes'
+    section_name: 'EUCANCAN/nf-vegan Workflow Summary'
+    section_href: 'https://github.com/EUCANCAN/nf-vegan'
     plot_type: 'html'
     data: |
         <dl class=\"dl-horizontal\">
@@ -2278,9 +2278,9 @@ def checkParamReturnFile(item) {
 // Define list of available tools to annotate
 def defineAnnoList() {
     return [
-        'HaplotypeCaller',
-        'Manta',
-        'Mutect2'
+        'haplotypeCaller',
+        'manta',
+        'mutect2'
     ]
 }
 
