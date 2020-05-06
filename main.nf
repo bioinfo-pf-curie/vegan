@@ -72,13 +72,13 @@ def helpMessage() {
                                     and/or for annotation:
                                     snpEff, VEP, merge
                                     Default: None
-        --skipQC                    Specify which QC tools to skip when running nf-vegan
+        --skipQC                    Specify which QC tools to skip when running ${params.name}
                                     Available: all, bamQC, BCFtools, FastQC, MultiQC, samtools, vcftools, versions
                                     Default: None
-        --skipFilterSV              Specify which SV tools to skip when running nf-vegan
+        --skipFilterSV              Specify which SV tools to skip when running ${params.name}
                                     Available: all, bamQC, BCFtools, FastQC, MultiQC, samtools, vcftools, versions
                                     Default: None
-        --skipFilterSNV             Specify which QC tools to skip when running nf-vegan
+        --skipFilterSNV             Specify which QC tools to skip when running ${params.name}
                                     Available: all, markduplicates
                                     Default: None
         --annotateTools             Specify from which tools Sarek will look for VCF files to annotate, only for step annotate
@@ -278,10 +278,6 @@ ch_vepCacheVersion = params.vepCacheVersion ? Channel.value(params.vepCacheVersi
 ch_vep_cache = params.vep_cache ? Channel.value(file(params.vep_cache)) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
-ch_cadd_InDels = params.cadd_InDels ? Channel.value(file(params.cadd_InDels)) : "null"
-ch_cadd_InDels_tbi = params.cadd_InDels_tbi ? Channel.value(file(params.cadd_InDels_tbi)) : "null"
-ch_cadd_WG_SNVs = params.cadd_WG_SNVs ? Channel.value(file(params.cadd_WG_SNVs)) : "null"
-ch_cadd_WG_SNVs_tbi = params.cadd_WG_SNVs_tbi ? Channel.value(file(params.cadd_WG_SNVs_tbi)) : "null"
 ch_pon = params.pon ? Channel.value(file(params.pon)) : "null"
 ch_targetBED = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 
@@ -2108,8 +2104,8 @@ multiQCOut.dump(tag:'MultiQC')
 workflow.onComplete {
 
     // Set up the e-mail variables
-    def subject = "[EUCANCAN/nf-vegan] Successful: ${workflow.runName}"
-    if (!workflow.success) subject = "[EUCANCAN/nf-vegan] FAILED: ${workflow.runName}"
+    def subject = "[EUCANCAN/${params.name}] Successful: ${workflow.runName}"
+    if (!workflow.success) subject = "[EUCANCAN/${params.name}] FAILED: ${workflow.runName}"
     def email_fields = [:]
     email_fields['version'] = workflow.manifest.version
     email_fields['runName'] = custom_runName ?: workflow.runName
@@ -2140,12 +2136,12 @@ workflow.onComplete {
         if (workflow.success) {
             mqc_report = multiQCOut.getVal()
             if (mqc_report.getClass() == ArrayList) {
-                log.warn "[EUCANCAN/nf-vegan] Found multiple reports from process 'multiqc', will use only one"
+                log.warn "[EUCANCAN/${params.name}] Found multiple reports from process 'multiqc', will use only one"
                 mqc_report = mqc_report[0]
             }
         }
     } catch (all) {
-        log.warn "[EUCANCAN/nf-vegan] Could not attach MultiQC report to summary email"
+        log.warn "[EUCANCAN/${params.name}] Could not attach MultiQC report to summary email"
     }
 
     // Render the TXT template
@@ -2171,11 +2167,11 @@ workflow.onComplete {
             if (params.plaintext_email) { throw GroovyException('Send plaintext e-mail, not HTML') }
             // Try to send HTML e-mail using sendmail
             [ 'sendmail', '-t' ].execute() << sendmail_html
-            log.info "[EUCANCAN/nf-vegan] Sent summary e-mail to $params.email (sendmail)"
+            log.info "[EUCANCAN/${params.name}] Sent summary e-mail to $params.email (sendmail)"
         } catch (all) {
             // Catch failures and try with plaintext
             [ 'mail', '-s', subject, params.email ].execute() << email_txt
-            log.info "[EUCANCAN/nf-vegan] Sent summary e-mail to $params.email (mail)"
+            log.info "[EUCANCAN/${params.name}] Sent summary e-mail to $params.email (mail)"
         }
     }
 
@@ -2198,10 +2194,10 @@ workflow.onComplete {
         log.info "${c_green}Number of successfully ran process(es) : ${workflow.stats.succeedCountFmt}${c_reset}"
     }
 
-    if (workflow.success) log.info "${c_purple}[EUCANCAN/nf-vegan]${c_green} Pipeline completed successfully${c_reset}"
+    if (workflow.success) log.info "${c_purple}[EUCANCAN/${params.name}]${c_green} Pipeline completed successfully${c_reset}"
     else {
         checkHostname()
-        log.info "${c_purple}[EUCANCAN/nf-vegan]${c_red} Pipeline completed with errors${c_reset}"
+        log.info "${c_purple}[EUCANCAN/${params.name}]${c_red} Pipeline completed with errors${c_reset}"
     }
 }
 
@@ -2211,13 +2207,14 @@ workflow.onComplete {
 ================================================================================
 */
 
+// TODO: Use a template
 def create_workflow_summary(summary) {
     def yaml_file = workDir.resolve('workflow_summary_mqc.yaml')
     yaml_file.text  = """
     id: 'nf-core-sarek-summary'
     description: " - this information is collected when the pipeline is started."
-    section_name: 'EUCANCAN/nf-vegan Workflow Summary'
-    section_href: 'https://github.com/EUCANCAN/nf-vegan'
+    section_name: 'EUCANCAN/${params.name} Workflow Summary'
+    section_href: 'https://github.com/EUCANCAN/${params.name}'
     plot_type: 'html'
     data: |
         <dl class=\"dl-horizontal\">
