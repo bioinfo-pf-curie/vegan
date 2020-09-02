@@ -1,5 +1,0 @@
-/beegfs/curie_scratch/HPC-bench/tools/conda/envs/sarek-2.5.1/lib/python2.7/site-packages/multiqc/utils/config.py:45: YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated, as the default Loader is unsafe. Please read https://msg.pyyaml.org/load for full details.
-  configs = yaml.load(f)
-/beegfs/curie_scratch/HPC-bench/tools/conda/envs/sarek-2.5.1/lib/python2.7/site-packages/multiqc/utils/config.py:51: YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated, as the default Loader is unsafe. Please read https://msg.pyyaml.org/load for full details.
-  sp = yaml.load(f)
-multiqc, version 1.7
