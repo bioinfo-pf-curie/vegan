@@ -14,3 +14,6 @@ main.test.nf
 .nextflow*
 work
 results
+test.nf
+/nf-vegan.iml
+/.gradle/
