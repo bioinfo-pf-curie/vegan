@@ -60,6 +60,7 @@ tsvPath = getTsvPath()
 inputSampleCh = getInputSample(tsvPath)
 
 (genderMap, statusMap, inputSampleCh) = extractInfos(inputSampleCh)
+
 /*
 ================================================================================
                                CHECKING REFERENCES
@@ -139,6 +140,7 @@ def summary = [
 // Check the hostnames against configured profiles
 checkHostname(params, workflow)
 
+
 /*
 ================================================================================
                                INIT CHANNELS
@@ -167,6 +169,7 @@ targetBEDCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 
 // Print summary and genareta summary channel
 workflowSummaryCh = summarize(params, summary, workflow)
+
 
 /*
 ================================================================================
@@ -363,6 +366,7 @@ process BuildIntervals {
 
 intervalsCh = params.noIntervals ? "null" : params.intervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : intervalBuiltCh
 
+
 /*
 ================================================================================
                                   PREPROCESSING
@@ -445,6 +449,12 @@ if (params.noIntervals && step != 'annotate') bedIntervalsCh = Channel.from(file
 
 (intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(4)
 
+
+/*
+================================================================================
+                                  QUALITY CHECK
+================================================================================
+*/
 // PREPARING CHANNELS FOR PREPROCESSING AND QC
 
 inputBamCh = Channel.create()
@@ -542,6 +552,13 @@ fastQCReportCh = fastQCFQReportCh.mix(fastQCBAMReportCh)
 
 fastQCReportCh = fastQCReportCh.dump(tag:'FastQC')
 
+
+/*
+================================================================================
+                                  MAPPING
+================================================================================
+*/
+
 // STEP 1: MAPPING READS TO REFERENCE GENOME WITH BWA MEM
 
 inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
@@ -601,7 +618,6 @@ singleBamCh = singleBamCh.map {
 }
 singleBamCh = singleBamCh.dump(tag:'Single BAM')
 
-
 // STEP 1': MERGING BAM FROM MULTIPLE LANES
 
 process MergeBamMapped {
@@ -657,7 +673,14 @@ process IndexBamFile {
 
 mapMbamCh = mergedBamCh
 
-// STEP 2: FILTRES : BWAMEM UNIQ
+
+/*
+================================================================================
+                                  FILTERING
+================================================================================
+*/
+
+// STEP 2: BWAMEM UNIQ FILTER
 // Mapping Quality Filter
 process BwaMemUniq {
     label 'samtools'
@@ -702,8 +725,7 @@ if ('uniq' in skipFilterSNV) {
  	memUbamCh = mergedBamUCh
 }
 
-// STEP 2: FILTRES : MARKING DUPLICATES 
-
+// STEP 2: MARKING DUPLICATES FILTER
 process MarkDuplicates {
     label 'sambamba'
     label 'cpus16'
@@ -738,8 +760,9 @@ process MarkDuplicates {
 
 if (('markduplicates' in skipFilterSNV) || ('markduplicates' in skipFilterSV)) markDuplicatesReportCh.close()
 
-// TODO: use mapQReportCh for multiqc ?
+// STEP 2: MAPQ FILTER
 // Mapping Quality Filter
+// TODO: Do we have to use mapQReportCh for multiqc ?
 process MapQ {
     label 'samtools'
     label 'cpus2'
@@ -782,12 +805,17 @@ if ('mapq' in skipFilterSNV) {
 
 (bamMDCh, bamMDToJoinCh) = mapQbamCh.into(2) // duplicateMarked + MapQ
 
-bamBaseRecalibratorCh = bamMDCh.combine(intBaseRecalibratorCh)
 
+/*
+================================================================================
+                                  RECALIBRATING
+================================================================================
+*/
+
+bamBaseRecalibratorCh = bamMDCh.combine(intBaseRecalibratorCh)
 bamBaseRecalibratorCh = bamBaseRecalibratorCh.dump(tag:'BAM FOR BASERECALIBRATOR')
 
 // STEP 3: CREATING RECALIBRATION TABLES
-
 process BaseRecalibrator {
     label 'gatk'
     label 'cpus1'
@@ -840,7 +868,6 @@ if (params.noIntervals) {
 } else recalTableTSVnoIntCh.close()
 
 // STEP 3.5: MERGING RECALIBRATION TABLES
-
 process GatherBQSRReports {
     label 'gatk'
     label 'memorySingleCPU2Task'
@@ -896,9 +923,7 @@ recalTableSampleTSVCh
         ["duplicateMarked_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\t${recalTable}\n"]
 }
 
-bamApplyBQSRCh = bamMDToJoinCh.join(recalTableCh, by:[0,1])
-
-if (step == 'recalibrate') bamApplyBQSRCh = inputSampleCh
+bamApplyBQSRCh = step in 'recalibrate' ? inputSampleCh : bamMDToJoinCh.join(recalTableCh, by:[0,1])
 
 bamApplyBQSRCh = bamApplyBQSRCh.dump(tag:'BAM + BAI + RECAL TABLE')
 // [DUMP: recal.table] ['normal', 'normal', normal.md.bam, normal.md.bai, normal.recal.table]
@@ -909,7 +934,6 @@ bamApplyBQSRCh = bamApplyBQSRCh.dump(tag:'BAM + BAI + RECAL TABLE + INT')
 // [DUMP: BAM + BAI + RECAL TABLE + INT] ['normal', 'normal', normal.md.bam, normal.md.bai, normal.recal.table, 1_1-200000.bed]
 
 // STEP 4: RECALIBRATING
-
 process ApplyBQSR {
     label 'gatk'
     label 'memorySingleCPU2Task'
@@ -946,7 +970,6 @@ bamMergeBamRecalCh = bamMergeBamRecalCh.groupTuple(by:[0, 1])
 (bamMergeBamRecalCh, bamMergeBamRecalNoIntCh) = bamMergeBamRecalCh.into(2)
 
 // EP 4.5: MERGING THE RECALIBRATED BAM FILES
-
 process MergeBamRecal {
     label 'samtools'
     label 'cpus8'
@@ -975,7 +998,6 @@ process MergeBamRecal {
 }
 
 // STEP 4.5': INDEXING THE RECALIBRATED BAM FILES
-
 process IndexBamRecal {
     label 'samtools'
     label 'cpus8'
@@ -1031,7 +1053,15 @@ bamRecalSampleTSVCh
         ["recalibrated_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"]
 }
 
-// STEP 5: QC
+// When no knownIndels for mapping, Channel bamRecalCh is indexedBamCh
+bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh
+
+
+/*
+================================================================================
+                                  QUALITY CHECK
+================================================================================
+*/
 
 process SamtoolsStats {
     label 'samtools'
@@ -1103,16 +1133,13 @@ bamQCReportCh = bamQCReportCh.dump(tag:'BamQC')
 
 /*
 ================================================================================
-                            GERMLINE VARIANT CALLING
+                            VARIANT CALLING
 ================================================================================
 */
 
-// When no knownIndels for mapping, Channel bamRecalCh is indexedBamCh
-bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh
 
 // When starting with variant calling, Channel bamRecalCh is inputSampleCh
-if (step == 'variantcalling') bamRecalCh = inputSampleCh
-
+bamRecalCh = step in 'variantcalling' ? inputSampleCh : bamRecalCh
 bamRecalCh = bamRecalCh.dump(tag:'BAM')
 
 // Here we have a recalibrated bam set
@@ -1120,7 +1147,39 @@ bamRecalCh = bamRecalCh.dump(tag:'BAM')
 // Manta will be run in Germline mode, or in Tumor mode depending on status
 // HaplotypeCaller will be run for Normal and Tumor samples
 
-(bamMantaSingleCh, bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(3)
+(bamMantaSingleCh, bamAscatCh, bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(4)
+//(bamAscatCh, bamRecalAllCh) = bamRecalAllCh.into(2)
+
+// separate BAM by status for somatic variant calling
+bamNormalCh = Channel.create()
+bamTumorCh = Channel.create()
+
+bamRecalAllCh
+        .choice(bamTumorCh, bamNormalCh) {statusMap[it[0], it[1]] == 0 ? 1 : 0}
+
+// Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
+// Remapping channel to remove common key idPatient
+pairBamCh = bamNormalCh.cross(bamTumorCh).map {
+    normal, tumor ->
+        [normal[0], normal[1], normal[2], normal[3], tumor[1], tumor[2], tumor[3]]
+}
+
+pairBamCh = pairBamCh.dump(tag:'BAM Somatic Pair')
+
+// Manta,  Mutect2
+(pairBamMantaCh, pairBamCalculateContaminationCh, pairBamCh) = pairBamCh.into(3)
+
+intervalPairBamCh = pairBamCh.combine(bedIntervalsCh)
+
+// intervals for Mutect2 calls and pileups for Mutect2 filtering
+(pairBamMutect2Ch, pairBamPileupSummariesCh) = intervalPairBamCh.into(2)
+
+
+/*
+================================================================================
+                            SNV VARIANT CALLING
+================================================================================
+*/
 
 // To speed Variant Callers up we are chopping the reference into smaller pieces
 // Do variant calling by this intervals, and re-merge the VCFs
@@ -1201,6 +1260,279 @@ process GenotypeGVCFs {
 }
 vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
 
+// STEP GATK MUTECT2.1 - RAW CALLS
+
+process Mutect2 {
+    tag {idSampleTumor + "_vs_" + idSampleNormal + "-" + intervalBed.baseName}
+    label 'gatk'
+    label 'cpus_1'
+
+    input:
+    set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamMutect2Ch
+    file(dict) from dictCh
+    file(fasta) from fastaCh
+    file(fastaFai) from fastaFaiCh
+    file(germlineResource) from germlineResourceCh
+    file(germlineResourceIndex) from germlineResourceIndexCh
+    file(intervals) from intervalsCh
+    file(ponIndex) from Channel.value(params.ponIndex ? file(params.ponIndex) : ponIndexBuiltCh)
+
+
+    output:
+    set val("Mutect2"),
+            idPatient,
+            val("${idSampleTumor}_vs_${idSampleNormal}"),
+            file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf") into mutect2OutputCh
+    set idPatient,
+            idSampleTumor,
+            idSampleNormal,
+            file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf.stats") optional true into mutect2StatsCh
+
+    when: 'mutect2' in tools
+
+    script:
+    // please make a panel-of-normals, using at least 40 samples
+    // https://gatkforums.broadinstitute.org/gatk/discussion/11136/how-to-call-somatic-mutations-using-gatk4-mutect2
+    PON = params.pon ? "--panel-of-normals ${pon}" : ""
+    """
+    # Get raw calls
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+      Mutect2 \
+      -R ${fasta}\
+      -I ${bamTumor}  -tumor ${idSampleTumor} \
+      -I ${bamNormal} -normal ${idSampleNormal} \
+      -L ${intervalBed} \
+      --germline-resource ${germlineResource} \
+      ${PON} \
+      -O ${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf
+    """
+}
+
+mutect2OutputCh = mutect2OutputCh.groupTuple(by:[0,1,2])
+(mutect2OutputCh, mutect2OutForStats) = mutect2OutputCh.into(2)
+
+(mutect2StatsCh, intervalStatsFilesCh) = mutect2StatsCh.into(2)
+mutect2StatsCh = mutect2StatsCh.groupTuple(by:[0,1,2])
+
+// STEP GATK MUTECT2.2 - MERGING STATS
+
+process MergeMutect2Stats {
+    tag {idSampleTumor + "_vs_" + idSampleNormal}
+    label 'gatk'
+
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/Mutect2", mode: params.publishDirMode
+
+    input:
+    set caller, idPatient, idSampleTumor_vs_idSampleNormal, file(vcfFiles) from mutect2OutForStats // corresponding small VCF chunks
+    set idPatient, idSampleTumor, idSampleNormal, file(statsFiles) from mutect2StatsCh               // the actual stats files
+    file(dict) from dictCh
+    file(fasta) from fastaCh
+    file(fastaFai) from fastaFaiCh
+    file(germlineResource) from germlineResourceCh
+    file(germlineResourceIndex) from germlineResourceIndexCh
+    file(intervals) from intervalsCh
+
+    output:
+    file("${idSampleTumor_vs_idSampleNormal}.vcf.gz.stats") into mergedStatsFileCh
+
+    when: 'mutect2' in tools
+
+    script:
+    stats = statsFiles.collect{ "-stats ${it} " }.join(' ')
+    """
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        MergeMutectStats \
+        ${stats} \
+        -O ${idSampleTumor}_vs_${idSampleNormal}.vcf.gz.stats
+    """
+}
+
+// we are merging the VCFs that are called separatelly for different intervals
+// so we can have a single sorted VCF containing all the calls for a given caller
+
+// STEP MERGING VCF - GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED)
+
+vcfConcatenateVCFsCh = mutect2OutputCh.mix(vcfGenotypeGVCFsCh, gvcfHaplotypeCallerCh)
+vcfConcatenateVCFsCh = vcfConcatenateVCFsCh.dump(tag:'VCF to merge')
+
+process ConcatVCF {
+    label 'bcftools'
+    label 'cpus8'
+
+    tag {variantCaller + "-" + idSample}
+
+    publishDir "${params.outputDir}/VariantCalling/${idSample}/${"$variantCaller"}", mode: params.publishDirMode
+
+    input:
+    set variantCaller, idPatient, idSample, file(vcFiles) from vcfConcatenateVCFsCh
+    file(fastaFai) from fastaFaiCh
+    file(targetBED) from targetBEDCh
+
+    output:
+    // we have this funny *_* pattern to avoid copying the raw calls to publishdir
+    set variantCaller, idPatient, idSample, file("*_*.vcf.gz"), file("*_*.vcf.gz.tbi") into vcfConcatenatedCh
+    file("v_bcftools.txt") into bcftoolsVersionCh
+
+    when: ('haplotypecaller' in tools || 'mutect2' in tools)
+
+    script:
+    if (variantCaller == 'HaplotypeCallerGVCF')
+        outputFile = "HaplotypeCaller_${idSample}.g.vcf"
+    else if (variantCaller == "Mutect2")
+        outputFile = "unfiltered_${variantCaller}_${idSample}.vcf"
+    else
+        outputFile = "${variantCaller}_${idSample}.vcf"
+    options = params.targetBED ? "-t ${targetBED}" : ""
+    """
+    apConcatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options}
+    bcftools --version &> v_bcftools.txt 2>&1 || true
+    """
+}
+
+(vcfConcatenatedCh, vcfConcatenatedForFilterCh) = vcfConcatenatedCh.into(2)
+vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
+
+// STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
+
+process PileupSummariesForMutect2 {
+    tag {idSampleTumor + "_vs_" + idSampleNormal + "_" + intervalBed.baseName }
+    label 'gatk'
+    label 'cpus_1'
+
+    input:
+    set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
+    set idPatient, idSampleNormal, idSampleTumor, file(statsFile) from intervalStatsFilesCh
+    file(germlineResource) from germlineResourceCh
+    file(germlineResourceIndex) from germlineResourceIndexCh
+
+    output:
+    set idPatient,
+            idSampleTumor,
+            file("${intervalBed.baseName}_${idSampleTumor}_pileupsummaries.table") into pileupSummariesCh
+
+    when: 'mutect2' in tools
+
+    script:
+    """
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        GetPileupSummaries \
+        -I ${bamTumor} \
+        -V ${germlineResource} \
+        -L ${intervalBed} \
+        -O ${intervalBed.baseName}_${idSampleTumor}_pileupsummaries.table
+    """
+}
+
+pileupSummariesCh = pileupSummariesCh.groupTuple(by:[0,1])
+
+// STEP GATK MUTECT2.4 - MERGING PILEUP SUMMARIES
+
+process MergePileupSummaries {
+    label 'gatk'
+    label 'cpus_1'
+
+    tag {idPatient + "_" + idSampleTumor}
+
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
+
+    input:
+    set idPatient, idSampleTumor, file(pileupSums) from pileupSummariesCh
+    file(dict) from dictCh
+
+    output:
+    file("${idSampleTumor}_pileupsummaries.table.tsv") into mergedPileupFileCh
+
+    when: 'mutect2' in tools
+    script:
+    allPileups = pileupSums.collect{ "-I ${it} " }.join(' ')
+    """
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        GatherPileupSummaries \
+        --sequence-dictionary ${dict} \
+        ${allPileups} \
+        -O ${idSampleTumor}_pileupsummaries.table.tsv
+    """
+}
+
+// STEP GATK MUTECT2.5 - CALCULATING CONTAMINATION
+
+process CalculateContamination {
+    label 'gatk'
+    label 'cpus_1'
+
+    tag {idSampleTumor + "_vs_" + idSampleNormal}
+
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
+
+    input:
+    set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor) from pairBamCalculateContaminationCh
+    file("${idSampleTumor}_pileupsummaries.table") from mergedPileupFileCh
+
+    output:
+    file("${idSampleTumor}_contamination.table") into contaminationTableCh
+
+    when: 'mutect2' in tools
+
+    script:
+    """
+    # calculate contamination
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        CalculateContamination \
+        -I ${idSampleTumor}_pileupsummaries.table \
+        -O ${idSampleTumor}_contamination.table
+    """
+}
+
+// STEP GATK MUTECT2.6 - FILTERING CALLS
+
+process FilterMutect2Calls {
+    label 'gatk'
+    label 'medCpu'
+    label 'medMem'
+
+    tag {idSampleTN}
+
+    publishDir "${params.outputDir}/VariantCalling/${idSampleTN}/${"$variantCaller"}", mode: params.publishDirMode
+
+    input:
+    set variantCaller, idPatient, idSampleTN, file(unfiltered), file(unfilteredIndex) from vcfConcatenatedForFilterCh
+    file("${idSampleTN}.vcf.gz.stats") from mergedStatsFileCh
+    file("${idSampleTN}_contamination.table") from contaminationTableCh
+    file(dict) from dictCh
+    file(fasta) from fastaCh
+    file(fastaFai) from fastaFaiCh
+    file(germlineResource) from germlineResourceCh
+    file(germlineResourceIndex) from germlineResourceIndexCh
+    file(intervals) from intervalsCh
+
+    output:
+    set val("Mutect2"), idPatient, idSampleTN,
+            file("filtered_${variantCaller}_${idSampleTN}.vcf.gz"),
+            file("filtered_${variantCaller}_${idSampleTN}.vcf.gz.tbi"),
+            file("filtered_${variantCaller}_${idSampleTN}.vcf.gz.filteringStats.tsv") into filteredMutect2OutputCh
+
+    when: 'mutect2' in tools
+
+    script:
+    """
+    # do the actual filtering
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        FilterMutectCalls \
+        -V ${unfiltered} \
+        --contamination-table ${idSampleTN}_contamination.table \
+        --stats ${idSampleTN}.vcf.gz.stats \
+        -R ${fasta} \
+        -O filtered_${variantCaller}_${idSampleTN}.vcf.gz
+    """
+}
+
+
+/*
+================================================================================
+                            SV VARIANT CALLING
+================================================================================
+*/
+
 // STEP MANTA.1 - SINGLE MODE
 
 process MantaSingle {
@@ -1257,39 +1589,6 @@ process MantaSingle {
 }
 
 vcfMantaSingleCh = vcfMantaSingleCh.dump(tag:'Single Manta')
-
-/*
-================================================================================
-                             SOMATIC VARIANT CALLING
-================================================================================
-*/
-// Ascat
-(bamAscatCh, bamRecalAllCh) = bamRecalAllCh.into(2)
-
-// separate BAM by status
-bamNormalCh = Channel.create()
-bamTumorCh = Channel.create()
-
-bamRecalAllCh
-    .choice(bamTumorCh, bamNormalCh) {statusMap[it[0], it[1]] == 0 ? 1 : 0}
-
-// Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
-// Remapping channel to remove common key idPatient
-pairBamCh = bamNormalCh.cross(bamTumorCh).map {
-    normal, tumor ->
-    [normal[0], normal[1], normal[2], normal[3], tumor[1], tumor[2], tumor[3]]
-}
-
-pairBamCh = pairBamCh.dump(tag:'BAM Somatic Pair')
-
-// Manta,  Mutect2
-(pairBamMantaCh, pairBamCalculateContaminationCh, pairBamCh) = pairBamCh.into(3)
-
-intervalPairBamCh = pairBamCh.spread(bedIntervalsCh)
-
-// intervals for Mutect2 calls and pileups for Mutect2 filtering
-(pairBamMutect2Ch, pairBamPileupSummariesCh) = intervalPairBamCh.into(3)
-
 
 // STEP MANTA.2 - SOMATIC PAIR
 
@@ -1349,272 +1648,14 @@ process Manta {
 }
 
 vcfMantaCh = vcfMantaCh.dump(tag:'Manta')
-
-// STEP GATK MUTECT2.1 - RAW CALLS
-
-process Mutect2 {
-    tag {idSampleTumor + "_vs_" + idSampleNormal + "-" + intervalBed.baseName}
-    label 'gatk'
-    label 'cpus_1'
-
-    input:
-        set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamMutect2Ch
-        file(dict) from dictCh
-        file(fasta) from fastaCh
-        file(fastaFai) from fastaFaiCh
-        file(germlineResource) from germlineResourceCh
-        file(germlineResourceIndex) from germlineResourceIndexCh
-        file(intervals) from intervalsCh
-        file(ponIndex) from Channel.value(params.ponIndex ? file(params.ponIndex) : ponIndexBuiltCh)
+(vcfMantaSomaticSVCh, vcfMantaDiploidSVCh) = vcfMantaCh.into(2)
 
 
-    output:
-        set val("Mutect2"),
-            idPatient,
-            val("${idSampleTumor}_vs_${idSampleNormal}"),
-            file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf") into mutect2OutputCh
-        set idPatient,
-            idSampleTumor,
-            idSampleNormal,
-            file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf.stats") optional true into mutect2StatsCh
-
-    when: 'mutect2' in tools
-
-    script:
-    // please make a panel-of-normals, using at least 40 samples
-    // https://gatkforums.broadinstitute.org/gatk/discussion/11136/how-to-call-somatic-mutations-using-gatk4-mutect2
-    PON = params.pon ? "--panel-of-normals ${pon}" : ""
-    """
-    # Get raw calls
-    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
-      Mutect2 \
-      -R ${fasta}\
-      -I ${bamTumor}  -tumor ${idSampleTumor} \
-      -I ${bamNormal} -normal ${idSampleNormal} \
-      -L ${intervalBed} \
-      --germline-resource ${germlineResource} \
-      ${PON} \
-      -O ${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf
-    """
-}
-
-mutect2OutputCh = mutect2OutputCh.groupTuple(by:[0,1,2])
-(mutect2OutputCh, mutect2OutForStats) = mutect2OutputCh.into(2)
-
-(mutect2StatsCh, intervalStatsFilesCh) = mutect2StatsCh.into(2)
-mutect2StatsCh = mutect2StatsCh.groupTuple(by:[0,1,2])
-
-// STEP GATK MUTECT2.2 - MERGING STATS
-
-process MergeMutect2Stats {
-    tag {idSampleTumor + "_vs_" + idSampleNormal}
-    label 'gatk'
-
-    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/Mutect2", mode: params.publishDirMode
-
-    input:
-        set caller, idPatient, idSampleTumor_vs_idSampleNormal, file(vcfFiles) from mutect2OutForStats // corresponding small VCF chunks
-        set idPatient, idSampleTumor, idSampleNormal, file(statsFiles) from mutect2StatsCh               // the actual stats files
-        file(dict) from dictCh
-        file(fasta) from fastaCh
-        file(fastaFai) from fastaFaiCh
-        file(germlineResource) from germlineResourceCh
-        file(germlineResourceIndex) from germlineResourceIndexCh
-        file(intervals) from intervalsCh
-
-    output:
-        file("${idSampleTumor_vs_idSampleNormal}.vcf.gz.stats") into mergedStatsFileCh
-
-    when: 'mutect2' in tools
-
-    script:
-      stats = statsFiles.collect{ "-stats ${it} " }.join(' ')
-    """
-    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
-        MergeMutectStats \
-        ${stats} \
-        -O ${idSampleTumor}_vs_${idSampleNormal}.vcf.gz.stats
-    """
-}
-
-// we are merging the VCFs that are called separatelly for different intervals
-// so we can have a single sorted VCF containing all the calls for a given caller
-
-// STEP MERGING VCF - GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED)
-
-vcfConcatenateVCFsCh = mutect2OutputCh.mix(vcfGenotypeGVCFsCh, gvcfHaplotypeCallerCh)
-vcfConcatenateVCFsCh = vcfConcatenateVCFsCh.dump(tag:'VCF to merge')
-
-process ConcatVCF {
-    label 'bcftools'
-    label 'cpus8'
-
-    tag {variantCaller + "-" + idSample}
-
-    publishDir "${params.outputDir}/VariantCalling/${idSample}/${"$variantCaller"}", mode: params.publishDirMode
-
-    input:
-        set variantCaller, idPatient, idSample, file(vcFiles) from vcfConcatenateVCFsCh
-        file(fastaFai) from fastaFaiCh
-        file(targetBED) from targetBEDCh
-
-    output:
-    // we have this funny *_* pattern to avoid copying the raw calls to publishdir
-        set variantCaller, idPatient, idSample, file("*_*.vcf.gz"), file("*_*.vcf.gz.tbi") into vcfConcatenatedCh
-        file("v_bcftools.txt") into bcftoolsVersionCh
-
-    when: ('haplotypecaller' in tools || 'mutect2' in tools)
-
-    script:
-    if (variantCaller == 'HaplotypeCallerGVCF')
-      outputFile = "HaplotypeCaller_${idSample}.g.vcf"
-    else if (variantCaller == "Mutect2")
-      outputFile = "unfiltered_${variantCaller}_${idSample}.vcf"
-    else
-      outputFile = "${variantCaller}_${idSample}.vcf"
-    options = params.targetBED ? "-t ${targetBED}" : ""
-    """
-    apConcatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options}
-    bcftools --version &> v_bcftools.txt 2>&1 || true
-    """
-}
-
-(vcfConcatenatedCh, vcfConcatenatedForFilterCh) = vcfConcatenatedCh.into(2)
-vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
-
-// STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
-
-process PileupSummariesForMutect2 {
-    tag {idSampleTumor + "_vs_" + idSampleNormal + "_" + intervalBed.baseName }
-    label 'gatk'
-    label 'cpus_1'
-
-    input:
-        set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
-        set idPatient, idSampleNormal, idSampleTumor, file(statsFile) from intervalStatsFilesCh
-        file(germlineResource) from germlineResourceCh
-        file(germlineResourceIndex) from germlineResourceIndexCh
-
-    output:
-        set idPatient,
-            idSampleTumor,
-            file("${intervalBed.baseName}_${idSampleTumor}_pileupsummaries.table") into pileupSummariesCh
-
-    when: 'mutect2' in tools
-
-    script:
-    """
-    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
-        GetPileupSummaries \
-        -I ${bamTumor} \
-        -V ${germlineResource} \
-        -L ${intervalBed} \
-        -O ${intervalBed.baseName}_${idSampleTumor}_pileupsummaries.table
-    """
-}
-
-pileupSummariesCh = pileupSummariesCh.groupTuple(by:[0,1])
-
-// STEP GATK MUTECT2.4 - MERGING PILEUP SUMMARIES
-
-process MergePileupSummaries {
-    label 'gatk'
-    label 'cpus_1'
-
-    tag {idPatient + "_" + idSampleTumor}
-
-    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
-
-    input:
-        set idPatient, idSampleTumor, file(pileupSums) from pileupSummariesCh
-        file(dict) from dictCh
-
-    output:
-        file("${idSampleTumor}_pileupsummaries.table.tsv") into mergedPileupFileCh
-
-    when: 'mutect2' in tools
-    script:
-        allPileups = pileupSums.collect{ "-I ${it} " }.join(' ')
-    """
-    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
-        GatherPileupSummaries \
-        --sequence-dictionary ${dict} \
-        ${allPileups} \
-        -O ${idSampleTumor}_pileupsummaries.table.tsv
-    """
-}
-
-// STEP GATK MUTECT2.5 - CALCULATING CONTAMINATION
-
-process CalculateContamination {
-    label 'gatk'
-    label 'cpus_1'
-
-    tag {idSampleTumor + "_vs_" + idSampleNormal}
-
-    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}/Mutect2", mode: params.publishDirMode
-
-    input:
-        set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor) from pairBamCalculateContaminationCh
-        file("${idSampleTumor}_pileupsummaries.table") from mergedPileupFileCh
-
-    output:
-        file("${idSampleTumor}_contamination.table") into contaminationTableCh
-
-    when: 'mutect2' in tools
-
-    script:
-    """
-    # calculate contamination
-    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
-        CalculateContamination \
-        -I ${idSampleTumor}_pileupsummaries.table \
-        -O ${idSampleTumor}_contamination.table
-    """
-}
-
-// STEP GATK MUTECT2.6 - FILTERING CALLS
-
-process FilterMutect2Calls {
-    label 'gatk'
-    label 'medCpu'
-    label 'medMem'
-
-    tag {idSampleTN}
-
-    publishDir "${params.outputDir}/VariantCalling/${idSampleTN}/${"$variantCaller"}", mode: params.publishDirMode
-
-    input:
-        set variantCaller, idPatient, idSampleTN, file(unfiltered), file(unfilteredIndex) from vcfConcatenatedForFilterCh
-        file("${idSampleTN}.vcf.gz.stats") from mergedStatsFileCh
-        file("${idSampleTN}_contamination.table") from contaminationTableCh
-        file(dict) from dictCh
-        file(fasta) from fastaCh
-        file(fastaFai) from fastaFaiCh
-        file(germlineResource) from germlineResourceCh
-        file(germlineResourceIndex) from germlineResourceIndexCh
-        file(intervals) from intervalsCh
-
-    output:
-        set val("Mutect2"), idPatient, idSampleTN,
-            file("filtered_${variantCaller}_${idSampleTN}.vcf.gz"),
-            file("filtered_${variantCaller}_${idSampleTN}.vcf.gz.tbi"),
-            file("filtered_${variantCaller}_${idSampleTN}.vcf.gz.filteringStats.tsv") into filteredMutect2OutputCh
-
-    when: 'mutect2' in tools
-
-    script:
-    """
-    # do the actual filtering
-    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
-        FilterMutectCalls \
-        -V ${unfiltered} \
-        --contamination-table ${idSampleTN}_contamination.table \
-        --stats ${idSampleTN}.vcf.gz.stats \
-        -R ${fasta} \
-        -O filtered_${variantCaller}_${idSampleTN}.vcf.gz
-    """
-}
+/*
+================================================================================
+                            CNV VARIANT CALLING
+================================================================================
+*/
 
 // STEP ASCAT.1 - ALLELECOUNTER
 
@@ -1735,11 +1776,16 @@ process Ascat {
 
 ascatOutCh.dump(tag:'ASCAT')
 
+
+/*
+================================================================================
+                                   ANNOTATION
+================================================================================
+*/
+
 // Remapping channels for QC and annotation
 
-(vcfMantaSomaticSVCh, vcfMantaDiploidSVCh) = vcfMantaCh.into(2)
-
-vcfKeepCh = Channel.empty().mix(
+vcfAnnotationCh = Channel.empty().mix(
     filteredMutect2OutputCh.map{
         variantCaller, idPatient, idSample, vcf, tbi, tsv ->
             [variantcaller, idSample, vcf]
@@ -1760,15 +1806,6 @@ vcfKeepCh = Channel.empty().mix(
         variantcaller, idPatient, idSample, vcf, tbi ->
         [variantcaller, idSample, vcf[3]]
     })
-
-
-vcfAnnotationCh = vcfKeepCh
-
-/*
-================================================================================
-                                   ANNOTATION
-================================================================================
-*/
 
 if (step == 'annotate') {
     vcfToAnnotateCh = Channel.create()
@@ -1803,8 +1840,6 @@ if (step == 'annotate') {
 }
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
-vcfSnpeffCh = vcfAnnotationCh
-
 // STEP SNPEFF
 
 process Snpeff {
@@ -1817,7 +1852,7 @@ process Snpeff {
     }
 
     input:
-        set variantCaller, idSample, file(vcf) from vcfSnpeffCh
+        set variantCaller, idSample, file(vcf) from vcfAnnotationCh
         file(dataDir) from snpEffCacheCh
         val snpeffDb from snpeffDbCh
 
@@ -1880,13 +1915,10 @@ compressVCFsnpEffOutCh = compressVCFsnpEffOutCh.dump(tag:'VCF')
 ================================================================================
 */
 
-// STEP MULTIQC
-
 /**
  * Parse software version numbers
  * @output software_versions_mqc.yaml
  */
-// TODO: find a way to diff and merge (if no diff) version channels
 // TODO: find a way to get multiqc version ?
 process GetSoftwareVersions {
     label 'python'
