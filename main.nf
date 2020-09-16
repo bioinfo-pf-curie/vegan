@@ -636,7 +636,7 @@ process MergeBamMapped {
     script:
     """
     samtools merge --threads ${task.cpus} ${idSample}.bam ${bam}
-    file 'v_samtools.txt' into samtoolsMapReadsVersionCh
+    samtools --version &> v_samtools.txt 2>&1 || true
     """
 }
 
