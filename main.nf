@@ -56,12 +56,16 @@ skipFilterSV = params.skipFilterSV
 skipFilterSNV = params.skipFilterSNV
 annotateTools = params.annotateTools
 
-customRunName = getRunName()
-step    = getStep()
-tsvPath = getTsvPath()
-inputSampleCh = getInputSample(tsvPath)
+customRunName = checkRunName(workflow.runName, params.runName)
+step    = getStep(params.samplePlan, params.step)
+inputPath = getPath(step, params.samplePlan, params.outputDir)
+samplePlanCh = getSamplePlan(inputPath)
 
-(genderMap, statusMap, inputSampleCh) = extractInfos(inputSampleCh)
+(genderMap, statusMap, pairMap) = extractInfos(getDesign(params.design))
+// genderMap[sampleId] = "XX"/"XY"
+// Statusmap[sampleId] = O/1
+// pairMap[normalSampleId, tumorSampleId] = "pairName"
+
 
 /*
 ================================================================================
@@ -451,49 +455,58 @@ if (params.noIntervals && step != 'annotate') bedIntervalsCh = Channel.from(file
 
 (intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(4)
 
+// PREPARING CHANNELS FOR PREPROCESSING AND QC
+
+// TODO: not working
+//(inputBamCh, inputPairReadsCh) = step == 'mapping' ? forkMappingSamplePlan(samplePlanCh) : [Channel.empty(), Channel.empty()]
+if (step == "mapping") {
+    def runIds = [:]
+    samplePlanCh.map {
+        runIds[it[0]] = runIds.containsKey(it[0]) ? runIds[it[0]] + 1 : 0
+        return it[0,1] + [[it[0], runIds[it[0]].toString()].join("_")] + it[2..-1]
+    }.branch {
+        bamCh: it[3] =~ /.*bam$/
+        pairCh: it[3] =~ /.*(fastq.gz|fq.gz|fastq|fq)$/
+    }.set { samplePlanForks }
+    (inputBamCh, inputPairReadsCh) = [samplePlanForks.bamCh, samplePlanForks.pairCh]
+} else (inputBamCh, inputPairReadsCh) = [Channel.empty(), Channel.empty()]
+
+
+// TODO: chek if splitFastq works
+if (params.splitFastq){
+    inputPairReadsCh = inputPairReadsCh
+    // newly splitfastq are named based on split, so the name is easier to catch
+            .splitFastq(by: params.splitFastq, compress:true, file:"split", pe:true)
+            .map {sampleId, sampleName, runId, reads1, reads2 ->
+                // The split fastq read1 is the 4th element (indexed 3) its name is split_3
+                // The split fastq read2's name is split_4
+                // It's followed by which split it's acutally based on the mother fastq file
+                // Index start at 1
+                // Extracting the index to get a new IdRun
+                splitIndex = reads1.fileName.toString().minus("split_3.").minus(".gz")
+                newIdRun = runId + "_" + splitIndex
+                // Giving the files a new nice name
+                newReads1 = file("${sampleName}_${newIdRun}_R1.fastq.gz")
+                newReads2 = file("${sampleName}_${newIdRun}_R2.fastq.gz")
+                [sampleId, sampleName, newIdRun, reads1, reads2]}
+}
+
+inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
+
 
 /*
 ================================================================================
                                   QUALITY CHECK
 ================================================================================
 */
-// PREPARING CHANNELS FOR PREPROCESSING AND QC
-
-inputBamCh = Channel.create()
-inputPairReadsCh = Channel.create()
-
-if (step in ['recalibrate', 'variantcalling', 'annotate']) {
-    inputBamCh.close()
-    inputPairReadsCh.close()
-} else inputSampleCh.choice(inputPairReadsCh, inputBamCh) {hasExtension(it[3], "bam") ? 1 : 0}
 
 (inputBamCh, inputBamFastQCCh) = inputBamCh.into(2)
 
 // Removing inputFile2 wich is null in case of uBAM
 inputBamFastQCCh = inputBamFastQCCh.map {
-    idPatient, idSample, idRun, inputFile1, inputFile2 ->
-    [idPatient, idSample, idRun, inputFile1]
+    sampleId, sampleName, runID, inputFile1, inputFile2 ->
+    [sampleId, sampleName, runID, inputFile1]
 }
-
-if (params.splitFastq){
-    inputPairReadsCh = inputPairReadsCh
-        // newly splitfastq are named based on split, so the name is easier to catch
-        .splitFastq(by: params.splitFastq, compress:true, file:"split", pe:true)
-        .map {idPatient, idSample, idRun, reads1, reads2 ->
-            // The split fastq read1 is the 4th element (indexed 3) its name is split_3
-            // The split fastq read2's name is split_4
-            // It's followed by which split it's acutally based on the mother fastq file
-            // Index start at 1
-            // Extracting the index to get a new IdRun
-            splitIndex = reads1.fileName.toString().minus("split_3.").minus(".gz")
-            newIdRun = idRun + "_" + splitIndex
-            // Giving the files a new nice name
-            newReads1 = file("${idSample}_${newIdRun}_R1.fastq.gz")
-            newReads2 = file("${idSample}_${newIdRun}_R2.fastq.gz")
-            [idPatient, idSample, newIdRun, reads1, reads2]}
-}
-
-inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 
 (inputPairReadsCh, inputPairReadsFastQC) = inputPairReadsCh.into(2)
 
@@ -903,29 +916,29 @@ recalTableCh = recalTableCh.dump(tag:'RECAL TABLE')
 (recalTableTSVCh, recalTableSampleTSVCh) = recalTableTSVCh.mix(recalTableTSVnoIntCh).into(2)
 
 // Create TSV files to restart from this step
-recalTableTSVCh.map { idPatient, idSample ->
-    status = statusMap[idPatient, idSample]
-    gender = genderMap[idPatient]
-    bam = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bam"
-    bai = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bai"
-    recalTable = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.recal.table"
-    "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\t${recalTable}\n"
+recalTableTSVCh.map { sampleId, sampleName ->
+    status = statusMap[sampleId]
+    gender = genderMap[sampleId]
+    bam = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
+    bai = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
+    recalTable = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
+    "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\t${recalTable}\n"
 }.collectFile(
     name: 'duplicateMarked.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
 )
 
 recalTableSampleTSVCh
     .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV/") {
-        idPatient, idSample ->
-        status = statusMap[idPatient, idSample]
-        gender = genderMap[idPatient]
-        bam = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bam"
-        bai = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.md.bai"
-        recalTable = "${params.outputDir}/Preprocessing/${idSample}/DuplicateMarked/${idSample}.recal.table"
-        ["duplicateMarked_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\t${recalTable}\n"]
+        sampleId, sampleName ->
+        status = statusMap[sampleId]
+        gender = genderMap[sampleId]
+        bam = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
+        bai = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
+        recalTable = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
+        ["duplicateMarked_${sampleName}.tsv", "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\t${recalTable}\n"]
 }
 
-bamApplyBQSRCh = step in 'recalibrate' ? inputSampleCh : bamMDToJoinCh.join(recalTableCh, by:[0,1])
+bamApplyBQSRCh = step in 'recalibrate' ? samplePlanCh : bamMDToJoinCh.join(recalTableCh, by:[0,1])
 
 bamApplyBQSRCh = bamApplyBQSRCh.dump(tag:'BAM + BAI + RECAL TABLE')
 // [DUMP: recal.table] ['normal', 'normal', normal.md.bam, normal.md.bai, normal.recal.table]
@@ -1035,24 +1048,24 @@ bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
 (bamRecalTSVCh, bamRecalSampleTSVCh) = bamRecalTSVCh.into(2)
 
 // Creating a TSV file to restart from this step
-bamRecalTSVCh.map { idPatient, idSample ->
-    gender = genderMap[idPatient]
-    status = statusMap[idPatient, idSample]
-    bam = "${params.outputDir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam"
-    bai = "${params.outputDir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam.bai"
-    "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"
+bamRecalTSVCh.map { sampleId, sampleName ->
+    gender = genderMap[sampleId]
+    status = statusMap[sampleId]
+    bam = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
+    bai = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
+    "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\n"
 }.collectFile(
     name: 'recalibrated.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
 )
 
 bamRecalSampleTSVCh
     .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV") {
-        idPatient, idSample ->
-        status = statusMap[idPatient, idSample]
-        gender = genderMap[idPatient]
-        bam = "${params.outputDir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam"
-        bai = "${params.outputDir}/Preprocessing/${idSample}/Recalibrated/${idSample}.recal.bam.bai"
-        ["recalibrated_${idSample}.tsv", "${idPatient}\t${gender}\t${status}\t${idSample}\t${bam}\t${bai}\n"]
+        sampleId, sampleName ->
+        status = statusMap[sampleId]
+        gender = genderMap[sampleId]
+        bam = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
+        bai = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
+        ["recalibrated_${sampleName}.tsv", "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\n"]
 }
 
 // When no knownIndels for mapping, Channel bamRecalCh is indexedBamCh
@@ -1153,17 +1166,16 @@ bamRecalCh = bamRecalCh.dump(tag:'BAM')
 //(bamAscatCh, bamRecalAllCh) = bamRecalAllCh.into(2)
 
 // separate BAM by status for somatic variant calling
-bamNormalCh = Channel.create()
-bamTumorCh = Channel.create()
-
-bamRecalAllCh
-        .choice(bamTumorCh, bamNormalCh) {statusMap[it[0], it[1]] == 0 ? 1 : 0}
+bamRecalAllCh.branch{
+    normalCh: statusMap[it[0]] == 0
+    tumorCh: statusMap[it[0]] == 1
+}.set { bamRecalAllForks }
 
 // Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
-// Remapping channel to remove common key idPatient
-pairBamCh = bamNormalCh.cross(bamTumorCh).map {
+// Remapping channel to remove common key sampleId
+pairBamCh = bamRecalAllForks.normalCh.cross(bamRecalAllForks.tumorCh).map {
     normal, tumor ->
-        [normal[0], normal[1], normal[2], normal[3], tumor[1], tumor[2], tumor[3]]
+        [normal[0], normal[1], normal[2], normal[3], tumor[0], tumor[1], tumor[2], tumor[3]]
 }
 
 pairBamCh = pairBamCh.dump(tag:'BAM Somatic Pair')
@@ -1265,12 +1277,12 @@ vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
 // STEP GATK MUTECT2.1 - RAW CALLS
 
 process Mutect2 {
-    tag {idSampleTumor + "_vs_" + idSampleNormal + "-" + intervalBed.baseName}
+    tag {sampleNameTumor + "_vs_" + sampleNameNormal + "-" + intervalBed.baseName}
     label 'gatk'
     label 'cpus_1'
 
     input:
-    set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamMutect2Ch
+    set sampleIdNormal, sampleNameNormal, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamMutect2Ch
     file(dict) from dictCh
     file(fasta) from fastaCh
     file(fastaFai) from fastaFaiCh
@@ -1282,17 +1294,18 @@ process Mutect2 {
 
     output:
     set val("Mutect2"),
-            idPatient,
-            val("${idSampleTumor}_vs_${idSampleNormal}"),
-            file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf") into mutect2OutputCh
-    set idPatient,
-            idSampleTumor,
-            idSampleNormal,
-            file("${intervalBed.baseName}_${idSampleTumor}_vs_${idSampleNormal}.vcf.stats") optional true into mutect2StatsCh
+            pairName,
+            val("${sampleNameTumor}_vs_${sampleNameNormal}"),
+            file("${intervalBed.baseName}_${sampleNameTumor}_vs_${sampleNameNormal}.vcf") into mutect2OutputCh
+    set pairName,
+            sampleNameTumor,
+            sampleNameNormal,
+            file("${intervalBed.baseName}_${sampleNameTumor}_vs_${sampleNameNormal}.vcf.stats") optional true into mutect2StatsCh
 
     when: 'mutect2' in tools
 
     script:
+    pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
     // please make a panel-of-normals, using at least 40 samples
     // https://gatkforums.broadinstitute.org/gatk/discussion/11136/how-to-call-somatic-mutations-using-gatk4-mutect2
     PON = params.pon ? "--panel-of-normals ${pon}" : ""
@@ -1397,31 +1410,32 @@ vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
 // STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
 
 process PileupSummariesForMutect2 {
-    tag {idSampleTumor + "_vs_" + idSampleNormal + "_" + intervalBed.baseName }
+    tag {sampleNameTumor + "_vs_" + sampleNameNormal + "_" + intervalBed.baseName }
     label 'gatk'
     label 'cpus_1'
 
     input:
-    set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
-    set idPatient, idSampleNormal, idSampleTumor, file(statsFile) from intervalStatsFilesCh
+    set sampleIdNormal, sampleNameNormal, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
+    set sampleId, sampleNameNormal, sampleNameTumor, file(statsFile) from intervalStatsFilesCh
     file(germlineResource) from germlineResourceCh
     file(germlineResourceIndex) from germlineResourceIndexCh
 
     output:
-    set idPatient,
-            idSampleTumor,
-            file("${intervalBed.baseName}_${idSampleTumor}_pileupsummaries.table") into pileupSummariesCh
+    set pairName,
+            sampleNameTumor,
+            file("${intervalBed.baseName}_${sampleNameTumor}_pileupsummaries.table") into pileupSummariesCh
 
     when: 'mutect2' in tools
 
     script:
+    pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
     """
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
         GetPileupSummaries \
         -I ${bamTumor} \
         -V ${germlineResource} \
         -L ${intervalBed} \
-        -O ${intervalBed.baseName}_${idSampleTumor}_pileupsummaries.table
+        -O ${intervalBed.baseName}_${sampleNameTumor}_pileupsummaries.table
     """
 }
 
@@ -1561,7 +1575,7 @@ process MantaSingle {
     script:
     beforeScript = params.targetBED ? "bgzip --threads ${task.cpus} -c ${targetBED} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
     options = params.targetBED ? "--exome --callRegions call_targets.bed.gz" : ""
-    status = statusMap[idPatient, idSample]
+    status = statusMap[sampleId]
     inputbam = status == 0 ? "--bam" : "--tumorBam"
     vcftype = status == 0 ? "diploid" : "tumor"
     """
@@ -1599,23 +1613,24 @@ process Manta {
     label 'cpusMax'
     label 'memoryMax'
 
-    tag {idSampleTumor + "_vs_" + idSampleNormal}
+    tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
-    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/Manta", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/Manta", mode: params.publishDirMode
 
     input:
-        set idPatient, idSampleNormal, file(bamNormal), file(baiNormal), idSampleTumor, file(bamTumor), file(baiTumor) from pairBamMantaCh
+        set sampleIdNormal, sampleNameNormal, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, file(bamTumor), file(baiTumor) from pairBamMantaCh
         file(fasta) from fastaCh
         file(fastaFai) from fastaFaiCh
         file(targetBED) from targetBEDCh
 
     output:
-        set val("Manta"), idPatient, val("${idSampleTumor}_vs_${idSampleNormal}"), file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaCh
+        set val("Manta"), pairName, val("${sampleNameTumor}_vs_${sampleNameNormal}"), file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaCh
         file 'v_manta.txt' into mantaVersionCh
 
     when: 'manta' in tools
 
     script:
+    pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
     beforeScript = params.targetBED ? "bgzip --threads ${task.cpus} -c ${targetBED} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
     options = params.targetBED ? "--exome --callRegions call_targets.bed.gz" : ""
     """
@@ -1693,18 +1708,18 @@ process AlleleCounter {
     """
 }
 
-alleleCountOutNormalCh = Channel.create()
-alleleCountOutTumorCh = Channel.create()
-
 alleleCounterOutCh
-    .choice(alleleCountOutTumorCh, alleleCountOutNormalCh) {statusMap[it[0], it[1]] == 0 ? 1 : 0}
+    .branch {
+        normalCh: statusMap[it[0]] == 0
+        tumorCh: statusMap[it[0]] == 1
+    }.set { alleleCountOutForks }
 
-alleleCounterOutCh = alleleCountOutNormalCh.combine(alleleCountOutTumorCh)
+alleleCounterOutCh = alleleCountOutForks.normalCh.combine(alleleCountOutForks.tumorCh)
 
 alleleCounterOutCh = alleleCounterOutCh.map {
-    idPatientNormal, idSampleNormal, alleleCountOutNormal,
-    idPatientTumor, idSampleTumor, alleleCountOutTumor ->
-    [idPatientNormal, idSampleNormal, idSampleTumor, alleleCountOutNormal, alleleCountOutTumor]
+    sampleIdNormal, sampleNameNormal, alleleCountOutNormal,
+    sampleIdTumor, sampleNameTumor, alleleCountOutTumor ->
+    [sampleIdNormal, sampleNameNormal, sampleIdTumor, sampleNameTumor, alleleCountOutNormal, alleleCountOutTumor]
 }
 // STEP ASCAT.2 - CONVERTALLELECOUNTS
 
@@ -1714,23 +1729,24 @@ process ConvertAlleleCounts {
     label 'ascat'
     label 'memorySingleCPU2Task'
 
-    tag {idSampleTumor + "_vs_" + idSampleNormal}
+    tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
-    publishDir "${params.outputDir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/ASCAT", mode: params.publishDirMode
+    publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/ASCAT", mode: params.publishDirMode
 
     input:
-        set idPatient, idSampleNormal, idSampleTumor, file(alleleCountNormal), file(alleleCountTumor) from alleleCounterOutCh
+        set sampleIdNormal, sampleNameNormal, sampleIdTumor, sampleNameTumor, file(alleleCountNormal), file(alleleCountTumor) from alleleCounterOutCh
 
     output:
-        set idPatient, idSampleNormal, idSampleTumor, file("${idSampleNormal}.BAF"), file("${idSampleNormal}.LogR"), file("${idSampleTumor}.BAF"), file("${idSampleTumor}.LogR") into convertAlleleCountsOutCh
+        set pairName, sampleNameNormal, sampleNameTumor, file("${sampleNameNormal}.BAF"), file("${sampleNameNormal}.LogR"), file("${sampleNameTumor}.BAF"), file("${sampleNameTumor}.LogR") into convertAlleleCountsOutCh
         file("v_ascat.txt") into convertAlleleCountsVersionCh
 
     when: 'ascat' in tools
 
     script:
-    gender = genderMap[idPatient]
+    pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
+    gender = genderMap[sampleId]
     """
-    Rscript ${workflow.projectDir}/bin/apConvertAlleleCounts.r ${idSampleTumor} ${alleleCountTumor} ${idSampleNormal} ${alleleCountNormal} ${gender}
+    Rscript ${workflow.projectDir}/bin/apConvertAlleleCounts.r ${sampleNameTumor} ${alleleCountTumor} ${sampleNameNormal} ${alleleCountNormal} ${gender}
     R -e "packageVersion('ASCAT')" > v_ascat.txt
     """
 }
@@ -1813,27 +1829,27 @@ if (step == 'annotate') {
     vcfToAnnotateCh = Channel.create()
     vcfNoAnnotateCh = Channel.create()
 
-    if (tsvPath == []) {
-    // By default, annotates all available vcfs that it can find in the VariantCalling directory
-    // Excluding vcfs from and g.vcf from HaplotypeCaller
-    // Basically it's: results/VariantCalling/*/{HaplotypeCaller,Manta,Mutect2}/*.vcf.gz
-    // Without *SmallIndels.vcf.gz from Manta
-    // The small snippet `vcf.minus(vcf.fileName)[-2]` catches idSample
-    // This field is used to output final annotated VCFs in the correct directory
-      Channel.empty().mix(
-        Channel.fromPath("${params.outputDir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
-          .flatten().map{vcf -> ['HaplotypeCaller', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-        Channel.fromPath("${params.outputDir}/VariantCalling/*/Manta/*[!candidate]SV.vcf.gz")
-          .flatten().map{vcf -> ['Manta', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-        Channel.fromPath("${params.outputDir}/VariantCalling/*/Mutect2/*.vcf.gz")
-          .flatten().map{vcf -> ['Mutect2', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
-      ).choice(vcfToAnnotateCh, vcfNoAnnotateCh) {
+    if (inputPath == []) {
+        // By default, annotates all available vcfs that it can find in the VariantCalling directory
+        // Excluding vcfs from and g.vcf from HaplotypeCaller
+        // Basically it's: results/VariantCalling/*/{HaplotypeCaller,Manta,Mutect2}/*.vcf.gz
+        // Without *SmallIndels.vcf.gz from Manta
+        // The small snippet `vcf.minus(vcf.fileName)[-2]` catches sampleName
+        // This field is used to output final annotated VCFs in the correct directory
+        Channel.empty().mix(
+            Channel.fromPath("${params.outputDir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
+              .flatten().map{vcf -> ['HaplotypeCaller', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+            Channel.fromPath("${params.outputDir}/VariantCalling/*/Manta/*[!candidate]SV.vcf.gz")
+              .flatten().map{vcf -> ['Manta', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+            Channel.fromPath("${params.outputDir}/VariantCalling/*/Mutect2/*.vcf.gz")
+              .flatten().map{vcf -> ['Mutect2', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
+        ).choice(vcfToAnnotateCh, vcfNoAnnotateCh) {
         annotateTools == [] || (annotateTools != [] && it[0] in annotateTools) ? 0 : 1
       }
     } else if (annotateTools == []) {
     // Annotate user-submitted VCFs
-    // If user-submitted, assume that the idSample should be assumed automatically
-      vcfToAnnotateCh = Channel.fromPath(tsvPath)
+    // If user-submitted, assume that the sampleName should be assumed automatically
+      vcfToAnnotateCh = Channel.fromPath(inputPath)
         .map{vcf -> ['userspecified', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
     } else exit 1, "specify only tools or files to annotate, not both"
 
@@ -1946,7 +1962,6 @@ process GetSoftwareVersions {
 
     script:
     """
-    cp ${baseDir}/assets/software_versions/*.txt .
     echo "${workflow.manifest.version}" &> v_pipeline.txt 2>&1 || true
     echo "${workflow.nextflow.version}" &> v_nextflow.txt 2>&1 || true
 

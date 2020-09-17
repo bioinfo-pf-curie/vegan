@@ -1,7 +1,20 @@
 {
   "parameters": [
     {
-      "name": "input",
+      "name": "samplePlan",
+      "label": "Input files",
+      "usage": "Path to input TSV file on mapping, recalibrate and variant calling steps. Multiple TSV files can be specified with quotes. Works also with the path to a directory on mapping step with a single germline sample only. Alternatively, path to VCF input file on annotate step. Multiple VCF files can be specified with quotes",
+      "type": "path",
+      "choices": [],
+      "nargs": "+",
+      "default_value": null,
+      "pattern": ".*\\*.*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Mandatory arguments"
+    },
+    {
+      "name": "design",
       "label": "Input files",
       "usage": "Path to input TSV file on mapping, recalibrate and variant calling steps. Multiple TSV files can be specified with quotes. Works also with the path to a directory on mapping step with a single germline sample only. Alternatively, path to VCF input file on annotate step. Multiple VCF files can be specified with quotes",
       "type": "path",
