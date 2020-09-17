@@ -46,7 +46,9 @@ welcome()
 */
 
 // Use lintedParams as default params object
-def params = lintedParams
+//def params = lintedParams
+def paramsWithUsage = readParamsFromJsonSettings("$baseDir/parameters.settings.json")
+def params = lint(params, paramsWithUsage)
 
 tools = params.tools
 skipQC = params.skipQC
