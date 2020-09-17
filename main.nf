@@ -595,8 +595,8 @@ process MapReads {
         file(fastaFai) from fastaFaiCh
 
     output:
-        set sampleId, sampleName, runId, file("${sampleId}_${}.bam") into bamMappedCh
-        set sampleId, val("${sampleId}_${}"), file("${sampleId}_${}.bam") into bamMappedBamQCCh
+        set sampleId, sampleName, runId, file("${sampleName}_${runId}.bam") into bamMappedCh
+        set sampleId, val("${sampleName}_${runId}"), file("${sampleName}_${runId}.bam") into bamMappedBamQCCh
         file 'v_samtools.txt' into samtoolsMapReadsVersionCh
 
     script:
