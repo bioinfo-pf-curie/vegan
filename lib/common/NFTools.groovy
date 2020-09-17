@@ -67,7 +67,7 @@ abstract class NFTools extends BaseScript {
         return formattedParamsGroups.join('\n')
     }
 
-    private static Object readParamsFromJsonSettings(String path) {
+    static Object readParamsFromJsonSettings(String path) {
 
         def paramsWithUsage
         try {
@@ -241,7 +241,6 @@ abstract class NFTools extends BaseScript {
 
         def sessionParams = binding.getParams()
         def sessionWorkflow = binding.getVariable('workflow')
-        def paramsWithUsage = readParamsFromJsonSettings("${sessionWorkflow.projectDir}/parameters.settings.json")
 
         nfHeader(sessionParams, sessionWorkflow as WorkflowMetadata)
         if ("${sessionWorkflow.manifest.version}" =~ /dev/ ){
@@ -249,16 +248,10 @@ abstract class NFTools extends BaseScript {
             log.info devMessageFile.text
         }
         if (sessionParams.help) {
+            def paramsWithUsage = readParamsFromJsonSettings("${sessionWorkflow.projectDir}/parameters.settings.json")
             helpMessage(paramsWithUsage, sessionWorkflow)
             Nextflow.exit(1)
         }
-
-        // Update params according to rules defined in paramsWithUsage
-        def lintedParams = lint(sessionParams, paramsWithUsage)
-//        TODO: sounds good, doesn't work
-//        binding.setParams(lintedParams)
-        binding.setVariable("lintedParams", lintedParams)
-        binding.setVariable('paramsWithUsage', paramsWithUsage)
 
     }
 
