@@ -111,6 +111,15 @@ abstract class NFTools extends BaseScript {
         it.toString().toLowerCase().endsWith(extension.toLowerCase())
     }
 
+    static String getExtension(path, List extensions) {
+        for (extension in extensions) {
+            if (hasExtension(path, extension)) {
+                return extension
+            }
+        }
+        return ""
+    }
+
     /**
      * Check if a row has the expected number of item
      *
@@ -119,7 +128,7 @@ abstract class NFTools extends BaseScript {
      * @return Boolean
      */
     static boolean checkNumberOfItem(row, number) {
-        if (row.size() != number) Nextflow.exit 1, "Malformed row in TSV file: ${row}, see --help for more information"
+        if (row.size() != number) Nextflow.exit 1, "Malformed row in input file: ${row}, see --help for more information"
         return true
     }
 
