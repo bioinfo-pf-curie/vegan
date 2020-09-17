@@ -138,8 +138,9 @@ abstract class NFTools extends BaseScript {
      * @return Nextflow.file Object
      */
     static returnFile(it) {
-        if (!Nextflow.file(it).exists()) Nextflow.exit 1, "Missing file in TSV file: ${it}, see --help for more information"
-        return Nextflow.file(it)
+        if (it =~ /(http|ftp)/) {return Nextflow.file(it)}
+        else if (!Nextflow.file(it).exists()) Nextflow.exit(1, "Missing file in input file: ${it}, see --help for more information")
+        else return Nextflow.file(it)
     }
 
     static summarize(params, summary, workflow) {
