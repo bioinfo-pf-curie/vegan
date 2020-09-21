@@ -1760,7 +1760,7 @@ process Ascat {
     purity_ploidy = (params.ascat_purity && params.ascat_ploidy) ? "--purity ${params.ascat_purity} --ploidy ${params.ascat_ploidy}" : ""
     """
     for f in *BAF *LogR; do sed 's/chr//g' \$f > tmpFile; mv tmpFile \$f;done
-    run_ascat.r \
+    apRunAscat.r \
         --tumorbaf ${bafTumor} \
         --tumorlogr ${logrTumor} \
         --normalbaf ${bafNormal} \
