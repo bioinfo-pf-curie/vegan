@@ -1174,10 +1174,10 @@ bamRecalAllCh.branch{
     normalCh: statusMap[it[0]] == 0
     tumorCh: statusMap[it[0]] == 1
 }.set { bamRecalAllForks }
-
+(bamRecalNormalCh, bamRecalTumorCh) = [bamRecalAllForks.normalCh, bamRecalAllForks.tumorCh]
 // Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
 // Remapping channel to remove common key sampleId
-pairBamCh = bamRecalAllForks.normalCh.cross(bamRecalAllForks.tumorCh).map {
+pairBamCh = bamRecalNormalCh.cross(bamRecalTumorCh).map {
     normal, tumor ->
         [normal[0], normal[1], normal[2], normal[3], tumor[0], tumor[1], tumor[2], tumor[3]]
 }
@@ -1342,8 +1342,8 @@ process MergeMutect2Stats {
     publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/Mutect2", mode: params.publishDirMode
 
     input:
-    set caller, sampleId, sampleNameTumor_vs_sampleNameNormal, file(vcfFiles) from mutect2OutForStats // corresponding small VCF chunks
-    set sampleId, sampleNameTumor, sampleNameNormal, file(statsFiles) from mutect2StatsCh               // the actual stats files
+    set caller, pairName, sampleNameTumor_vs_sampleNameNormal, file(vcfFiles) from mutect2OutForStats // corresponding small VCF chunks
+    set pairName, sampleNameTumor, sampleNameNormal, file(statsFiles) from mutect2StatsCh               // the actual stats files
     file(dict) from dictCh
     file(fasta) from fastaCh
     file(fastaFai) from fastaFaiCh
@@ -1456,7 +1456,7 @@ process MergePileupSummaries {
     publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
 
     input:
-    set sampleId, sampleNameTumor, file(pileupSums) from pileupSummariesCh
+    set pairName, sampleNameTumor, file(pileupSums) from pileupSummariesCh
     file(dict) from dictCh
 
     output:
@@ -1717,12 +1717,11 @@ alleleCounterOutCh
         normalCh: statusMap[it[0]] == 0
         tumorCh: statusMap[it[0]] == 1
     }.set { alleleCountOutForks }
-
-alleleCounterOutCh = alleleCountOutForks.normalCh.combine(alleleCountOutForks.tumorCh)
+(alleleCounterOutNormalCh, alleleCounterOutTumorCh) = [alleleCountOutForks.normalCh, alleleCountOutForks.tumorCh]
+alleleCounterOutCh = alleleCounterOutNormalCh.combine(alleleCounterOutTumorCh)
 
 alleleCounterOutCh = alleleCounterOutCh.map {
-    sampleIdNormal, sampleNameNormal, alleleCountOutNormal,
-    sampleIdTumor, sampleNameTumor, alleleCountOutTumor ->
+    sampleIdNormal, sampleNameNormal, alleleCountOutNormal, sampleIdTumor, sampleNameTumor, alleleCountOutTumor ->
     [sampleIdNormal, sampleNameNormal, sampleIdTumor, sampleNameTumor, alleleCountOutNormal, alleleCountOutTumor]
 }
 // STEP ASCAT.2 - CONVERTALLELECOUNTS
@@ -1741,14 +1740,14 @@ process ConvertAlleleCounts {
         set sampleIdNormal, sampleNameNormal, sampleIdTumor, sampleNameTumor, file(alleleCountNormal), file(alleleCountTumor) from alleleCounterOutCh
 
     output:
-        set pairName, sampleNameNormal, sampleNameTumor, file("${sampleNameNormal}.BAF"), file("${sampleNameNormal}.LogR"), file("${sampleNameTumor}.BAF"), file("${sampleNameTumor}.LogR") into convertAlleleCountsOutCh
+        set sampleIdNormal, sampleNameNormal, sampleNameTumor, file("${sampleNameNormal}.BAF"), file("${sampleNameNormal}.LogR"), file("${sampleNameTumor}.BAF"), file("${sampleNameTumor}.LogR") into convertAlleleCountsOutCh
         file("v_ascat.txt") into convertAlleleCountsVersionCh
 
     when: 'ascat' in tools
 
     script:
     pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
-    gender = genderMap[sampleId]
+    gender = genderMap[sampleIdNormal]
     """
     Rscript ${workflow.projectDir}/bin/apConvertAlleleCounts.r ${sampleNameTumor} ${alleleCountTumor} ${sampleNameNormal} ${alleleCountNormal} ${gender}
     R -e "packageVersion('ASCAT')" > v_ascat.txt
@@ -1768,17 +1767,17 @@ process Ascat {
     publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/ASCAT", mode: params.publishDirMode
 
     input:
-        set sampleId, sampleNameNormal, sampleNameTumor, file(bafNormal), file(logrNormal), file(bafTumor), file(logrTumor) from convertAlleleCountsOutCh
+        set sampleIdNormal, sampleNameNormal, sampleNameTumor, file(bafNormal), file(logrNormal), file(bafTumor), file(logrTumor) from convertAlleleCountsOutCh
         file(acLociGC) from acLociGCCh
 
     output:
-        set val("ASCAT"), sampleId, sampleNameNormal, sampleNameTumor, file("${sampleNameTumor}.*.{png,txt}") into ascatOutCh
+        set val("ASCAT"), sampleIdNormal, sampleNameNormal, sampleNameTumor, file("${sampleNameTumor}.*.{png,txt}") into ascatOutCh
         file("v_ascat.txt") into ascatVersionCh
 
     when: 'ascat' in tools
 
     script:
-    gender = genderMap[sampleId]
+    gender = genderMap[sampleIdNormal]
     purity_ploidy = (params.ascat_purity && params.ascat_ploidy) ? "--purity ${params.ascat_purity} --ploidy ${params.ascat_ploidy}" : ""
     """
     for f in *BAF *LogR; do sed 's/chr//g' \$f > tmpFile; mv tmpFile \$f;done
