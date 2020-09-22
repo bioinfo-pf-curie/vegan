@@ -1787,7 +1787,7 @@ process Ascat {
         --normalbaf ${bafNormal} \
         --normallogr ${logrNormal} \
         --tumorname ${sampleNameTumor} \
-        --basedir ${projectDir} \
+        --basedir ${workflow.projectDir} \
         --gcfile ${acLociGC} \
         --gender ${gender} \
         ${purity_ploidy}
