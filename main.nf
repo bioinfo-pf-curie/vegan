@@ -66,7 +66,6 @@ samplePlanCh = getSamplePlan(inputPath)
 // Statusmap[sampleId] = O/1
 // pairMap[normalSampleId, tumorSampleId] = "pairName"
 
-
 /*
 ================================================================================
                                CHECKING REFERENCES
@@ -1177,10 +1176,7 @@ bamRecalAllCh.branch{
 (bamRecalNormalCh, bamRecalTumorCh) = [bamRecalAllForks.normalCh, bamRecalAllForks.tumorCh]
 // Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
 // Remapping channel to remove common key sampleId
-pairBamCh = bamRecalNormalCh.cross(bamRecalTumorCh).map {
-    normal, tumor ->
-        [normal[0], normal[1], normal[2], normal[3], tumor[0], tumor[1], tumor[2], tumor[3]]
-}
+pairBamCh = bamRecalNormalCh.combine(bamRecalTumorCh).filter{ pairMap.containsKey([it[0], it[4]]) }
 
 pairBamCh = pairBamCh.dump(tag:'BAM Somatic Pair')
 
@@ -1318,8 +1314,8 @@ process Mutect2 {
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
       Mutect2 \
       -R ${fasta}\
-      -I ${bamTumor}  -tumor ${sampleNameTumor} \
-      -I ${bamNormal} -normal ${sampleNameNormal} \
+      -I ${bamTumor}  -tumor ${sampleIdTumor} \
+      -I ${bamNormal} -normal ${sampleIdNormal} \
       -L ${intervalBed} \
       --germline-resource ${germlineResource} \
       ${PON} \
