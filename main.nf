@@ -1714,7 +1714,7 @@ alleleCounterOutCh
         tumorCh: statusMap[it[0]] == 1
     }.set { alleleCountOutForks }
 (alleleCounterOutNormalCh, alleleCounterOutTumorCh) = [alleleCountOutForks.normalCh, alleleCountOutForks.tumorCh]
-alleleCounterOutCh = alleleCounterOutNormalCh.combine(alleleCounterOutTumorCh)
+alleleCounterOutCh = alleleCounterOutNormalCh.combine(alleleCounterOutTumorCh).filter{ pairMap.containsKey([it[0], it[3]]) }
 
 alleleCounterOutCh = alleleCounterOutCh.map {
     sampleIdNormal, sampleNameNormal, alleleCountOutNormal, sampleIdTumor, sampleNameTumor, alleleCountOutTumor ->
