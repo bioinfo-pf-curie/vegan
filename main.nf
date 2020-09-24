@@ -1804,7 +1804,7 @@ ascatOutCh.dump(tag:'ASCAT')
 
 vcfAnnotationCh = Channel.empty().mix(
     filteredMutect2OutputCh.map{
-        variantCaller, sampleId, sampleName, vcf, tbi, tsv ->
+        variantcaller, sampleId, sampleName, vcf, tbi, tsv ->
             [variantcaller, sampleName, vcf]
     },
     vcfConcatenatedCh.map{
