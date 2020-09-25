@@ -58,8 +58,8 @@ annotateTools = params.annotateTools
 
 customRunName = checkRunName(workflow.runName, params.runName)
 step    = getStep(params.samplePlan, params.step)
-inputPath = getPath(step, params.samplePlan, params.outputDir)
-samplePlanCh = getSamplePlan(inputPath)
+samplePlanPath = getPath(step, params.samplePlan, params.outputDir)
+samplePlanCh = getSamplePlan(samplePlanPath)
 
 (genderMap, statusMap, pairMap) = extractInfos(getDesign(params.design))
 // genderMap[sampleId] = "XX"/"XY"
@@ -1830,7 +1830,7 @@ if (step == 'annotate') {
     vcfToAnnotateCh = Channel.create()
     vcfNoAnnotateCh = Channel.create()
 
-    if (inputPath == []) {
+    if (samplePlanPath == []) {
         // By default, annotates all available vcfs that it can find in the VariantCalling directory
         // Excluding vcfs from and g.vcf from HaplotypeCaller
         // Basically it's: results/VariantCalling/*/{HaplotypeCaller,Manta,Mutect2}/*.vcf.gz
@@ -1850,7 +1850,7 @@ if (step == 'annotate') {
     } else if (annotateTools == []) {
     // Annotate user-submitted VCFs
     // If user-submitted, assume that the sampleName should be assumed automatically
-      vcfToAnnotateCh = Channel.fromPath(inputPath)
+      vcfToAnnotateCh = Channel.fromPath(samplePlanPath)
         .map{vcf -> ['userspecified', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
     } else exit 1, "specify only tools or files to annotate, not both"
 
