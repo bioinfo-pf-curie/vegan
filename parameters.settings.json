@@ -185,22 +185,9 @@
       "group": "Main options"
     },
     {
-      "name": "annotationCache",
-      "label": "Enable cache for annotation",
-      "usage": "Enable the use of cache for annotation, to be used with --snpEffCache",
-      "type": "boolean",
-      "nargs": 0,
-      "choices": [],
-      "default_value": false,
-      "pattern": "",
-      "render": "check-box",
-      "arity": 0,
-      "group": "Main options"
-    },
-    {
       "name": "snpEffCache",
       "label": "Path to SnpEff cache",
-      "usage": "Specity the path to snpEff cache, to be used with --annotationCache",
+      "usage": "Specity the path to snpEff cache",
       "type": "path",
       "nargs": 1,
       "choices": [],

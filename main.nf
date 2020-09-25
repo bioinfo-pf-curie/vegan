@@ -1882,7 +1882,7 @@ process Snpeff {
 
     script:
     reducedVCF = reduceVCF(vcf.fileName)
-    cache = (params.snpEffCache && params.annotationCache) ? "-dataDir \${PWD}/${dataDir}" : ""
+    cache = params.snpEffCache ? "-dataDir \${PWD}/${dataDir}" : ""
     """
     snpEff -Xmx${task.memory.toGiga()}g \
         ${snpeffDb} \
