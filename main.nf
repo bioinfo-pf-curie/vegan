@@ -596,6 +596,7 @@ process MapReads {
     output:
         set sampleId, sampleName, runId, file("${sampleName}_${runId}.bam") into bamMappedCh
         set sampleId, val("${sampleName}_${runId}"), file("${sampleName}_${runId}.bam") into bamMappedBamQCCh
+        file("*bwa.log") into bwaMqcCh
         file 'v_samtools.txt' into samtoolsMapReadsVersionCh
 
     script:
@@ -617,6 +618,7 @@ process MapReads {
         ${input} | \
         samtools sort --threads ${task.cpus} -m 2G - > ${sampleName}_${runId}.bam
         samtools --version &> v_samtools.txt 2>&1 || true
+        getBWAstats.sh -i ${sampleName}_${runId}.bam -p ${task.cpus} > ${sampleName}_bwa.log
     """
 }
 
@@ -1976,9 +1978,11 @@ process MultiQC {
     publishDir "${params.outputDir}/Reports/MultiQC", mode: params.publishDirMode
 
     input:
+        file splan from samplePlanCh.collect()
         file multiqcConfig from Channel.value(params.multiqcConfig ? file(params.multiqcConfig) : "")
         file workflow_summary from workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml")
         file (versions) from yamlSoftwareVersionCh
+        file ('mapping/*') from bwaMqcCh.collect().ifEmpty([]) 
         file ('bamQC/*') from bamQCReportCh.collect().ifEmpty([])
         file ('FastQC/*') from fastQCReportCh.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
@@ -1994,7 +1998,11 @@ process MultiQC {
     script:
     rtitle = customRunName ? "--title \"$customRunName\"" : ''
     rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+    metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
+    designOpts= params.design ? "-d ${params.design}" : ""
     """
+    #stats2multiqc.sh -s ${splan} ${designOpts} 
+    mqc_header.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
     multiqc -f ${rtitle} ${rfilename} --config ${multiqcConfig} .
     """
 }
