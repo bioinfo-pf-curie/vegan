@@ -1978,7 +1978,7 @@ process MultiQC {
     publishDir "${params.outputDir}/Reports/MultiQC", mode: params.publishDirMode
 
     input:
-        file splan from samplePlanCh.collect()
+        file splan from Channel.value(file(samplePlanPath))
         file multiqcConfig from Channel.value(params.multiqcConfig ? file(params.multiqcConfig) : "")
         file workflow_summary from workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml")
         file (versions) from yamlSoftwareVersionCh
