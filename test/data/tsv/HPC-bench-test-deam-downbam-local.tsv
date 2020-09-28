@@ -1,6 +1,0 @@
-1234	XX	0	1234N	1234N_M2	/data/tmp/data_4KDI/EUCANCan/dream/down/synthetic.challenge.set1.normal.v2.down.bam
-1234	XX	1	9876T	9876T_M2	/data/tmp/data_4KDI/EUCANCan/dream/down/synthetic.challenge.set1.tumor.v2.down.bam
-5678	XX	0	5678N	5678N_M2	/data/tmp/data_4KDI/EUCANCan/dream/down/synthetic.challenge.set2.normal.down.bam
-5678	XX	1	5678T		/data/tmp/data_4KDI/EUCANCan/dream/down/synthetic.challenge.set2.tumor.down.bam
-9012	XX	0	9012N		/data/tmp/data_4KDI/EUCANCan/dream/down/synthetic.challenge.set3.normal.down.bam
-9012	XX	1	9012T		/data/tmp/data_4KDI/EUCANCan/dream/down/synthetic.challenge.set3.tumor.down.bam
