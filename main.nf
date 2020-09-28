@@ -1949,7 +1949,7 @@ process GetSoftwareVersions {
         file 'v_ascat.txt' from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty('')
         file 'v_allelecount.txt' from alleleCountsVersionCh.first().ifEmpty('')
         file 'v_bcftools.txt' from bcftoolsVersionCh.first().ifEmpty('')
-        file 'v_bwa.txt' from bwaVersionCh.first().ifEmpty('')
+        file 'v_bwa.txt' from bwaVersionCh.ifEmpty('')
         file 'v_fastqc.txt' from fastqcVersionCh.mix(fastqcBamVersionCh).first().ifEmpty('')
         file 'v_gatk.txt' from gatkVersionCh.first().ifEmpty('')
         file 'v_manta.txt' from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
