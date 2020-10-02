@@ -174,7 +174,7 @@ targetBEDCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 
 // Print summary and genareta summary channel
 workflowSummaryCh = summarize(params, summary, workflow)
-
+metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
 
 /*
 ================================================================================
@@ -1979,6 +1979,7 @@ process MultiQC {
 
     input:
         file splan from Channel.value(file(samplePlanPath))
+        file metadata from metadataCh.ifEmpty([])
         file multiqcConfig from Channel.value(params.multiqcConfig ? file(params.multiqcConfig) : "")
         file workflow_summary from workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml")
         file (versions) from yamlSoftwareVersionCh
