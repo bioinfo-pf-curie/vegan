@@ -724,7 +724,7 @@ process BwaMemUniq {
 
     """
     #removed unmapped also with -F 4
-    samtools view  -@ ${task.cpus} -h ${params.samtoolsUniqOptions} ${bam} | grep -v \"XA:Z\" | samtools view  -@ ${task.cpus} -bS > ${sampleName}.temp.bam 2> ${sampleName}.temp.txt 
+    samtools view  -@ ${task.cpus} -h ${params.samtoolsUniqOptions} ${bam} | grep -v \"XA:Z\" | samtools view  -@ ${task.cpus} -bS > ${sampleName}.temp.bam 2> ${sampleName}.temp.txt
     samtools sort -@ ${task.cpus} -o ${sampleName}.bam ${sampleName}.temp.bam
     samtools index ${sampleName}.bam
     samtools index ${bam}
@@ -734,9 +734,9 @@ process BwaMemUniq {
     Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
           printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
           Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
-    }' > ${sampleName}.mapping.stats 
+    }' > ${sampleName}.mapping.stats
     # clean
-    rm ./${sampleName}.temp.* ./*.bam.bai 
+    rm ./${sampleName}.temp.* ./*.bam.bai
     samtools --version &> v_samtools.txt 2>&1 || true
     """
 }
@@ -772,7 +772,7 @@ process MarkDuplicates {
     script:
     """
 
-    sambamba markdup --remove-duplicates --nthreads ${task.cpus} --tmpdir . ${sampleName}.bam ${sampleName}.md.bam 
+    sambamba markdup --remove-duplicates --nthreads ${task.cpus} --tmpdir . ${sampleName}.bam ${sampleName}.md.bam
     sambamba flagstat --nthreads ${task.cpus} ${sampleName}.md.bam > ${sampleName}.bam.metrics
 
     """
@@ -807,7 +807,7 @@ process MapQ {
 
     """
     samtools view -@ ${task.cpus} -q ${params.mapQual} -b ${bam} > ${sampleName}.recal.bam
-    samtools index ${sampleName}.recal.bam 
+    samtools index ${sampleName}.recal.bam
     samtools idxstats ${sampleName}.recal.bam |  awk -v id_sample="${sampleName}" -v map_qual="${params.mapQual}" '{
     mapped+=\$3; unmapped+=\$4 } END {
           printf("SAMPLE\\t%s\\nNB\\t%d\\nNB_MAPPED\\t%d\\n.q%d(%%)\\t%.2f \\n", id_sample, mapped+unmapped, mapped, map_qual, (mapped*100/(mapped+unmapped)))
@@ -1131,8 +1131,10 @@ process BamQC {
     when: !('bamqc' in skipQC)
 
     script:
-    use_bed = params.targetBED ? "-gff ${targetBED}" : ''
+    new_bed_command = params.targetBED ? "awk 'BEGIN{OFS=\"\\t\"}{print \$1,\$2,\$3,\$4,0,\".\"}' ${targetBED} > new.bed" : ''
+    use_bed = params.targetBED ? "-gff new.bed" : ''
     """
+    $new_bed_command
     qualimap --java-mem-size=${task.memory.toGiga()}G \
         bamqc \
         -bam ${bam} \
