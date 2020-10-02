@@ -2002,7 +2002,7 @@ process MultiQC {
     designOpts= params.design ? "-d ${params.design}" : ""
     """
     #stats2multiqc.sh -s ${splan} ${designOpts} 
-    mqc_header.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
+    apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
     multiqc -f ${rtitle} ${rfilename} --config ${multiqcConfig} .
     """
 }
