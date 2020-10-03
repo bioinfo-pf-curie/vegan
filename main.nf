@@ -1234,7 +1234,7 @@ process HaplotypeCaller {
         -R ${fasta} \
         -I ${bam} \
         ${intervalOpts} \
-        -D ${dbsnp} \
+        ${dbsnpOpts} \
         -O ${intervalBed.baseName}_${sampleName}.g.vcf \
         -ERC GVCF
     """
