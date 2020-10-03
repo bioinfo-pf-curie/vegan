@@ -450,7 +450,7 @@ bedIntervalsCh = bedIntervalsCh
 
 bedIntervalsCh = bedIntervalsCh.dump(tag:'bedintervals')
 
-if (params.noIntervals && step != 'annotate') bedIntervalsCh = Channel.from(file("noIntervals.bed"))
+if (params.noIntervals && step != 'annotate') file("${params.outdir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outdir}/noIntervals.bed"))
 
 (intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(4)
 
@@ -1226,12 +1226,14 @@ process HaplotypeCaller {
     when: 'haplotypecaller' in tools
 
     script:
+    intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+    dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
     """
     gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
         HaplotypeCaller \
         -R ${fasta} \
         -I ${bam} \
-        -L ${intervalBed} \
+        ${intervalOpts} \
         -D ${dbsnp} \
         -O ${intervalBed.baseName}_${sampleName}.g.vcf \
         -ERC GVCF
@@ -1261,6 +1263,8 @@ process GenotypeGVCFs {
 
     script:
     // Using -L is important for speed and we have to index the interval files also
+    intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+    dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
     """
     gatk --java-options -Xmx${task.memory.toGiga()}g \
         IndexFeatureFile -F ${gvcf}
@@ -1268,8 +1272,8 @@ process GenotypeGVCFs {
     gatk --java-options -Xmx${task.memory.toGiga()}g \
         GenotypeGVCFs \
         -R ${fasta} \
-        -L ${intervalBed} \
-        -D ${dbsnp} \
+        ${intervalOpts} \
+        ${dbsnpOpts} \
         -V ${gvcf} \
         -O ${intervalBed.baseName}_${sampleName}.vcf
     """
@@ -1311,6 +1315,7 @@ process Mutect2 {
     // please make a panel-of-normals, using at least 40 samples
     // https://gatkforums.broadinstitute.org/gatk/discussion/11136/how-to-call-somatic-mutations-using-gatk4-mutect2
     PON = params.pon ? "--panel-of-normals ${pon}" : ""
+    intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
     """
     # Get raw calls
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
@@ -1318,7 +1323,7 @@ process Mutect2 {
       -R ${fasta}\
       -I ${bamTumor}  -tumor ${sampleIdTumor} \
       -I ${bamNormal} -normal ${sampleIdNormal} \
-      -L ${intervalBed} \
+      ${intervalOpts} \
       --germline-resource ${germlineResource} \
       ${PON} \
       -O ${intervalBed.baseName}_${sampleNameTumor}_vs_${sampleNameNormal}.vcf
@@ -1400,8 +1405,9 @@ process ConcatVCF {
     else
         outputFile = "${variantCaller}_${sampleName}.vcf"
     options = params.targetBED ? "-t ${targetBED}" : ""
+    intervalsOptions = params.noIntervals ? "-n" : ""
     """
-    apConcatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options}
+    apConcatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options} ${intervalsOptions}
     bcftools --version &> v_bcftools.txt 2>&1 || true
     """
 }
@@ -1431,12 +1437,13 @@ process PileupSummariesForMutect2 {
 
     script:
     pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
+    intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
     """
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
         GetPileupSummaries \
         -I ${bamTumor} \
         -V ${germlineResource} \
-        -L ${intervalBed} \
+        ${intervalOpts} \
         -O ${intervalBed.baseName}_${sampleNameTumor}_pileupsummaries.table
     """
 }
