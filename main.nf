@@ -161,9 +161,7 @@ fastaFaiCh = params.fastaFai && !('annotate' in step) ? Channel.value(file(param
 germlineResourceCh = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
 intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
 
-// knownIndels is currently a list of file for smallGRCh37, so transform it in a channel
-knownIndelsList = params.knownIndels && ('mapping' in step) ? params.knownIndels.collect{file(it)} : []
-knownIndelsCh = params.knownIndels && params.genome == 'smallGRCh37' ? Channel.value(knownIndelsList.collect()) : params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
+knownIndelsCh = params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
 
 snpEffCacheCh = params.snpEffCache ? Channel.value(file(params.snpEffCache)) : "null"
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
