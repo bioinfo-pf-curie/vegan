@@ -1156,8 +1156,8 @@ bamQCReportCh = bamQCReportCh.dump(tag:'BamQC')
 */
 
 
-// When starting with variant calling, Channel bamRecalCh is inputSampleCh
-bamRecalCh = step in 'variantcalling' ? inputSampleCh : bamRecalCh
+// When starting with variant calling, Channel bamRecalCh is samplePlanCh
+bamRecalCh = step in 'variantcalling' ? samplePlanCh : bamRecalCh
 bamRecalCh = bamRecalCh.dump(tag:'BAM')
 
 // Here we have a recalibrated bam set
