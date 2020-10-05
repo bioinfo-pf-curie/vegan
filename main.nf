@@ -1265,7 +1265,7 @@ process GenotypeGVCFs {
     dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
     """
     gatk --java-options -Xmx${task.memory.toGiga()}g \
-        IndexFeatureFile -F ${gvcf}
+        IndexFeatureFile -I ${gvcf}
 
     gatk --java-options -Xmx${task.memory.toGiga()}g \
         GenotypeGVCFs \
