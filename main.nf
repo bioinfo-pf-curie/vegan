@@ -1454,7 +1454,7 @@ process MergePileupSummaries {
     label 'gatk'
     label 'cpus_1'
 
-    tag {sampleId + "_" + sampleNameTumor}
+    tag {pairName + "_" + sampleNameTumor}
 
     publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
 
