@@ -578,7 +578,7 @@ inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
 
 process MapReads {
-    label 'gatk_bwa_samtools'
+    label 'gatkBwaSamtools'
     label 'cpusMax'
     label 'memoryMax'
 
