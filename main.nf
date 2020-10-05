@@ -448,7 +448,7 @@ bedIntervalsCh = bedIntervalsCh
 
 bedIntervalsCh = bedIntervalsCh.dump(tag:'bedintervals')
 
-if (params.noIntervals && step != 'annotate') {file("${params.outdir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outdir}/noIntervals.bed"))}
+if (params.noIntervals && step != 'annotate') {file("${params.outputDir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outdir}/noIntervals.bed"))}
 
 (intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(4)
 
