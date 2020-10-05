@@ -1422,7 +1422,7 @@ process PileupSummariesForMutect2 {
 
     input:
     set sampleIdNormal, sampleNameNormal, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
-    set sampleId, sampleNameNormal, sampleNameTumor, file(statsFile) from intervalStatsFilesCh
+    set sampleId, sampleNameTumor, sampleNameNormal, file(statsFile) from intervalStatsFilesCh
     file(germlineResource) from germlineResourceCh
     file(germlineResourceIndex) from germlineResourceIndexCh
 
@@ -1454,7 +1454,7 @@ process MergePileupSummaries {
     label 'gatk'
     label 'cpus_1'
 
-    tag {sampleId + "_" + sampleNameTumor}
+    tag {pairName + "_" + sampleNameTumor}
 
     publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
 
