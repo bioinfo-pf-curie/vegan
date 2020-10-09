@@ -448,7 +448,7 @@ bedIntervalsCh = bedIntervalsCh
 
 bedIntervalsCh = bedIntervalsCh.dump(tag:'bedintervals')
 
-if (params.noIntervals && step != 'annotate') {file("${params.outdir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outdir}/noIntervals.bed"))}
+if (params.noIntervals && step != 'annotate') {file("${params.outputDir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outputDir}/noIntervals.bed"))}
 
 (intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(4)
 
@@ -578,7 +578,7 @@ inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
 
 process MapReads {
-    label 'gatk_bwa_samtools'
+    label 'gatkBwaSamtools'
     label 'cpusMax'
     label 'memoryMax'
 
@@ -1267,7 +1267,7 @@ process GenotypeGVCFs {
     dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
     """
     gatk --java-options -Xmx${task.memory.toGiga()}g \
-        IndexFeatureFile -F ${gvcf}
+        IndexFeatureFile -I ${gvcf}
 
     gatk --java-options -Xmx${task.memory.toGiga()}g \
         GenotypeGVCFs \
@@ -1424,7 +1424,7 @@ process PileupSummariesForMutect2 {
 
     input:
     set sampleIdNormal, sampleNameNormal, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
-    set sampleId, sampleNameNormal, sampleNameTumor, file(statsFile) from intervalStatsFilesCh
+    set sampleId, sampleNameTumor, sampleNameNormal, file(statsFile) from intervalStatsFilesCh
     file(germlineResource) from germlineResourceCh
     file(germlineResourceIndex) from germlineResourceIndexCh
 
@@ -1456,7 +1456,7 @@ process MergePileupSummaries {
     label 'gatk'
     label 'cpus_1'
 
-    tag {sampleId + "_" + sampleNameTumor}
+    tag {pairName + "_" + sampleNameTumor}
 
     publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
 
