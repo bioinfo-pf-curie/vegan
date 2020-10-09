@@ -2009,7 +2009,7 @@ process MultiQC {
     metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
     designOpts= params.design ? "-d ${params.design}" : ""
     """
-    #stats2multiqc.sh -s ${splan} ${designOpts} 
+    #apStats2MultiQC.sh -s ${splan} ${designOpts} 
     apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
     multiqc -f ${rtitle} ${rfilename} --config ${multiqcConfig} .
     """
