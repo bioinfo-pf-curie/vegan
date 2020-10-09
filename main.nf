@@ -968,7 +968,7 @@ process ApplyBQSR {
         file("v_gatk.txt") into gatkVersionCh
 
     script:
-    prefix = params.noIntervals ? "" : "${intervalBed.baseName}_"
+    prefix = params.noIntervals ? "noInterval_" : "${intervalBed.baseName}_"
     intervalsOptions = params.noIntervals ? "" : "-L ${intervalBed}"
     """
     gatk --java-options -Xmx${task.memory.toGiga()}g \
@@ -1435,7 +1435,7 @@ process PileupSummariesForMutect2 {
 
     script:
     pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
-    intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+    intervalOpts = params.noIntervals ? "-L ${germlineResource}" : "-L ${intervalBed}"
     """
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
         GetPileupSummaries \
