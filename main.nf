@@ -17,19 +17,19 @@ import groovy.transform.BaseScript
 
 /*
 ================================================================================
-                        project : EUCANCAN/nf-vegan
+                        project : EUCANCAN/vegan
 ================================================================================
 Started February 2020.
 --------------------------------------------------------------------------------
-nf-vegan: Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data Pipeline.
+vegan: Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data Pipeline.
   An open-source analysis pipeline to detect germline or somatic variants
   from whole genome or targeted sequencing
 --------------------------------------------------------------------------------
  @Homepage
- https://gitlab.curie.fr/data-analysis/nf-vegan
+ https://gitlab.curie.fr/data-analysis/vegan
 --------------------------------------------------------------------------------
  @Documentation
- https://gitlab.curie.fr/data-analysis/nf-vegan/README.md
+ https://gitlab.curie.fr/data-analysis/vegan/README.md
 --------------------------------------------------------------------------------
 */
 
