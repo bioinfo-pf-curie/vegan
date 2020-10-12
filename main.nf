@@ -1948,7 +1948,7 @@ compressVCFsnpEffOutCh = compressVCFsnpEffOutCh.dump(tag:'VCF')
 process GetSoftwareVersions {
     label 'python'
 
-    publishDir path:"${params.outputDir}/pipeline_info", mode: params.publishDirMode
+    publishDir path:"${params.outputDir}/PipelineInfo", mode: params.publishDirMode
 
     input:
         file 'v_ascat.txt' from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty('')
