@@ -17,19 +17,19 @@ import groovy.transform.BaseScript
 
 /*
 ================================================================================
-                        project : EUCANCAN/nf-vegan
+                        project : EUCANCAN/vegan
 ================================================================================
 Started February 2020.
 --------------------------------------------------------------------------------
-nf-vegan: Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data Pipeline.
+vegan: Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data Pipeline.
   An open-source analysis pipeline to detect germline or somatic variants
   from whole genome or targeted sequencing
 --------------------------------------------------------------------------------
  @Homepage
- https://gitlab.curie.fr/data-analysis/nf-vegan
+ https://gitlab.curie.fr/data-analysis/vegan
 --------------------------------------------------------------------------------
  @Documentation
- https://gitlab.curie.fr/data-analysis/nf-vegan/README.md
+ https://gitlab.curie.fr/data-analysis/vegan/README.md
 --------------------------------------------------------------------------------
 */
 
@@ -970,7 +970,7 @@ process ApplyBQSR {
         file("v_gatk.txt") into gatkVersionCh
 
     script:
-    prefix = params.noIntervals ? "" : "${intervalBed.baseName}_"
+    prefix = params.noIntervals ? "noInterval_" : "${intervalBed.baseName}_"
     intervalsOptions = params.noIntervals ? "" : "-L ${intervalBed}"
     """
     gatk --java-options -Xmx${task.memory.toGiga()}g \
@@ -1437,7 +1437,7 @@ process PileupSummariesForMutect2 {
 
     script:
     pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
-    intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+    intervalOpts = params.noIntervals ? "-L ${germlineResource}" : "-L ${intervalBed}"
     """
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
         GetPileupSummaries \
@@ -1950,7 +1950,7 @@ compressVCFsnpEffOutCh = compressVCFsnpEffOutCh.dump(tag:'VCF')
 process GetSoftwareVersions {
     label 'python'
 
-    publishDir path:"${params.outputDir}/pipeline_info", mode: params.publishDirMode
+    publishDir path:"${params.outputDir}/PipelineInfo", mode: params.publishDirMode
 
     input:
         file 'v_ascat.txt' from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty('')

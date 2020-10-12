@@ -58,11 +58,11 @@ Main Options:
     --nucleotidesPerSecond DECIMAL      To estimate interval size
     --pon PATH                          panel-of-normals VCF (bgzipped, indexed). See: https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_hellbender_tools_walkers_mutect_CreateSomaticPanelOfNormals.php
     --pon_index PATH                    index of pon panel-of-normals VCF
-    --skipFilterSNV STRING              Specify which SNV tools to skip when running nf-vegan
+    --skipFilterSNV STRING              Specify which SNV tools to skip when running vegan
                                         Available: mapq, markduplicates, uniq
-    --skipFilterSV STRING               Specify which SV tools to skip when running nf-vegan
+    --skipFilterSV STRING               Specify which SV tools to skip when running vegan
                                         Available: mapq, markduplicates, uniq
-    --skipQC STRING                     Specify which QC tools to skip when running nf-vegan
+    --skipQC STRING                     Specify which QC tools to skip when running vegan
                                         Available: bamQC, FastQC, MultiQC, samtoolsstats, versions
     --snpEff_cache PATH                 Specity the path to snpEff cache, to be used with --annotation_cache
     --step STRING                       Specify starting step
