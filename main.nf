@@ -803,8 +803,8 @@ process MapQ {
 
     """
     samtools view -@ ${task.cpus} -q ${params.mapQual} -b ${bam} > ${sampleName}.${params.mapQual}.bam
-    samtools index ${sampleName}.recal.bam
-    samtools idxstats ${sampleName}.recal.bam |  awk -v id_sample="${sampleName}" -v map_qual="${params.mapQual}" '{
+    samtools index ${sampleName}.${params.mapQual}.bam
+    samtools idxstats ${sampleName}.${params.mapQual}.bam |  awk -v id_sample="${sampleName}" -v map_qual="${params.mapQual}" '{
     mapped+=\$3; unmapped+=\$4 } END {
           printf("SAMPLE\\t%s\\nNB\\t%d\\nNB_MAPPED\\t%d\\n.q%d(%%)\\t%.2f \\n", id_sample, mapped+unmapped, mapped, map_qual, (mapped*100/(mapped+unmapped)))
     }' > ${bam.baseName}.${params.mapQual}.mapping.stats
