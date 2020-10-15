@@ -793,7 +793,7 @@ process MapQ {
         set sampleId, sampleName, file(bam), file(bai) from duplicateMarkedBamsMQCh
 
     output:
-        set sampleId, sampleName, file("${sampleName}.${params.mapQual}.bam"), file("${sampleName}.recal.bam.bai") into mapQbamCh
+        set sampleId, sampleName, file("${sampleName}.${params.mapQual}.bam"), file("${sampleName}.${params.mapQual}.bam.bai") into mapQbamCh
         file("${bam.baseName}.${params.mapQual}.mapping.stats") into mapQReportCh
         file 'v_samtools.txt' into samtoolsMapQVersionCh
 
