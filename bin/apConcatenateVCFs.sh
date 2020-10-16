@@ -88,7 +88,7 @@ then
 	) | bgzip -@${cpus} > rawcalls.vcf.gz
 	tabix rawcalls.vcf.gz
 else
-        VCF=$(ls no_intervals*.vcf)
+        VCF=$(ls noIntervals*.vcf)
         cp $VCF rawcalls.vcf
         bgzip -@${cpus} rawcalls.vcf
         tabix rawcalls.vcf.gz
