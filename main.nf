@@ -17,19 +17,19 @@ import groovy.transform.BaseScript
 
 /*
 ================================================================================
-                        project : EUCANCAN/nf-vegan
+                        project : EUCANCAN/vegan
 ================================================================================
 Started February 2020.
 --------------------------------------------------------------------------------
-nf-vegan: Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data Pipeline.
+vegan: Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data Pipeline.
   An open-source analysis pipeline to detect germline or somatic variants
   from whole genome or targeted sequencing
 --------------------------------------------------------------------------------
  @Homepage
- https://gitlab.curie.fr/data-analysis/nf-vegan
+ https://gitlab.curie.fr/data-analysis/vegan
 --------------------------------------------------------------------------------
  @Documentation
- https://gitlab.curie.fr/data-analysis/nf-vegan/README.md
+ https://gitlab.curie.fr/data-analysis/vegan/README.md
 --------------------------------------------------------------------------------
 */
 
@@ -58,8 +58,8 @@ annotateTools = params.annotateTools
 
 customRunName = checkRunName(workflow.runName, params.runName)
 step    = getStep(params.samplePlan, params.step)
-inputPath = getPath(step, params.samplePlan, params.outputDir)
-samplePlanCh = getSamplePlan(inputPath)
+samplePlanPath = getPath(step, params.samplePlan, params.outputDir)
+samplePlanCh = getSamplePlan(samplePlanPath)
 
 (genderMap, statusMap, pairMap) = extractInfos(getDesign(params.design))
 // genderMap[sampleId] = "XX"/"XY"
@@ -161,9 +161,7 @@ fastaFaiCh = params.fastaFai && !('annotate' in step) ? Channel.value(file(param
 germlineResourceCh = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
 intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
 
-// knownIndels is currently a list of file for smallGRCh37, so transform it in a channel
-knownIndelsList = params.knownIndels && ('mapping' in step) ? params.knownIndels.collect{file(it)} : []
-knownIndelsCh = params.knownIndels && params.genome == 'smallGRCh37' ? Channel.value(knownIndelsList.collect()) : params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
+knownIndelsCh = params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
 
 snpEffCacheCh = params.snpEffCache ? Channel.value(file(params.snpEffCache)) : "null"
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
@@ -174,7 +172,7 @@ targetBEDCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 
 // Print summary and genareta summary channel
 workflowSummaryCh = summarize(params, summary, workflow)
-
+metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
 
 /*
 ================================================================================
@@ -450,7 +448,7 @@ bedIntervalsCh = bedIntervalsCh
 
 bedIntervalsCh = bedIntervalsCh.dump(tag:'bedintervals')
 
-if (params.noIntervals && step != 'annotate') bedIntervalsCh = Channel.from(file("noIntervals.bed"))
+if (params.noIntervals && step != 'annotate') {file("${params.outputDir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outputDir}/noIntervals.bed"))}
 
 (intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(4)
 
@@ -580,7 +578,7 @@ inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
 
 process MapReads {
-    label 'gatk_bwa_samtools'
+    label 'gatkBwaSamtools'
     label 'cpusMax'
     label 'memoryMax'
 
@@ -596,6 +594,7 @@ process MapReads {
     output:
         set sampleId, sampleName, runId, file("${sampleName}_${runId}.bam") into bamMappedCh
         set sampleId, val("${sampleName}_${runId}"), file("${sampleName}_${runId}.bam") into bamMappedBamQCCh
+        file("*bwa.log") into bwaMqcCh
         file 'v_samtools.txt' into samtoolsMapReadsVersionCh
 
     script:
@@ -617,6 +616,7 @@ process MapReads {
         ${input} | \
         samtools sort --threads ${task.cpus} -m 2G - > ${sampleName}_${runId}.bam
         samtools --version &> v_samtools.txt 2>&1 || true
+        getBWAstats.sh -i ${sampleName}_${runId}.bam -p ${task.cpus} > ${sampleName}_bwa.log
     """
 }
 
@@ -722,7 +722,7 @@ process BwaMemUniq {
 
     """
     #removed unmapped also with -F 4
-    samtools view  -@ ${task.cpus} -h ${params.samtoolsUniqOptions} ${bam} | grep -v \"XA:Z\" | samtools view  -@ ${task.cpus} -bS > ${sampleName}.temp.bam 2> ${sampleName}.temp.txt 
+    samtools view  -@ ${task.cpus} -h ${params.samtoolsUniqOptions} ${bam} | grep -v \"XA:Z\" | samtools view  -@ ${task.cpus} -bS > ${sampleName}.temp.bam 2> ${sampleName}.temp.txt
     samtools sort -@ ${task.cpus} -o ${sampleName}.bam ${sampleName}.temp.bam
     samtools index ${sampleName}.bam
     samtools index ${bam}
@@ -732,9 +732,9 @@ process BwaMemUniq {
     Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
           printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
           Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
-    }' > ${sampleName}.mapping.stats 
+    }' > ${sampleName}.mapping.stats
     # clean
-    rm ./${sampleName}.temp.* ./*.bam.bai 
+    rm ./${sampleName}.temp.* ./*.bam.bai
     samtools --version &> v_samtools.txt 2>&1 || true
     """
 }
@@ -770,7 +770,7 @@ process MarkDuplicates {
     script:
     """
 
-    sambamba markdup --remove-duplicates --nthreads ${task.cpus} --tmpdir . ${sampleName}.bam ${sampleName}.md.bam 
+    sambamba markdup --remove-duplicates --nthreads ${task.cpus} --tmpdir . ${sampleName}.bam ${sampleName}.md.bam
     sambamba flagstat --nthreads ${task.cpus} ${sampleName}.md.bam > ${sampleName}.bam.metrics
 
     """
@@ -795,7 +795,7 @@ process MapQ {
         set sampleId, sampleName, file(bam), file(bai) from duplicateMarkedBamsMQCh
 
     output:
-        set sampleId, sampleName, file("${sampleName}.recal.bam"), file("${sampleName}.recal.bam.bai") into mapQbamCh
+        set sampleId, sampleName, file("${sampleName}.${params.mapQual}.bam"), file("${sampleName}.${params.mapQual}.bam.bai") into mapQbamCh
         file("${bam.baseName}.${params.mapQual}.mapping.stats") into mapQReportCh
         file 'v_samtools.txt' into samtoolsMapQVersionCh
 
@@ -804,9 +804,9 @@ process MapQ {
     script:
 
     """
-    samtools view -@ ${task.cpus} -q ${params.mapQual} -b ${bam} > ${sampleName}.recal.bam
-    samtools index ${sampleName}.recal.bam 
-    samtools idxstats ${sampleName}.recal.bam |  awk -v id_sample="${sampleName}" -v map_qual="${params.mapQual}" '{
+    samtools view -@ ${task.cpus} -q ${params.mapQual} -b ${bam} > ${sampleName}.${params.mapQual}.bam
+    samtools index ${sampleName}.${params.mapQual}.bam
+    samtools idxstats ${sampleName}.${params.mapQual}.bam |  awk -v id_sample="${sampleName}" -v map_qual="${params.mapQual}" '{
     mapped+=\$3; unmapped+=\$4 } END {
           printf("SAMPLE\\t%s\\nNB\\t%d\\nNB_MAPPED\\t%d\\n.q%d(%%)\\t%.2f \\n", id_sample, mapped+unmapped, mapped, map_qual, (mapped*100/(mapped+unmapped)))
     }' > ${bam.baseName}.${params.mapQual}.mapping.stats
@@ -970,7 +970,7 @@ process ApplyBQSR {
         file("v_gatk.txt") into gatkVersionCh
 
     script:
-    prefix = params.noIntervals ? "" : "${intervalBed.baseName}_"
+    prefix = params.noIntervals ? "noInterval_" : "${intervalBed.baseName}_"
     intervalsOptions = params.noIntervals ? "" : "-L ${intervalBed}"
     """
     gatk --java-options -Xmx${task.memory.toGiga()}g \
@@ -1129,8 +1129,10 @@ process BamQC {
     when: !('bamqc' in skipQC)
 
     script:
-    use_bed = params.targetBED ? "-gff ${targetBED}" : ''
+    new_bed_command = params.targetBED ? "awk 'BEGIN{OFS=\"\\t\"}{print \$1,\$2,\$3,\$4,0,\".\"}' ${targetBED} > new.bed" : ''
+    use_bed = params.targetBED ? "-gff new.bed" : ''
     """
+    $new_bed_command
     qualimap --java-mem-size=${task.memory.toGiga()}G \
         bamqc \
         -bam ${bam} \
@@ -1156,8 +1158,8 @@ bamQCReportCh = bamQCReportCh.dump(tag:'BamQC')
 */
 
 
-// When starting with variant calling, Channel bamRecalCh is inputSampleCh
-bamRecalCh = step in 'variantcalling' ? inputSampleCh : bamRecalCh
+// When starting with variant calling, Channel bamRecalCh is samplePlanCh
+bamRecalCh = step in 'variantcalling' ? samplePlanCh : bamRecalCh
 bamRecalCh = bamRecalCh.dump(tag:'BAM')
 
 // Here we have a recalibrated bam set
@@ -1224,13 +1226,15 @@ process HaplotypeCaller {
     when: 'haplotypecaller' in tools
 
     script:
+    intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+    dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
     """
     gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
         HaplotypeCaller \
         -R ${fasta} \
         -I ${bam} \
-        -L ${intervalBed} \
-        -D ${dbsnp} \
+        ${intervalOpts} \
+        ${dbsnpOpts} \
         -O ${intervalBed.baseName}_${sampleName}.g.vcf \
         -ERC GVCF
     """
@@ -1259,15 +1263,17 @@ process GenotypeGVCFs {
 
     script:
     // Using -L is important for speed and we have to index the interval files also
+    intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+    dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
     """
     gatk --java-options -Xmx${task.memory.toGiga()}g \
-        IndexFeatureFile -F ${gvcf}
+        IndexFeatureFile -I ${gvcf}
 
     gatk --java-options -Xmx${task.memory.toGiga()}g \
         GenotypeGVCFs \
         -R ${fasta} \
-        -L ${intervalBed} \
-        -D ${dbsnp} \
+        ${intervalOpts} \
+        ${dbsnpOpts} \
         -V ${gvcf} \
         -O ${intervalBed.baseName}_${sampleName}.vcf
     """
@@ -1309,6 +1315,7 @@ process Mutect2 {
     // please make a panel-of-normals, using at least 40 samples
     // https://gatkforums.broadinstitute.org/gatk/discussion/11136/how-to-call-somatic-mutations-using-gatk4-mutect2
     PON = params.pon ? "--panel-of-normals ${pon}" : ""
+    intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
     """
     # Get raw calls
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
@@ -1316,7 +1323,7 @@ process Mutect2 {
       -R ${fasta}\
       -I ${bamTumor}  -tumor ${sampleIdTumor} \
       -I ${bamNormal} -normal ${sampleIdNormal} \
-      -L ${intervalBed} \
+      ${intervalOpts} \
       --germline-resource ${germlineResource} \
       ${PON} \
       -O ${intervalBed.baseName}_${sampleNameTumor}_vs_${sampleNameNormal}.vcf
@@ -1398,8 +1405,9 @@ process ConcatVCF {
     else
         outputFile = "${variantCaller}_${sampleName}.vcf"
     options = params.targetBED ? "-t ${targetBED}" : ""
+    intervalsOptions = params.noIntervals ? "-n" : ""
     """
-    apConcatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options}
+    apConcatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options} ${intervalsOptions}
     bcftools --version &> v_bcftools.txt 2>&1 || true
     """
 }
@@ -1416,7 +1424,7 @@ process PileupSummariesForMutect2 {
 
     input:
     set sampleIdNormal, sampleNameNormal, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
-    set sampleId, sampleNameNormal, sampleNameTumor, file(statsFile) from intervalStatsFilesCh
+    set sampleId, sampleNameTumor, sampleNameNormal, file(statsFile) from intervalStatsFilesCh
     file(germlineResource) from germlineResourceCh
     file(germlineResourceIndex) from germlineResourceIndexCh
 
@@ -1429,12 +1437,13 @@ process PileupSummariesForMutect2 {
 
     script:
     pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
+    intervalOpts = params.noIntervals ? "-L ${germlineResource}" : "-L ${intervalBed}"
     """
     gatk --java-options "-Xmx${task.memory.toGiga()}g" \
         GetPileupSummaries \
         -I ${bamTumor} \
         -V ${germlineResource} \
-        -L ${intervalBed} \
+        ${intervalOpts} \
         -O ${intervalBed.baseName}_${sampleNameTumor}_pileupsummaries.table
     """
 }
@@ -1447,7 +1456,7 @@ process MergePileupSummaries {
     label 'gatk'
     label 'cpus_1'
 
-    tag {sampleId + "_" + sampleNameTumor}
+    tag {pairName + "_" + sampleNameTumor}
 
     publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
 
@@ -1828,7 +1837,7 @@ if (step == 'annotate') {
     vcfToAnnotateCh = Channel.create()
     vcfNoAnnotateCh = Channel.create()
 
-    if (inputPath == []) {
+    if (samplePlanPath == []) {
         // By default, annotates all available vcfs that it can find in the VariantCalling directory
         // Excluding vcfs from and g.vcf from HaplotypeCaller
         // Basically it's: results/VariantCalling/*/{HaplotypeCaller,Manta,Mutect2}/*.vcf.gz
@@ -1848,7 +1857,7 @@ if (step == 'annotate') {
     } else if (annotateTools == []) {
     // Annotate user-submitted VCFs
     // If user-submitted, assume that the sampleName should be assumed automatically
-      vcfToAnnotateCh = Channel.fromPath(inputPath)
+      vcfToAnnotateCh = Channel.fromPath(samplePlanPath)
         .map{vcf -> ['userspecified', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
     } else exit 1, "specify only tools or files to annotate, not both"
 
@@ -1882,7 +1891,7 @@ process Snpeff {
 
     script:
     reducedVCF = reduceVCF(vcf.fileName)
-    cache = (params.snpEffCache && params.annotationCache) ? "-dataDir \${PWD}/${dataDir}" : ""
+    cache = params.snpEffCache ? "-dataDir \${PWD}/${dataDir}" : ""
     """
     snpEff -Xmx${task.memory.toGiga()}g \
         ${snpeffDb} \
@@ -1941,13 +1950,13 @@ compressVCFsnpEffOutCh = compressVCFsnpEffOutCh.dump(tag:'VCF')
 process GetSoftwareVersions {
     label 'python'
 
-    publishDir path:"${params.outputDir}/pipeline_info", mode: params.publishDirMode
+    publishDir path:"${params.outputDir}/PipelineInfo", mode: params.publishDirMode
 
     input:
         file 'v_ascat.txt' from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty('')
         file 'v_allelecount.txt' from alleleCountsVersionCh.first().ifEmpty('')
         file 'v_bcftools.txt' from bcftoolsVersionCh.first().ifEmpty('')
-        file 'v_bwa.txt' from bwaVersionCh.first().ifEmpty('')
+        file 'v_bwa.txt' from bwaVersionCh.ifEmpty('')
         file 'v_fastqc.txt' from fastqcVersionCh.mix(fastqcBamVersionCh).first().ifEmpty('')
         file 'v_gatk.txt' from gatkVersionCh.first().ifEmpty('')
         file 'v_manta.txt' from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
@@ -1976,9 +1985,12 @@ process MultiQC {
     publishDir "${params.outputDir}/Reports/MultiQC", mode: params.publishDirMode
 
     input:
+        file splan from Channel.value(file(samplePlanPath))
+        file metadata from metadataCh.ifEmpty([])
         file multiqcConfig from Channel.value(params.multiqcConfig ? file(params.multiqcConfig) : "")
         file workflow_summary from workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml")
         file (versions) from yamlSoftwareVersionCh
+        file ('mapping/*') from bwaMqcCh.collect().ifEmpty([]) 
         file ('bamQC/*') from bamQCReportCh.collect().ifEmpty([])
         file ('FastQC/*') from fastQCReportCh.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
@@ -1994,7 +2006,11 @@ process MultiQC {
     script:
     rtitle = customRunName ? "--title \"$customRunName\"" : ''
     rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+    metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
+    designOpts= params.design ? "-d ${params.design}" : ""
     """
+    #apStats2MultiQC.sh -s ${splan} ${designOpts} 
+    apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
     multiqc -f ${rtitle} ${rfilename} --config ${multiqcConfig} .
     """
 }
