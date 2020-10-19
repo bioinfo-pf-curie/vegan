@@ -11,5 +11,5 @@ main.test.nf
 work
 results
 test.nf
-/nf-vegan.iml
+*.iml
 /.gradle/

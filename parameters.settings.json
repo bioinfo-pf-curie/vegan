@@ -46,7 +46,7 @@
       "label": "Genome reference",
       "usage": "Name of Genome reference",
       "type": "string",
-      "choices": ["GRCh37", "hg19_base", "GRCh38", "smallGRCh37"],
+      "choices": ["GRCh37", "hg19_base", "GRCh38", "smallGRCh37","hg38_base"],
       "nargs": 1,
       "default_value": null,
       "pattern": ".*",

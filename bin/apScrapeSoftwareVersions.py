@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-from collections import OrderedDict, defaultdict
+#!/usr/bin/env python
+from collections import OrderedDict
 import re
 import os
 
