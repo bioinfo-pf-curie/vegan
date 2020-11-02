@@ -1410,7 +1410,13 @@ process ConcatVCF {
     """
 }
 
-(vcfConcatenatedCh, vcfConcatenatedForFilterCh) = vcfConcatenatedCh.into(2)
+vcfConcatenatedCh
+        .branch {
+          vcfConcatForFilterCh: it[0] == "Mutect2"
+          otherCh: true
+        }.set { vcfConcatenatedForks }
+(vcfConcatenatedForFilterCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfConcatForFilterCh, vcfConcatenatedForks.otherCh]
+
 vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
 
 // STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
