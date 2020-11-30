@@ -1971,12 +1971,12 @@ process MultiQC {
         file multiqcConfig from Channel.value(params.multiqcConfig ? file(params.multiqcConfig) : "")
         file workflow_summary from workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml")
         file (versions) from yamlSoftwareVersionCh
-        file ('mapping/*') from bwaMqcCh.collect().ifEmpty([]) 
-        file ('bamQC/*') from bamQCReportCh.collect().ifEmpty([])
+        file ('Mapping/*') from bwaMqcCh.collect().ifEmpty([])
+        file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
         file ('FastQC/*') from fastQCReportCh.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
         file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
-        file ('snpEff/*') from snpeffReportCh.collect().ifEmpty([])
+        file ('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
 
     output:
         file "*multiqc_report.html" into multiQCOutCh
