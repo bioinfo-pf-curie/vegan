@@ -585,7 +585,6 @@ process MapReads {
     tag {sampleId + "-" + runId}
 
     input:
-//        set idPatient, sampleName, runId, file (inputFile1), file(inputFile2) from inputPairReadsCh
         set sampleId, sampleName, runId, file(inputFile1), file(inputFile2) from inputPairReadsCh
         file(bwaIndex) from bwaIndexCh
         file(fasta) from fastaCh
@@ -698,52 +697,8 @@ process IndexBamFile {
 ================================================================================
 */
 
-// STEP 2: BWAMEM UNIQ FILTER
-// Mapping Quality Filter
-process BwaMemUniq {
-    label 'samtools'
-    label 'cpus2'
-
-    tag {sampleId + "-" + sampleName}
-
-    publishDir "${params.outputDir}/Reports/${sampleName}/Uniq", mode: params.publishDirMode
-
-    input:
-        set sampleId, sampleName, file(bam) from mergedBamCh
-
-    output:
-        set sampleId, sampleName, file("${sampleName}.bam") into memUbamCh
-        file("${sampleName}.mapping.stats") into mapUReport
-        file 'v_samtools.txt' into samtoolsBwaMemUniqVersionCh
-
-    when: !('uniq' in skipFilterSNV)
-
-    script:
-
-    """
-    #removed unmapped also with -F 4
-    samtools view  -@ ${task.cpus} -h ${params.samtoolsUniqOptions} ${bam} | grep -v \"XA:Z\" | samtools view  -@ ${task.cpus} -bS > ${sampleName}.temp.bam 2> ${sampleName}.temp.txt
-    samtools sort -@ ${task.cpus} -o ${sampleName}.bam ${sampleName}.temp.bam
-    samtools index ${sampleName}.bam
-    samtools index ${bam}
-
-    UniqueHits=\$(samtools idxstats ${sampleName}.bam |  awk '{ UNIQ_HIT+=\$3 } END { print UNIQ_HIT }')
-    samtools idxstats ${bam} |  awk -v Unique_hits="\$UniqueHits" '{
-    Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
-          printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
-          Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
-    }' > ${sampleName}.mapping.stats
-    # clean
-    rm ./${sampleName}.temp.* ./*.bam.bai
-    samtools --version &> v_samtools.txt 2>&1 || true
-    """
-}
-
-if ('uniq' in skipFilterSNV) {
- 	memUbamCh = mergedBamUCh
-}
-
-// STEP 2: MARKING DUPLICATES FILTER
+// STEP 1: MARKING DUPLICATES
+// TODO: rename duplicateMarkedBamsMQCh to duplicateMarkedBamsFilterCh
 process MarkDuplicates {
     label 'sambamba'
     label 'cpus16'
@@ -752,27 +707,53 @@ process MarkDuplicates {
     tag {sampleId + "-" + sampleName}
 
     publishDir params.outputDir, mode: params.publishDirMode,
-        saveAs: {
-            if (it == "${sampleName}.bam.metrics" && (('markduplicates' in skipFilterSNV) || ('markduplicates' in skipFilterSV))) null
-            else if (it == "${sampleName}.bam.metrics") "Reports/${sampleName}/MarkDuplicates/${it}"
-            else "Preprocessing/${sampleName}/DuplicateMarked/${it}"
-        }
+            saveAs: {
+                if (it == "${sampleName}.md.bam.metrics") "Reports/${sampleName}/MarkDuplicates/${it}"
+                else "Preprocessing/${sampleName}/DuplicateMarked/${it}"
+            }
 
     input:
-        set sampleId, sampleName, file("${sampleName}.bam") from memUbamCh
+      set sampleId, sampleName, file("${sampleName}.bam") from mergedBamCh
 
     output:
-        set sampleId, sampleName, file("${sampleName}.md.bam"), file("${sampleName}.md.bam.bai") into duplicateMarkedBamsCh, duplicateMarkedBamsMQCh
-        file ("${sampleName}.bam.metrics") into markDuplicatesReportCh
+      set sampleId, sampleName, file("${sampleName}.md.bam"), file("${sampleName}.md.bam.bai") into duplicateMarkedBamsCh, duplicateMarkedBamsMQCh
+      file ("${sampleName}.md.bam.metrics") into markDuplicatesReportCh
 
-    when: (params.knownIndels && (!('markduplicates' in skipFilterSNV) || !('markduplicates' in skipFilterSV)))
+    when: params.knownIndels
 
     script:
     """
+    sambamba markdup --nthreads ${task.cpus} --tmpdir . ${sampleName}.bam ${sampleName}.md.bam
+    sambamba flagstat --nthreads ${task.cpus} ${sampleName}.md.bam > ${sampleName}.md.bam.metrics
+    """
+}
 
-    sambamba markdup --remove-duplicates --nthreads ${task.cpus} --tmpdir . ${sampleName}.bam ${sampleName}.md.bam
-    sambamba flagstat --nthreads ${task.cpus} ${sampleName}.md.bam > ${sampleName}.bam.metrics
+// STEP 1.1: MAPPING STATS
+process bamStats {
+  label 'samtools'
+  label 'cpus2'
 
+  tag {sampleId + "-" + sampleName}
+
+  publishDir "${params.outputDir}/Reports/${sampleName}/Mapping", mode: params.publishDirMode
+
+  input:
+    set sampleId, sampleName, file(bam), file(bai) from duplicateMarkedBamsCh
+
+  output:
+    file("${sampleName}.md.mapping.stats") into bamMappingReportCh
+    file("*bwa.log") into bwaMqcCh
+    file 'v_samtools.txt' into samtoolsMappingStatsVersionCh
+
+  script:
+    """
+    getBWAstats.sh -i ${bam} -p ${task.cpus} > ${sampleName}_bwa.log
+    UniqueHits=\\\$(samtools idxstats ${bam} |  awk '{ UNIQ_HIT+=\\\$3 } END { print UNIQ_HIT }')
+    samtools idxstats ${bam} | awk -v Unique_hits="\$UniqueHits" '{
+      Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
+          printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
+          Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
+    }' > ${sampleName}.md.mapping.stats
     """
 }
 
