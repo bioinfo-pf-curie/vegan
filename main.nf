@@ -893,32 +893,31 @@ process GatherBQSRReports {
 
 recalTableCh = recalTableCh.dump(tag:'RECAL TABLE')
 
-(recalTableTSVCh, recalTableSampleTSVCh) = recalTableTSVCh.mix(recalTableTSVnoIntCh).into(2)
+recalTableTSVCh = recalTableTSVCh.mix(recalTableTSVnoIntCh)
 
 // Create TSV files to restart from this step
-recalTableTSVCh.map { sampleId, sampleName ->
-    status = statusMap[sampleId]
-    gender = genderMap[sampleId]
+recalTableTSVCh.map { sampleId, sampleName, vCType ->
     bam = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
     bai = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
     recalTable = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
-    "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\t${recalTable}\n"
+    "${sampleId}\t${sampleName}\t${vCType}\t${bam}\t${bai}\t${recalTable}\n"
 }.collectFile(
-    name: 'duplicateMarked.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
+    name: 'markdup.samplePlan.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
 )
 
-recalTableSampleTSVCh
-    .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV/") {
-        sampleId, sampleName ->
-        status = statusMap[sampleId]
-        gender = genderMap[sampleId]
-        bam = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
-        bai = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
-        recalTable = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
-        ["duplicateMarked_${sampleName}.tsv", "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\t${recalTable}\n"]
-}
+// TODO: find if generated files below are useful or not
+//recalTableSampleTSVCh
+//    .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV/") {
+//        sampleId, sampleName, vCType ->
+//        status = statusMap[sampleId]
+//        gender = genderMap[sampleId]
+//        bam = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
+//        bai = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
+//        recalTable = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
+//        ["duplicateMarked_${sampleName}.tsv", "${sampleId}\t${vCType}\t${sampleName}\t${bam}\t${bai}\t${recalTable}\n"]
+//}
 
-bamApplyBQSRCh = step in 'recalibrate' ? samplePlanCh : bamMDToJoinCh.join(recalTableCh, by:[0,1])
+bamApplyBQSRCh = step in 'recalibrate' ? samplePlanCh : bamMDToJoinCh.join(recalTableCh, by:[0,1,2])
 
 bamApplyBQSRCh = bamApplyBQSRCh.dump(tag:'BAM + BAI + RECAL TABLE')
 // [DUMP: recal.table] ['normal', 'normal', normal.md.bam, normal.md.bai, normal.recal.table]
@@ -1027,28 +1026,28 @@ bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
 (bamRecalTSVCh, bamRecalSampleTSVCh) = bamRecalTSVCh.into(2)
 
 // Creating a TSV file to restart from this step
-bamRecalTSVCh.map { sampleId, sampleName ->
-    gender = genderMap[sampleId]
-    status = statusMap[sampleId]
+bamRecalTSVCh.map { sampleId, sampleName, vCType ->
     bam = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
     bai = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
-    "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\n"
+    "${sampleId}\t${sampleName}\t${vCType}\t${bam}\t${bai}\n"
 }.collectFile(
-    name: 'recalibrated.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
+    name: 'recal.samplePlan.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
 )
 
-bamRecalSampleTSVCh
-    .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV") {
-        sampleId, sampleName ->
-        status = statusMap[sampleId]
-        gender = genderMap[sampleId]
-        bam = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
-        bai = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
-        ["recalibrated_${sampleName}.tsv", "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\n"]
-}
+// TODO: find if generated files below are useful or not
+//bamRecalSampleTSVCh
+//    .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV") {
+//        sampleId, sampleName ->
+//        status = statusMap[sampleId]
+//        gender = genderMap[sampleId]
+//        bam = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
+//        bai = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
+//        ["recalibrated_${sampleName}.tsv", "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\n"]
+//}
 
 // When no knownIndels for mapping, Channel bamRecalCh is indexedBamCh
-bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh
+// TODO: check if indexedBam works with filter
+bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh.flatMap { it -> [it.plus(2, 'SV'), it.plus(2, 'SNV')]}
 
 
 /*
