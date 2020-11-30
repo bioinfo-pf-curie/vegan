@@ -593,7 +593,6 @@ process MapReads {
     output:
         set sampleId, sampleName, runId, file("${sampleName}_${runId}.bam") into bamMappedCh
         set sampleId, val("${sampleName}_${runId}"), file("${sampleName}_${runId}.bam") into bamMappedBamQCCh
-        file("*bwa.log") into bwaMqcCh
         file 'v_samtools.txt' into samtoolsMapReadsVersionCh
 
     script:
@@ -615,7 +614,6 @@ process MapReads {
         ${input} | \
         samtools sort --threads ${task.cpus} -m 2G - > ${sampleName}_${runId}.bam
         samtools --version &> v_samtools.txt 2>&1 || true
-        getBWAstats.sh -i ${sampleName}_${runId}.bam -p ${task.cpus} > ${sampleName}_bwa.log
     """
 }
 

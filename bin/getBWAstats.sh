@@ -48,6 +48,10 @@ mapped=$(samtools view -@ $proc -F 0x4 -F 0x100 -F 0x800 -c $input)
 unmapped=$(( $tot - $mapped))
 uniq=$(samtools view -@ $proc -q 1 -F 0x4 -F 0x100 -F 0x800 $input | grep -v -e 'XA:Z:' -e 'SA:Z:' | wc -l )
 multi=$(( $mapped - $uniq ))
+# determine number of reads with MapQ20
+mapq20=$(samtools view -q 20 -@ $proc -c $input)
+# determine number of duplicates
+markdup=$(samtools view -c -@ $proc -f 1024 $input)
 
 if [[ ${nb_pairs} -gt 0 ]]; then
     paired=$(samtools view -@ $proc -F 0x100 -F 0x800 -F 0x004 -F 0x0008 -f 0x001 -c $input)
@@ -69,11 +73,15 @@ if [[ ${nb_pairs} -gt 0 ]]; then
     echo -e "PE one mate mapped uniquely\t${uniq_single}" 
     echo -e "PE multi mapped\t${multi_paired}" 
     echo -e "PE one mate multi\t${multi_single}"
-    echo -e "PE neither mate aligned\t${unmapped}" 
+    echo -e "PE neither mate aligned\t${unmapped}"
+    echo -e "Number of reads at mapq20\t${mapq20}"
+    echo -e "Number of duplicated reads\t${markdup}"
 else
     echo -e "Total\t${tot}" 
     echo -e "Mapped\t${mapped}" 
     echo -e "Uniquely mapped reads\t${uniq}" 
     echo -e "Multi mapped reads\t${multi}" 
     echo -e "Unmapped\t${unmapped}"
+    echo -e "Number of reads at mapq20\t${mapq20}"
+    echo -e "Number of duplicated reads\t${markdup}"
 fi
