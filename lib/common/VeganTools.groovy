@@ -108,6 +108,7 @@ abstract class VeganTools extends NFTools {
      * @param pattern
      * @return
      */
+    // TODO: Use Channel.fromFilePairs
     def extractFastqFromDir(pattern) {
         def fastq = Channel.create()
         // a temporary channel does all the work
@@ -176,15 +177,16 @@ abstract class VeganTools extends NFTools {
                     checkNumberOfItem(row, 5)
                     def sampleID = row[0]
                     def sampleName   = row[1]
-                    def bamFile    = returnFile(row[2])
-                    def baiFile    = returnFile(row[3])
-                    def recalTable = returnFile(row[4])
+                    def vCType = row[2]
+                    def bamFile    = returnFile(row[3])
+                    def baiFile    = returnFile(row[4])
+                    def recalTable = returnFile(row[5])
 
                     if (!hasExtension(bamFile, "bam")) exit 1, "File: ${bamFile} has the wrong extension. See --help for more information"
                     if (!hasExtension(baiFile, "bai")) exit 1, "File: ${baiFile} has the wrong extension. See --help for more information"
                     if (!hasExtension(recalTable, "recal.table")) exit 1, "File: ${recalTable} has the wrong extension. See --help for more information"
 
-                    [sampleID, sampleName, bamFile, baiFile, recalTable]
+                    [sampleID, sampleName, vcType, bamFile, baiFile, recalTable]
                 }
     }
 
