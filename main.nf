@@ -52,8 +52,8 @@ def params = lint(params, paramsWithUsage)
 
 tools = params.tools
 skipQC = params.skipQC
-skipFilterSV = params.skipFilterSV
-skipFilterSNV = params.skipFilterSNV
+SVFilters = params.SVFilters
+SNVFilters = params.SNVFilters
 annotateTools = params.annotateTools
 
 customRunName = checkRunName(workflow.runName, params.runName)
