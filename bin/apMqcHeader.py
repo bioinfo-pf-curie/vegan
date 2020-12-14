@@ -48,7 +48,7 @@ The reliability, reproducibility and the quality of the results are therefore no
     with open(cli_args.splan, 'r') as fp:
         splan_content = '\n' + "\n".join(
             ['    - ["{}","{}"]'.format(row[0], row[1].strip(','))
-             for row in [line.split(',') for line in fp]
+             for row in [line.split('\t' if cli_args.splan.endswith("tsv") else ',') for line in fp]
              ])
     nbreads_cont = f"""
 custom_plot_config:
