@@ -1157,7 +1157,7 @@ bamRecalAllCh.branch{
 (bamRecalNormalCh, bamRecalTumorCh) = [bamRecalAllForks.normalCh, bamRecalAllForks.tumorCh]
 // Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
 // Remapping channel to remove common key sampleId
-pairBamCh = bamRecalNormalCh.combine(bamRecalTumorCh).filter{ pairMap.containsKey([it[0], it[5]]) }
+pairBamCh = bamRecalNormalCh.combine(bamRecalTumorCh).filter{ pairMap.containsKey([it[0], it[5]]) && it[2] == it[7] }
 
 pairBamCh = pairBamCh.dump(tag:'BAM Somatic Pair')
 
