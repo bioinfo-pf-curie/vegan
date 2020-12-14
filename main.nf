@@ -978,8 +978,8 @@ process MergeBamRecal {
         set sampleId, sampleName, vCType, file(bam) from bamMergeBamRecalCh
 
     output:
-        set sampleId, sampleName, vCType, file("${sampleName}.recal.bam"), file("${sampleName}.recal.bam.bai") into bamRecalCh
-        set sampleId, sampleName, vCType, file("${sampleName}.recal.bam") into bamRecalQCCh
+        set sampleId, sampleName, vCType, file("${sampleName}.${vCType}.recal.bam"), file("${sampleName}.${vCType}.recal.bam.bai") into bamRecalCh
+        set sampleId, sampleName, vCType, file("${sampleName}.${vCType}.recal.bam") into bamRecalQCCh
         set sampleId, sampleName, vCType into bamRecalTSVCh
         file 'v_samtools.txt' into samtoolsMergeBamRecalVersionCh
 
@@ -987,8 +987,8 @@ process MergeBamRecal {
 
     script:
     """
-    samtools merge --threads ${task.cpus} ${sampleName}.recal.bam ${bam}
-    samtools index ${sampleName}.recal.bam
+    samtools merge --threads ${task.cpus} ${sampleName}.${vCType}.recal.bam ${bam}
+    samtools index ${sampleName}.${vCType}.recal.bam
     samtools --version &> v_samtools.txt 2>&1 || true
     """
 }
