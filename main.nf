@@ -746,12 +746,14 @@ process bamStats {
   script:
     """
     getBWAstats.sh -i ${bam} -p ${task.cpus} > ${sampleName}_bwa.log
-    UniqueHits=\\\$(samtools idxstats ${bam} |  awk '{ UNIQ_HIT+=\\\$3 } END { print UNIQ_HIT }')
-    samtools idxstats ${bam} | awk -v Unique_hits="\$UniqueHits" '{
-      Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
+    
+    UniqueHits=\$(samtools idxstats ${bam} |  awk '{ UNIQ_HIT+=\$3 } END { print UNIQ_HIT }')
+    samtools idxstats ${bam} |  awk -v Unique_hits="\$UniqueHits" '{
+    Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
           printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
           Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
     }' > ${sampleName}.md.mapping.stats
+    samtools --version &> v_samtools.txt 2>&1 || true
     """
 }
 
