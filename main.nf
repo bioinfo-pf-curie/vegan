@@ -773,8 +773,8 @@ process bamFiltering {
       set sampleId, sampleName, file(bam), file(bai), vCType from duplicateMarkedBamsMQCh
 
     output:
-      set sampleId, sampleName, vCType, file("${sampleName}.${vCType}.bam"), file("${sampleName}.${vCType}.bam.bai") into filteredBamCh
-      file("${sampleName}.filtered.idxstats") into bamFilterReportCh
+      set sampleId, sampleName, vCType, file("${sampleName}.filtered.${vCType}.bam"), file("${sampleName}.filtered.${vCType}.bam.bai") into filteredBamCh
+      file("${sampleName}.filtered.${vCType}.idxstats") into bamFilterReportCh
       file 'v_samtools.txt' into samtoolsBamFilterVersionCh
 
     script:
