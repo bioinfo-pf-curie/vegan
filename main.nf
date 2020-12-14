@@ -1048,8 +1048,8 @@ bamRecalTSVCh.map { sampleId, sampleName, vCType ->
 //}
 
 // When no knownIndels for mapping, Channel bamRecalCh is indexedBamCh
-// TODO: check if indexedBam works with filter
-bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh.flatMap { it -> [it.plus(2, 'SV'), it.plus(2, 'SNV')]}
+// TODO: seems not suited to the actual layout, have to refactor line below (indexed bam are not filtered)
+// bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh.flatMap { it -> [it.plus(2, 'SV'), it.plus(2, 'SNV')]}
 
 
 /*
