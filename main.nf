@@ -1083,8 +1083,9 @@ process SamtoolsStats {
 }
 
 samtoolsStatsReportCh = samtoolsStatsReportCh.dump(tag:'SAMTools')
+bamMappedBamQCCh = bamMappedBamQCCh.dump(tag: 'bamMappedBamQCCh')
 
-bamBamQCCh = bamMappedBamQCCh.flatMap{ it -> it.plus(2, '')}.mix(bamRecalBamQCCh) // Mapreads + MapQ + MarkDuplicates + ApplyBQSR
+bamBamQCCh = bamMappedBamQCCh.map{ it -> it.plus(2, '')}.mix(bamRecalBamQCCh) // Mapreads + MapQ + MarkDuplicates + ApplyBQSR
 
 process BamQC {
     label 'qualimap'
@@ -1096,7 +1097,7 @@ process BamQC {
     publishDir "${params.outputDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
 
     input:
-        set sampleId, sampleName, vCType, file(bam) from bamBamQCCh
+        set sampleId, sampleName, vCType, file(bam) from bamBamQCCh.dump(tag: 'bamBamQCCh')
         file(targetBED) from targetBEDCh
 
     output:
