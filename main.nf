@@ -516,7 +516,7 @@ process Fastqc {
 
     tag {sampleId + "-" + runId}
 
-    publishDir "${params.outputDir}/Reports/${sampleName}/FastQC/${sampleName}_${runId}", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Reports/${sampleId}/FastQC/${sampleId}", mode: params.publishDirMode
 
     input:
         set sampleId, sampleName, runId, file(reads) from inputPairReadsFastQC.mix(inputBamFastQCCh)
@@ -608,7 +608,7 @@ process MapReads {
         ${convertToFastq}
         bwa mem ${params.bwaOptions} -R \"${readGroup}\" -t ${task.cpus} -M ${fasta} \
         ${input} | \
-        samtools sort --threads ${task.cpus} -m 2G - > ${sampleName}_${runId}.bam
+        samtools sort --threads ${task.cpus} -m 2G - > ${sampleId}.bam
         samtools --version &> v_samtools.txt 2>&1 || true
     """
 }
@@ -635,7 +635,7 @@ process MergeBamMapped {
     label 'samtools'
     label 'cpus8'
 
-    tag {sampleId + "-" + sampleName}
+    tag {sampleId}
 
     input:
         set sampleId, sampleName, runId, file(bam) from multipleBamCh
@@ -659,8 +659,7 @@ mergedBamCh = mergedBamCh.dump(tag:'BAMs for MD')
 process IndexBamFile {
     label 'samtools'
     label 'cpus8'
-
-    tag {sampleId + "-" + sampleName}
+    tag {sampleId}
 
     input:
         set sampleId, sampleName, file(bam) from mergedBamToIndexCh
@@ -693,27 +692,27 @@ process MarkDuplicates {
     label 'cpus16'
     label 'memoryMax'
 
-    tag {sampleId + "-" + sampleName}
+    tag {sampleId}
 
     publishDir params.outputDir, mode: params.publishDirMode,
             saveAs: {
-                if (it == "${sampleName}.md.bam.metrics") "Reports/${sampleName}/MarkDuplicates/${it}"
-                else "Preprocessing/${sampleName}/DuplicateMarked/${it}"
+                if (it == "${sampleId}.md.bam.metrics") "Reports/${sampleId}/MarkDuplicates/${it}"
+                else "Preprocessing/${sampleId}/DuplicateMarked/${it}"
             }
 
     input:
       set sampleId, sampleName, file("${sampleName}.bam") from mergedBamCh
 
     output:
-      set sampleId, sampleName, file("${sampleName}.md.bam"), file("${sampleName}.md.bam.bai") into duplicateMarkedBamsCh, duplicateMarkedBamsMQCh
-      file ("${sampleName}.md.bam.metrics") into markDuplicatesReportCh
+      set sampleId, sampleName, file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh, duplicateMarkedBamsMQCh
+      file ("${sampleId}.md.bam.metrics") into markDuplicatesReportCh
 
     when: params.knownIndels
 
     script:
     """
-    sambamba markdup --nthreads ${task.cpus} --tmpdir . ${sampleName}.bam ${sampleName}.md.bam
-    sambamba flagstat --nthreads ${task.cpus} ${sampleName}.md.bam > ${sampleName}.md.bam.metrics
+    sambamba markdup --nthreads ${task.cpus} --tmpdir . ${sampleId}.bam ${sampleId}.md.bam
+    sambamba flagstat --nthreads ${task.cpus} ${sampleId}.md.bam > ${sampleId}.md.bam.metrics
     """
 }
 
@@ -722,28 +721,36 @@ process bamStats {
   label 'samtools'
   label 'cpus2'
 
-  tag {sampleId + "-" + sampleName}
+  tag {sampleId}
 
-  publishDir "${params.outputDir}/Reports/${sampleName}/Mapping", mode: params.publishDirMode
+  publishDir "${params.outputDir}/Reports/${sampleId}/Mapping", mode: params.publishDirMode
 
   input:
     set sampleId, sampleName, file(bam), file(bai) from duplicateMarkedBamsCh
 
   output:
-    file("${sampleName}.md.mapping.stats") into bamMappingReportCh
+    file("*_mappingstats.mqc") into bamStatsMqcCh
     file("*bwa.log") into bwaMqcCh
     file 'v_samtools.txt' into samtoolsMappingStatsVersionCh
 
   script:
     """
-    getBWAstats.sh -i ${bam} -p ${task.cpus} > ${sampleName}_bwa.log
+    getBWAstats.sh -i ${bam} -p ${task.cpus} > ${sampleId}_bwa.log
+
+    aligned="\$(samtools view -@ $task.cpus -F 0x100 -F 0x4 -F 0x800 -c ${bam})"
+    hqbam="\$(samtools view -@ $task.cpus -F 0x100 -F 0x800 -F 0x4 -q 10 -c ${bam})"
+    lqbam="\$((\$aligned - \$hqbam))"
+    echo -e "Mapped,\${aligned}" > ${sampleId}_mappingstats.mqc
+    echo -e "HighQual,\${hqbam}" >> ${sampleId}_mappingstats.mqc
+    echo -e "LowQual,\${lqbam}" >> ${sampleId}_mappingstats.mqc
+
     
-    UniqueHits=\$(samtools idxstats ${bam} |  awk '{ UNIQ_HIT+=\$3 } END { print UNIQ_HIT }')
-    samtools idxstats ${bam} |  awk -v Unique_hits="\$UniqueHits" '{
-    Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
-          printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
-          Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
-    }' > ${sampleName}.md.mapping.stats
+    #UniqueHits=\$(samtools idxstats ${bam} |  awk '{ UNIQ_HIT+=\$3 } END { print UNIQ_HIT }')
+    #samtools idxstats ${bam} |  awk -v Unique_hits="\$UniqueHits" '{
+    #Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
+    #      printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
+    #      Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
+    #}' > ${sampleName}.md.mapping.stats
     samtools --version &> v_samtools.txt 2>&1 || true
     """
 }
@@ -756,16 +763,16 @@ process bamFiltering {
     label 'samtools'
     label 'cpus2'
 
-    tag {sampleId + "-" + sampleName + "-" + vCType}
+    tag {sampleId}
 
-    publishDir "${params.outputDir}/Reports/${sampleName}/Filtering", mode: params.publishDirMode
+    publishDir "${params.outputDir}/Reports/${sampleId}/Filtering", mode: params.publishDirMode
 
     input:
       set sampleId, sampleName, file(bam), file(bai), vCType from duplicateMarkedBamsMQCh
 
     output:
-      set sampleId, sampleName, vCType, file("${sampleName}.filtered.${vCType}.bam"), file("${sampleName}.filtered.${vCType}.bam.bai") into filteredBamCh
-      file("${sampleName}.filtered.${vCType}.idxstats") into bamFilterReportCh
+      set sampleId, sampleName, vCType, file("${sampleId}.filtered.${vCType}.bam"), file("${sampleId}.filtered.${vCType}.bam.bai") into filteredBamCh
+      file("${sampleId}.filtered.${vCType}.idxstats") into bamFilterReportCh
       file 'v_samtools.txt' into samtoolsBamFilterVersionCh
 
     script:
@@ -778,11 +785,11 @@ process bamFiltering {
       // Delete low quality reads MAQ
       mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : ""
       """
-      ${uniqFilter} samtools view  -@ ${task.cpus} -b ${dupParams} ${mapqParams} ${bam} > ${sampleName}.filtered.${vCType}.bam
-      samtools index ${sampleName}.filtered.${vCType}.bam 
-      samtools flagstat ${sampleName}.filtered.${vCType}.bam > ${sampleName}.filtered.${vCType}.flagstats
-      samtools idxstats ${sampleName}.filtered.${vCType}.bam > ${sampleName}.filtered.${vCType}.idxstats
-      samtools stats ${sampleName}.filtered.${vCType}.bam > ${sampleName}.filtered.${vCType}.stats
+      ${uniqFilter} samtools view  -@ ${task.cpus} -b ${dupParams} ${mapqParams} ${bam} > ${sampleId}.filtered.${vCType}.bam
+      samtools index ${sampleId}.filtered.${vCType}.bam 
+      samtools flagstat ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.flagstats
+      samtools idxstats ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.idxstats
+      samtools stats ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.stats
       
       samtools --version &> v_samtools.txt 2>&1 || true
       """
@@ -806,7 +813,7 @@ process BaseRecalibrator {
     label 'gatk'
     label 'cpus1'
 
-    tag {sampleId + "-" + sampleName + "-" + vCType + "-" + intervalBed.baseName}
+    tag {sampleId}
 
     input:
         set sampleId, sampleName, vCType, file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh
@@ -819,7 +826,7 @@ process BaseRecalibrator {
         file(knownIndelsIndex) from knownIndelsIndexCh
 
     output:
-        set sampleId, sampleName, vCType, file("${prefix}${sampleName}.recal.table") into tableGatherBQSRReportsCh
+        set sampleId, sampleName, vCType, file("${prefix}${sampleId}.recal.table") into tableGatherBQSRReportsCh
         set sampleId, sampleName, vCType into recalTableTSVnoIntCh
 
     when: params.knownIndels
@@ -834,7 +841,7 @@ process BaseRecalibrator {
     gatk --java-options -Xmx${task.memory.toGiga()}g \
         BaseRecalibrator \
         -I ${bam} \
-        -O ${prefix}${sampleName}.recal.table \
+        -O ${prefix}${sampleId}.recal.table \
         --tmp-dir ${params.baseRecalibratorOpts} \
         -R ${fasta} \
         ${intervalsOptions} \
@@ -860,15 +867,15 @@ process GatherBQSRReports {
     label 'memorySingleCPU2Task'
     label 'cpus2'
 
-    tag {sampleId + "-" + sampleName + "-" + vCType}
+    tag {sampleId}
 
-    publishDir "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
+    publishDir "${params.outputDir}/Preprocessing/${sampleId}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
 
     input:
         set sampleId, sampleName, vCType, file(recal) from tableGatherBQSRReportsCh
 
     output:
-        set sampleId, sampleName, vCType, file("${prefix}${sampleName}.recal.table") into recalTableCh
+        set sampleId, sampleName, vCType, file("${prefix}${sampleId}.recal.table") into recalTableCh
         set sampleId, sampleName, vCType into recalTableTSVCh
 
     when: !(params.noIntervals)
@@ -880,7 +887,7 @@ process GatherBQSRReports {
     gatk --java-options -Xmx${task.memory.toGiga()}g \
         GatherBQSRReports \
         ${input} \
-        -O ${prefix}${sampleName}.recal.table \
+        -O ${prefix}${sampleId}.recal.table \
     """
 }
 
@@ -946,7 +953,7 @@ process ApplyBQSR {
         ApplyBQSR \
         -R ${fasta} \
         --input ${bam} \
-        --output ${prefix}${sampleName}.recal.bam \
+        --output ${prefix}${sampleId}.recal.bam \
         ${intervalsOptions} \
         --bqsr-recal-file ${recalibrationReport}
     gatk ApplyBQSR --help &> v_gatk.txt 2>&1 || true
@@ -1992,6 +1999,7 @@ process MultiQC {
         file workflow_summary from workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml")
         file (versions) from yamlSoftwareVersionCh
         file ('Mapping/*') from bwaMqcCh.collect().ifEmpty([])
+        file ('Mapping/*') from bamStatsMqcCh.collect().ifEmpty([]) 
         file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
         file ('FastQC/*') from fastqcReportCh.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
@@ -2009,11 +2017,11 @@ process MultiQC {
     rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
     metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
     designOpts= params.design ? "-d ${params.design}" : ""
-    //modules_list = "-m custom_content -m fastqc -m picard -m samtools"
+    modules_list = "-m custom_content -m fastqc -m picard -m gatk -m bcftools -m snpeff -m qualimap"
     """
-    #apStats2MultiQC.sh -s ${splan} ${designOpts} 
+    apStats2MultiQC.sh -s ${splan} ${designOpts}
     apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
-    multiqc -f ${rtitle} ${rfilename} --config ${multiqcConfig} .
+    multiqc -f ${rtitle} ${rfilename} ${modules_list} --config ${multiqcConfig} .
     """
 }
 
