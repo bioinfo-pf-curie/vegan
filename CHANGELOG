@@ -1,9 +1,16 @@
-version-0.0.0
+version-0.1.1
 
-    NEW FEATURES
-        - add description with related issue numbers
-    SIGNIFICANT USER-VISIBLE CHANGES
-        - add description with related issue numbers
-    BUG FIXES
-        - add description with related issue numbers
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - The design file is now optional
+
+BUG FIXES
+
+
+*********************************
+version-0.1.0
+
+NEW FEATURES
+
+  - First version of the vegan pipeline
 
