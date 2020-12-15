@@ -14,7 +14,6 @@ import common.VeganTools
 @BaseScript(VeganTools)
 import groovy.transform.BaseScript
 
-
 /*
 ================================================================================
                         project : EUCANCAN/vegan
@@ -57,14 +56,13 @@ SNVFilters = params.SNVFilters
 annotateTools = params.annotateTools
 
 customRunName = checkRunName(workflow.runName, params.runName)
-step    = getStep(params.samplePlan, params.step)
+step = getStep(params.samplePlan, params.step)
 samplePlanPath = getPath(step, params.samplePlan, params.outputDir)
 samplePlanCh = getSamplePlan(samplePlanPath)
 
-(genderMap, statusMap, pairMap) = extractInfos(getDesign(params.design))
-// genderMap[sampleId] = "XX"/"XY"
-// Statusmap[sampleId] = O/1
-// pairMap[normalSampleId, tumorSampleId] = "pairName"
+if (params.design){
+  (genderMap, statusMap, pairMap) = extractInfos(getDesign(params.design))
+}
 
 /*
 ================================================================================
@@ -89,7 +87,6 @@ params << [
     knownIndelsIndex: params.genome && params.genomes[params.genome].knownIndels ? params.genomes[params.genome].knownIndelsIndex ?: null : null,
     snpeffDb: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffDb ?: null : null,
 ]
-
 
 /*
 ================================================================================
@@ -460,36 +457,34 @@ if (step == "mapping") {
     def runIds = [:]
     samplePlanCh.map {
         runIds[it[0]] = runIds.containsKey(it[0]) ? runIds[it[0]] + 1 : 0
-        return it[0,1] + [[it[0], runIds[it[0]].toString()].join("_")] + it[2..-1]
+        return it[0,1] + [[it[0], runIds[it[0]].toString()].join("_")] + [it[2..-1]]
     }.branch {
-        bamCh: it[3] =~ /.*bam$/
-        pairCh: it[3] =~ /.*(fastq.gz|fq.gz|fastq|fq)$/
+        bamCh: it[3][0] =~ /.*bam$/
+        pairCh: it[3][0] =~ /.*(fastq.gz|fq.gz|fastq|fq)$/
     }.set { samplePlanForks }
     (inputBamCh, inputPairReadsCh) = [samplePlanForks.bamCh, samplePlanForks.pairCh]
 } else (inputBamCh, inputPairReadsCh) = [Channel.empty(), Channel.empty()]
 
-
 // TODO: chek if splitFastq works
+// I guess it does not work for uBam ?
 if (params.splitFastq){
     inputPairReadsCh = inputPairReadsCh
     // newly splitfastq are named based on split, so the name is easier to catch
             .splitFastq(by: params.splitFastq, compress:true, file:"split", pe:true)
-            .map {sampleId, sampleName, runId, reads1, reads2 ->
+            .map {sampleId, sampleName, runId, reads ->
                 // The split fastq read1 is the 4th element (indexed 3) its name is split_3
                 // The split fastq read2's name is split_4
                 // It's followed by which split it's acutally based on the mother fastq file
                 // Index start at 1
                 // Extracting the index to get a new IdRun
-                splitIndex = reads1.fileName.toString().minus("split_3.").minus(".gz")
+                splitIndex = reads[0].fileName.toString().minus("split_3.").minus(".gz")
                 newIdRun = runId + "_" + splitIndex
                 // Giving the files a new nice name
                 newReads1 = file("${sampleName}_${newIdRun}_R1.fastq.gz")
                 newReads2 = file("${sampleName}_${newIdRun}_R2.fastq.gz")
-                [sampleId, sampleName, newIdRun, reads1, reads2]}
+                [sampleId, sampleName, newIdRun, [newReads1, newReads2]]}
 }
-
 inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
-
 
 /*
 ================================================================================
@@ -500,19 +495,22 @@ inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 (inputBamCh, inputBamFastQCCh) = inputBamCh.into(2)
 
 // Removing inputFile2 wich is null in case of uBAM
-inputBamFastQCCh = inputBamFastQCCh.map {
-    sampleId, sampleName, runID, inputFile1, inputFile2 ->
-    [sampleId, sampleName, runID, inputFile1]
-}
+//inputBamFastQCCh = inputBamFastQCCh.map {
+//    sampleId, sampleName, runID, inputFile1, inputFile2 ->
+//    [sampleId, sampleName, runID, inputFile1]
+//}
 
 (inputPairReadsCh, inputPairReadsFastQC) = inputPairReadsCh.into(2)
 
-// STEP 0.5: QC ON READS
+/*
+ * FastQC
+ */
 
 // TODO: Use only one FastQC process for FASTQ and uBAM files ?
+// TODO: Not that I think there is no reason to keep both inputPairReadsFastQC and inputBamFastQCCh
 // FASTQ and uBAM files are renamed based on the sample name
 
-process FastQCFQ {
+process Fastqc {
     label 'fastqc'
     label 'cpus2'
 
@@ -521,48 +519,47 @@ process FastQCFQ {
     publishDir "${params.outputDir}/Reports/${sampleName}/FastQC/${sampleName}_${runId}", mode: params.publishDirMode
 
     input:
-        set sampleId, sampleName, runId, file("${sampleName}_${runId}_R1.fastq.gz"), file("${sampleName}_${runId}_R2.fastq.gz") from inputPairReadsFastQC
+        set sampleId, sampleName, runId, file(reads) from inputPairReadsFastQC.mix(inputBamFastQCCh)
 
     output:
-        file("*.{html,zip}") into fastQCFQReportCh
+        file("*.{html,zip}") into fastqcReportCh
         file("v_fastqc.txt") into fastqcVersionCh
 
     when: !('fastqc' in skipQC)
 
     script:
     """
-    fastqc -t 2 -q ${sampleName}_${runId}_R1.fastq.gz ${sampleName}_${runId}_R2.fastq.gz
+    fastqc -t ${task.cpu} -q ${reads}
     fastqc --version > v_fastqc.txt
     """
 }
 
-process FastQCBAM {
-    label 'fastqc'
-    label 'cpus2'
-
-    tag {sampleId + "-" + runId}
-
-    publishDir "${params.outputDir}/Reports/${sampleName}/FastQC/${sampleName}_${runId}", mode: params.publishDirMode
-
-    input:
-        set sampleId, sampleName, runId, file("${sampleName}_${runId}.bam") from inputBamFastQCCh
-
-    output:
-        file("*.{html,zip}") into fastQCBAMReportCh
-        file("v_fastqc.txt") into fastqcBamVersionCh
-
-    when: !('fastqc' in skipQC)
-
-    script:
-    """
-    fastqc -t 2 -q ${sampleName}_${runId}.bam
-    fastqc --version > v_fastqc.txt
-    """
-}
-
-fastQCReportCh = fastQCFQReportCh.mix(fastQCBAMReportCh)
-
-fastQCReportCh = fastQCReportCh.dump(tag:'FastQC')
+//process FastQCBAM {
+//    label 'fastqc'
+//    label 'cpus2'
+//
+//    tag {sampleId + "-" + runId}
+//
+//    publishDir "${params.outputDir}/Reports/${sampleName}/FastQC/${sampleName}_${runId}", mode: params.publishDirMode
+//
+//    input:
+//        set sampleId, sampleName, runId, file("${sampleName}_${runId}.bam") from inputBamFastQCCh
+//
+//    output:
+//        file("*.{html,zip}") into fastQCBAMReportCh
+//        file("v_fastqc.txt") into fastqcBamVersionCh
+//
+//    when: !('fastqc' in skipQC)
+//
+//    script:
+//    """
+//    fastqc -t 2 -q ${sampleName}_${runId}.bam
+//    fastqc --version > v_fastqc.txt
+//    """
+//}
+//
+//fastQCReportCh = fastQCFQReportCh.mix(fastQCBAMReportCh)
+//fastQCReportCh = fastQCReportCh.dump(tag:'FastQC')
 
 
 /*
@@ -574,7 +571,6 @@ fastQCReportCh = fastQCReportCh.dump(tag:'FastQC')
 // STEP 1: MAPPING READS TO REFERENCE GENOME WITH BWA MEM
 
 inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
-
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
 
 process MapReads {
@@ -585,7 +581,7 @@ process MapReads {
     tag {sampleId + "-" + runId}
 
     input:
-        set sampleId, sampleName, runId, file(inputFile1), file(inputFile2) from inputPairReadsCh
+        set sampleId, sampleName, runId, file(inputFile) from inputPairReadsCh
         file(bwaIndex) from bwaIndexCh
         file(fasta) from fastaCh
         file(fastaFai) from fastaFaiCh
@@ -604,13 +600,13 @@ process MapReads {
     CN = params.sequencingCenter ? "CN:${params.sequencingCenter}\\t" : ""
     readGroup = "@RG\\tID:${runId}\\t${CN}PU:${runId}\\tSM:${sampleId}\\tLB:${sampleId}\\tPL:illumina"
     // adjust mismatch penalty for tumor samples
-    status = statusMap[sampleId]
-    extra = status == 1 ? "-B 3" : ""
-    convertToFastq = hasExtension(inputFile1, "bam") ? "gatk --java-options -Xmx${task.memory.toGiga()}g SamToFastq --INPUT=${inputFile1} --FASTQ=/dev/stdout --INTERLEAVE=true --NON_PF=true | \\" : ""
-    input = hasExtension(inputFile1, "bam") ? "-p /dev/stdin - 2> >(tee ${inputFile1}.bwa.stderr.log >&2)" : "${inputFile1} ${inputFile2}"
+    //status = statusMap[sampleId]
+    //extra = status == 1 ? "-B 3" : ""
+    convertToFastq = hasExtension(inputFile[0], "bam") ? "gatk --java-options -Xmx${task.memory.toGiga()}g SamToFastq --INPUT=${inputFile[0]} --FASTQ=/dev/stdout --INTERLEAVE=true --NON_PF=true | \\" : ""
+    input = hasExtension(inputFile[0], "bam") ? "-p /dev/stdin - 2> >(tee ${inputFile[0]}.bwa.stderr.log >&2)" : "${inputFile[0]} ${inputFile[1]}"
     """
         ${convertToFastq}
-        bwa mem ${params.bwaOptions} -R \"${readGroup}\" ${extra} -t ${task.cpus} -M ${fasta} \
+        bwa mem ${params.bwaOptions} -R \"${readGroup}\" -t ${task.cpus} -M ${fasta} \
         ${input} | \
         samtools sort --threads ${task.cpus} -m 2G - > ${sampleName}_${runId}.bam
         samtools --version &> v_samtools.txt 2>&1 || true
@@ -619,7 +615,6 @@ process MapReads {
 
 bamMappedCh = bamMappedCh.dump(tag:'Mapped BAM')
 // Sort BAM whether they are standalone or should be merged
-
 singleBamCh = Channel.create()
 multipleBamCh = Channel.create()
 bamMappedCh.groupTuple(by:[0, 1])
@@ -636,7 +631,6 @@ singleBamCh = singleBamCh.map {
 singleBamCh = singleBamCh.dump(tag:'Single BAM')
 
 // STEP 1': MERGING BAM FROM MULTIPLE LANES
-
 process MergeBamMapped {
     label 'samtools'
     label 'cpus8'
@@ -658,11 +652,8 @@ process MergeBamMapped {
 }
 
 mergedBamCh = mergedBamCh.dump(tag:'Merged BAM')
-
 mergedBamCh = mergedBamCh.mix(singleBamCh)
-
 mergedBamCh = mergedBamCh.dump(tag:'BAMs for MD')
-
 (mergedBamCh, mergedBamToIndexCh, mergedBamUCh) = mergedBamCh.into(3)
 
 process IndexBamFile {
@@ -1129,46 +1120,73 @@ process BamQC {
 bamQCReportCh = bamQCReportCh.dump(tag:'BamQC')
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
 ================================================================================
                             VARIANT CALLING
 ================================================================================
 */
 
+if (params.design){
+  // When starting with variant calling, Channel bamRecalCh is samplePlanCh
+  bamRecalCh = step in 'variantcalling' ? samplePlanCh : bamRecalCh
+  bamRecalCh = bamRecalCh.dump(tag:'BAM')
 
-// When starting with variant calling, Channel bamRecalCh is samplePlanCh
-bamRecalCh = step in 'variantcalling' ? samplePlanCh : bamRecalCh
-bamRecalCh = bamRecalCh.dump(tag:'BAM')
+  // Here we have a recalibrated bam set
+  // The TSV file is formatted like: "sampleId status sampleName vCType bamFile baiFile"
+  // Manta will be run in Germline mode, or in Tumor mode depending on status
+  // HaplotypeCaller will be run for Normal and Tumor samples
 
-// Here we have a recalibrated bam set
-// The TSV file is formatted like: "sampleId status sampleName vCType bamFile baiFile"
-// Manta will be run in Germline mode, or in Tumor mode depending on status
-// HaplotypeCaller will be run for Normal and Tumor samples
+  (bamMantaSingleCh, bamAscatCh, bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(4)
+  bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh)
+  //(bamAscatCh, bamRecalAllCh) = bamRecalAllCh.into(2)
 
-(bamMantaSingleCh, bamAscatCh, bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(4)
-bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh)
-//(bamAscatCh, bamRecalAllCh) = bamRecalAllCh.into(2)
-
-// separate BAM by status for somatic variant calling
-bamRecalAllCh.branch{
+  // separate BAM by status for somatic variant calling
+  bamRecalAllCh.branch{
     normalCh: statusMap[it[0]] == 0
     tumorCh: statusMap[it[0]] == 1
-}.set { bamRecalAllForks }
-(bamRecalNormalCh, bamRecalTumorCh) = [bamRecalAllForks.normalCh, bamRecalAllForks.tumorCh]
-// Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
-// Remapping channel to remove common key sampleId
-pairBamCh = bamRecalNormalCh.combine(bamRecalTumorCh).filter{ pairMap.containsKey([it[0], it[5]]) && it[2] == it[7] }
+  }.set { bamRecalAllForks }
+  (bamRecalNormalCh, bamRecalTumorCh) = [bamRecalAllForks.normalCh, bamRecalAllForks.tumorCh]
+  // Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
+  // Remapping channel to remove common key sampleId
+  pairBamCh = bamRecalNormalCh.combine(bamRecalTumorCh).filter{ pairMap.containsKey([it[0], it[5]]) && it[2] == it[7] }
 
-pairBamCh = pairBamCh.dump(tag:'BAM Somatic Pair')
+  pairBamCh = pairBamCh.dump(tag:'BAM Somatic Pair')
 
-// Manta,  Mutect2
-(pairBamMantaCh, pairBamCalculateContaminationCh, pairBamCh) = pairBamCh.into(3)
+  // Manta,  Mutect2
+  (pairBamMantaCh, pairBamCalculateContaminationCh, pairBamCh) = pairBamCh.into(3)
 
-intervalPairBamCh = pairBamCh.combine(bedIntervalsCh)
+  intervalPairBamCh = pairBamCh.combine(bedIntervalsCh)
 
-// intervals for Mutect2 calls and pileups for Mutect2 filtering
-(pairBamMutect2Ch, pairBamPileupSummariesCh) = intervalPairBamCh.into(2)
-
+  // intervals for Mutect2 calls and pileups for Mutect2 filtering
+  (pairBamMutect2Ch, pairBamPileupSummariesCh) = intervalPairBamCh.into(2)
+}else{
+  bamHaplotypeCallerCh = Channel.empty()
+  pairBamPileupSummariesCh = Channel.empty()
+  pairBamCalculateContaminationCh = Channel.empty()
+  pairBamMutect2Ch = Channel.empty()
+  bamMantaSingleCh = Channel.empty()
+  pairBamMantaCh = Channel.empty()
+  bamAscatCh = Channel.empty()
+}
 
 /*
 ================================================================================
@@ -1940,7 +1958,7 @@ process GetSoftwareVersions {
         file 'v_allelecount.txt' from alleleCountsVersionCh.first().ifEmpty('')
         file 'v_bcftools.txt' from bcftoolsVersionCh.first().ifEmpty('')
         file 'v_bwa.txt' from bwaVersionCh.ifEmpty('')
-        file 'v_fastqc.txt' from fastqcVersionCh.mix(fastqcBamVersionCh).first().ifEmpty('')
+        file 'v_fastqc.txt' from fastqcVersionCh.ifEmpty('')
         file 'v_gatk.txt' from gatkVersionCh.first().ifEmpty('')
         file 'v_manta.txt' from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
         file 'v_qualimap.txt' from qualimapVersionCh.first().ifEmpty('')
@@ -1975,7 +1993,7 @@ process MultiQC {
         file (versions) from yamlSoftwareVersionCh
         file ('Mapping/*') from bwaMqcCh.collect().ifEmpty([])
         file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
-        file ('FastQC/*') from fastQCReportCh.collect().ifEmpty([])
+        file ('FastQC/*') from fastqcReportCh.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
         file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
         file ('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
@@ -1991,6 +2009,7 @@ process MultiQC {
     rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
     metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
     designOpts= params.design ? "-d ${params.design}" : ""
+    //modules_list = "-m custom_content -m fastqc -m picard -m samtools"
     """
     #apStats2MultiQC.sh -s ${splan} ${designOpts} 
     apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
