@@ -514,7 +514,7 @@ process Fastqc {
   label 'fastqc'
   label 'cpus2'
 
-  tag {sampleId + "-" + runId}
+  tag {sampleId}
 
   publishDir "${params.outputDir}/Reports/${sampleId}/FastQC/${sampleId}", mode: params.publishDirMode
 
@@ -578,7 +578,7 @@ process MapReads {
   label 'cpusMax'
   label 'memoryMax'
 
-  tag {sampleId + "-" + runId}
+  tag {sampleId}
 
   input:
   set sampleId, sampleName, runId, file(inputFile) from inputPairReadsCh
@@ -587,8 +587,8 @@ process MapReads {
   file(fastaFai) from fastaFaiCh
 
   output:
-  set sampleId, sampleName, runId, file("${sampleName}_${runId}.bam") into bamMappedCh
-  set sampleId, val("${sampleName}_${runId}"), file("${sampleName}_${runId}.bam") into bamMappedBamQCCh
+  set sampleId, sampleName, runId, file("${sampleId}.bam") into bamMappedCh
+  set sampleId, val("${sampleName}_${runId}"), file("${sampleId}.bam") into bamMappedBamQCCh
   file 'v_samtools.txt' into samtoolsMapReadsVersionCh
 
   script:
@@ -630,12 +630,11 @@ singleBamCh = singleBamCh.map {
 }
 singleBamCh = singleBamCh.dump(tag:'Single BAM')
 
-// STEP 1': MERGING BAM FROM MULTIPLE LANES
+// STEP 1: MERGING BAM FROM MULTIPLE LANES
 process MergeBamMapped {
   label 'samtools'
   label 'cpus8'
   tag {sampleId}
-
 
   input:
   set sampleId, sampleName, runId, file(bam) from multipleBamCh
@@ -668,7 +667,7 @@ process IndexBamFile {
   set sampleId, sampleName, file(bam), file("*.bai") into indexedBamCh
   file 'v_samtools.txt' into samtoolsIndexBamFileVersionCh
 
-  when: !params.knownIndels
+  //when: !params.knownIndels
 
   script:
   """
@@ -701,17 +700,17 @@ process MarkDuplicates {
     }
 
   input:
-  set sampleId, sampleName, file("${sampleName}.bam") from mergedBamCh
+  set sampleId, sampleName, file(bam) from mergedBamCh
 
   output:
   set sampleId, sampleName, file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh, duplicateMarkedBamsMQCh
   file ("${sampleId}.md.bam.metrics") into markDuplicatesReportCh
 
-  when: params.knownIndels
+  //when: params.knownIndels
 
   script:
   """
-  sambamba markdup --nthreads ${task.cpus} --tmpdir . ${sampleId}.bam ${sampleId}.md.bam
+  sambamba markdup --nthreads ${task.cpus} --tmpdir . ${bam} ${sampleId}.md.bam
   sambamba flagstat --nthreads ${task.cpus} ${sampleId}.md.bam > ${sampleId}.md.bam.metrics
   """
 }
@@ -759,7 +758,6 @@ duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.flatMap { it -> [it + 'SV', it
 // STEP 2: BAM FILTERING
 // Mapping Filter
 process bamFiltering {
-<<<<<<< HEAD
   label 'samtools'
   label 'cpus2'
   tag {sampleId}
@@ -794,9 +792,7 @@ process bamFiltering {
   """
 }
 
-
 (bamMDCh, bamMDToJoinCh) = filteredBamCh.into(2) // duplicateMarked + MapQ
-
 
 /*
 ================================================================================
@@ -939,7 +935,7 @@ process ApplyBQSR {
   file(fastaFai) from fastaFaiCh
 
   output:
-  set sampleId, sampleName, vCType, file("${prefix}${sampleName}.recal.bam") into bamMergeBamRecalCh
+  set sampleId, sampleName, vCType, file("${prefix}${sampleId}.recal.bam") into bamMergeBamRecalCh
   file("v_gatk.txt") into gatkVersionCh
 
   script:
@@ -973,8 +969,8 @@ process MergeBamRecal {
   set sampleId, sampleName, vCType, file(bam) from bamMergeBamRecalCh
 
   output:
-  set sampleId, sampleName, vCType, file("${sampleName}.${vCType}.recal.bam"), file("${sampleName}.${vCType}.recal.bam.bai") into bamRecalCh
-  set sampleId, sampleName, vCType, file("${sampleName}.${vCType}.recal.bam") into bamRecalQCCh
+  set sampleId, sampleName, vCType, file("${sampleId}.${vCType}.recal.bam"), file("${sampleId}.${vCType}.recal.bam.bai") into bamRecalCh
+  set sampleId, sampleName, vCType, file("${sampleId}.${vCType}.recal.bam") into bamRecalQCCh
   set sampleId, sampleName, vCType into bamRecalTSVCh
   file 'v_samtools.txt' into samtoolsMergeBamRecalVersionCh
 
@@ -982,8 +978,8 @@ process MergeBamRecal {
 
   script:
   """
-  samtools merge --threads ${task.cpus} ${sampleName}.${vCType}.recal.bam ${bam}
-  samtools index ${sampleName}.${vCType}.recal.bam
+  samtools merge --threads ${task.cpus} ${sampleId}.${vCType}.recal.bam ${bam}
+  samtools index ${sampleId}.${vCType}.recal.bam
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
@@ -998,11 +994,11 @@ process IndexBamRecal {
   publishDir "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, vCType, file("${sampleName}.recal.bam") from bamMergeBamRecalNoIntCh
+  set sampleId, sampleName, vCType, file(bam) from bamMergeBamRecalNoIntCh
 
   output:
-  set sampleId, sampleName, vCType, file("${sampleName}.recal.bam"), file("${sampleName}.recal.bam.bai") into bamRecalNoIntCh
-  set sampleId, sampleName, vCType, file("${sampleName}.recal.bam") into bamRecalQCnoIntCh
+  set sampleId, sampleName, vCType, file("*bam.bai"), file("${sampleName}.recal.bam.bai") into bamRecalNoIntCh
+  set sampleId, sampleName, vCType, file("*bam.bai") into bamRecalQCnoIntCh
   set sampleId, sampleName, vCType into bamRecalTSVnoIntCh
   file 'v_samtools.txt' into samtoolsIndexBamRecalVersionCh
 
@@ -1010,7 +1006,7 @@ process IndexBamRecal {
 
   script:
   """
-  samtools index ${sampleName}.recal.bam
+  samtools index ${bam}
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
