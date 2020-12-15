@@ -3,6 +3,8 @@ version-0.1.1
 SIGNIFICANT USER-VISIBLE CHANGES
 
   - The design file is now optional
+  - Update the multiQC report
+  - Replace --outputDir by --outDir
 
 BUG FIXES
 
