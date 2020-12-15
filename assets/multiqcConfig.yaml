@@ -35,7 +35,7 @@ sp:
 ## Modules
 
 module_order:
-  - 'fastqc':
+  - 'fastqc'
   - 'picard'
   - 'gatk'
   - 'qualimap'
@@ -44,7 +44,7 @@ module_order:
 
 #############################
 ## Removed plots
-remove_sections :
+remove_sections:
   - fastqc_sequence_counts
   - fastqc_per_sequence_quality_scores
   - fastqc_overrepresented_sequences
