@@ -36,7 +36,7 @@ custom_data:
               format: '{:,.0f}'
               placement: 2000
             Fragment_length:
-              title: 'Estimated Fragment Length'
+              title: 'Fragment Length'
               scale: 'YlGnGn'
               format: '{:,.0f}'
               placement: 3000
@@ -117,7 +117,7 @@ custom_data:
             Mean_depth:
               title: 'Mean Depth'
               scale: 'RdYlGn'
-              format: '{:,.0f}'
+              format: '{:,.1f}'
               placement: 13000
 
     bwa_logs:
@@ -153,18 +153,38 @@ table_cond_formatting_rules:
           - gt: 25
         fail:
           - gt: 50
+    Percent_reads_on_target:
+        pass:
+          - gt: 70
+        warn:
+          -gt: 50
+        fail:
+          -lt: 40
+    Mean_depth:
+        pass:
+          - gt: 75
+        warn:
+          - gt: 30
+        fail:
+          - lt: 30
+    Fragment_length:
+        warn:
+          - lt: 150
 
 
 ###############################
 ## Modules
 
 module_order:
-  - 'fastqc'
-  - 'picard'
-  - 'gatk'
-  - 'qualimap'
-  - 'bcftools'
-  - 'snpeff'
+  - fastqc
+  - picard:
+     name: 'Fragment Size'
+  - mosdepth:
+     name: 'Coverage'
+  - qualimap
+  - gatk
+  - bcftools
+  - snpeff
 
 report_section_order:
   my_stats:

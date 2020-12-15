@@ -165,7 +165,11 @@ snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
 ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
-targetBEDCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
+if (params.targetBED){
+  Channel
+    .value(file(params.targetBED))
+    .into {targetBedCh; mosdepthBedCh}
+}
 
 // Print summary and genareta summary channel
 workflowSummaryCh = summarize(params, summary, workflow)
@@ -492,23 +496,18 @@ inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 ================================================================================
 */
 
-(inputBamCh, inputBamFastQCCh) = inputBamCh.into(2)
-
 // Removing inputFile2 wich is null in case of uBAM
-//inputBamFastQCCh = inputBamFastQCCh.map {
-//    sampleId, sampleName, runID, inputFile1, inputFile2 ->
-//    [sampleId, sampleName, runID, inputFile1]
-//}
-
+// TODO - should be the same for singleEnd data
+inputBamCh = inputBamCh.map {
+    sampleId, sampleName, runID, inputFiles ->
+    [sampleId, sampleName, runID, inputFiles[0]]
+}
+(inputBamCh, inputBamFastQCCh) = inputBamCh.into(2)
 (inputPairReadsCh, inputPairReadsFastQC) = inputPairReadsCh.into(2)
 
 /*
  * FastQC
  */
-
-// TODO: Use only one FastQC process for FASTQ and uBAM files ?
-// TODO: Not that I think there is no reason to keep both inputPairReadsFastQC and inputBamFastQCCh
-// FASTQ and uBAM files are renamed based on the sample name
 
 process Fastqc {
   label 'fastqc'
@@ -570,8 +569,8 @@ process Fastqc {
 
 // STEP 1: MAPPING READS TO REFERENCE GENOME WITH BWA MEM
 
-inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
+inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 
 process MapReads {
   label 'gatkBwaSamtools'
@@ -969,8 +968,8 @@ process MergeBamRecal {
   set sampleId, sampleName, vCType, file(bam) from bamMergeBamRecalCh
 
   output:
-  set sampleId, sampleName, vCType, file("${sampleId}.${vCType}.recal.bam"), file("${sampleId}.${vCType}.recal.bam.bai") into bamRecalCh
-  set sampleId, sampleName, vCType, file("${sampleId}.${vCType}.recal.bam") into bamRecalQCCh
+  set sampleId, sampleName, vCType, file("*recal.bam"), file("*recal.bam.bai") into bamRecalCh
+  //set sampleId, sampleName, vCType, file("${sampleId}.${vCType}.recal.bam") into bamRecalQCCh
   set sampleId, sampleName, vCType into bamRecalTSVCh
   file 'v_samtools.txt' into samtoolsMergeBamRecalVersionCh
 
@@ -978,8 +977,8 @@ process MergeBamRecal {
 
   script:
   """
-  samtools merge --threads ${task.cpus} ${sampleId}.${vCType}.recal.bam ${bam}
-  samtools index ${sampleId}.${vCType}.recal.bam
+  samtools merge --threads ${task.cpus} ${sampleId}_${vCType}_recal.bam ${bam}
+  samtools index ${sampleId}_${vCType}_recal.bam
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
@@ -998,7 +997,7 @@ process IndexBamRecal {
 
   output:
   set sampleId, sampleName, vCType, file(bam), file("*bam.bai") into bamRecalNoIntCh
-  set sampleId, sampleName, vCType, file(bam) into bamRecalQCnoIntCh
+  //set sampleId, sampleName, vCType, file(bam) into bamRecalQCnoIntCh
   set sampleId, sampleName, vCType into bamRecalTSVnoIntCh
   file 'v_samtools.txt' into samtoolsIndexBamRecalVersionCh
 
@@ -1011,11 +1010,11 @@ process IndexBamRecal {
   """
 }
 
-bamRecalCh = bamRecalCh.mix(bamRecalNoIntCh)
-bamRecalQCCh = bamRecalQCCh.mix(bamRecalQCnoIntCh)
+bamRecalCh = bamRecalCh.mix(bamRecalNoIntCh).dump(tag:'BAM')
+//bamRecalQCCh = bamRecalQCCh.mix(bamRecalQCnoIntCh)
 bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
 
-(bamRecalBamQCCh, bamRecalSamToolsStatsCh) = bamRecalQCCh.into(2)
+(bamRecalBamQCCh, bamRecalQualimapCh, bamRecalSamToolsStatsCh, bamRecalMosdepthCh, bamRecalInsertSizeCh) = bamRecalCh.into(5)
 (bamRecalTSVCh, bamRecalSampleTSVCh) = bamRecalTSVCh.into(2)
 
 // Creating a TSV file to restart from this step
@@ -1052,21 +1051,19 @@ bamRecalTSVCh.map { sampleId, sampleName, vCType ->
 process SamtoolsStats {
   label 'samtools'
   label 'cpus2'
-
   tag {sampleId + "-" + sampleName}
-
   publishDir "${params.outDir}/Reports/${sampleName}/SamToolsStats", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, vCType, file(bam) from bamRecalSamToolsStatsCh
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamRecalSamToolsStatsCh
 
   output:
   file ("${bam}.samtools.stats.out") into samtoolsStatsReportCh
   file 'v_samtools.txt' into samtoolsStatsVersionCh
 
   when: !('samtoolsStats' in skipQC)
-
   script:
+
   """
   samtools stats ${bam} > ${bam}.samtools.stats.out
   samtools --version &> v_samtools.txt 2>&1 || true
@@ -1076,9 +1073,14 @@ process SamtoolsStats {
 samtoolsStatsReportCh = samtoolsStatsReportCh.dump(tag:'SAMTools')
 bamMappedBamQCCh = bamMappedBamQCCh.dump(tag: 'bamMappedBamQCCh')
 
+// TODO : pourquoi y a-t-il plus de bam que de sample ??
 bamBamQCCh = bamMappedBamQCCh.map{ it -> it.plus(2, '')}.mix(bamRecalBamQCCh) // Mapreads + MapQ + MarkDuplicates + ApplyBQSR
 
-process BamQC {
+/*
+ * BAM QC
+ */
+
+process Qualimap {
   label 'qualimap'
   label 'memoryMax'
   label 'cpus16'
@@ -1088,8 +1090,8 @@ process BamQC {
   publishDir "${params.outDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, vCType, file(bam) from bamBamQCCh.dump(tag: 'bamBamQCCh')
-  file(targetBED) from targetBEDCh
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamRecalQualimapCh.dump(tag: 'bamRecalBamQCCh')
+  file(targetBED) from targetBedCh
 
   output:
   file("${bam.baseName}") into bamQCReportCh
@@ -1118,6 +1120,68 @@ process BamQC {
 }
 
 bamQCReportCh = bamQCReportCh.dump(tag:'BamQC')
+
+/*
+ * Calculate Insert Size
+ */
+
+process getFragmentSize {
+  tag "${sampleId}"
+  label 'picard'
+  label 'cpu2'
+  label 'memoryMax'
+
+  publishDir path: "${params.outDir}/fragSize", mode: "copy"
+ 
+  input:
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamRecalInsertSizeCh
+
+  output:
+  file("*.{pdf,txt}") into fragmentSizeCh
+
+  script:
+  """
+  picard CollectInsertSizeMetrics \
+      I=${bam} \
+      O=${bam.baseName}_insert_size_metrics.txt \
+      H=${bam.baseName}_insert_size_histogram.pdf \
+      M=0.5
+  """
+}
+
+/*
+ * Calculate sequencing depth
+ */
+
+process getSeqDepth {
+  tag "${prefix}"
+  label 'mosdepth'
+  label 'cpu2'
+  label 'memoryMax'
+
+  publishDir path: "${params.outDir}/depth", mode: "copy"
+ 
+  input:
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamRecalMosdepthCh
+  file(bed) from mosdepthBedCh
+
+  output:
+  file("*.txt") into mosdepthOutputCh
+
+  script:
+  bedCmd = params.targetBED ? "--by ${bed}" : ''
+  """
+  mosdepth -t ${task.cpus} --quantize 0:1:10:50:100: ${bedCmd} ${bam.baseName} ${bam}
+  """
+}
+
+
+
+
+
+
+
+
 
 
 
@@ -1383,7 +1447,7 @@ process ConcatVCF {
   input:
   set variantCaller, sampleId, sampleName, file(vcFiles) from vcfConcatenateVCFsCh
   file(fastaFai) from fastaFaiCh
-  file(targetBED) from targetBEDCh
+  file(targetBED) from targetBedCh
 
   output:
   // we have this funny *_* pattern to avoid copying the raw calls to publishdir
@@ -1574,7 +1638,7 @@ process MantaSingle {
   set sampleId, sampleName, vCType, file(bam), file(bai) from bamMantaSingleCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
-  file(targetBED) from targetBEDCh
+  file(targetBED) from targetBedCh
 
   output:
   set val("Manta"), sampleId, sampleName, file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaSingleCh
@@ -1631,7 +1695,7 @@ process Manta {
   set sampleIdNormal, sampleNameNormal, vCType, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, vCType, file(bamTumor), file(baiTumor) from pairBamMantaCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
-  file(targetBED) from targetBEDCh
+  file(targetBED) from targetBedCh
 
   output:
   set val("Manta"), pairName, val("${sampleNameTumor}_vs_${sampleNameNormal}"), file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaCh
@@ -1994,6 +2058,8 @@ process MultiQC {
   file ('Mapping/*') from bwaMqcCh.collect().ifEmpty([])
   file ('Mapping/*') from bamStatsMqcCh.collect().ifEmpty([]) 
   file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
+  file ('BamQC/*') from mosdepthOutputCh.collect().ifEmpty([])
+  file ('BamQC/*') from fragmentSizeCh.collect().ifEmpty([])
   file ('FastQC/*') from fastqcReportCh.collect().ifEmpty([])
   file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
   file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
@@ -2010,7 +2076,7 @@ process MultiQC {
   rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
   metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
   designOpts= params.design ? "-d ${params.design}" : ""
-  modules_list = "-m custom_content -m fastqc -m picard -m gatk -m bcftools -m snpeff -m qualimap"
+  modules_list = "-m custom_content -m fastqc -m picard -m gatk -m bcftools -m snpeff -m qualimap -m picard -m mosdepth"
   """
   apStats2MultiQC.sh -s ${splan} ${designOpts}
   apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml

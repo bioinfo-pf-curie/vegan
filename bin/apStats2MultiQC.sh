@@ -72,12 +72,9 @@ do
     perc_mapped_hq=$(echo "${nb_mapped_hq} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     perc_mapped_lq=$(echo "${nb_mapped_lq} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
 
-    #PICARD
-    if [[ -e MarkDuplicates/${sample}.MarkDuplicates.metrics.txt ]]; then
-	nb_dups_pair=$(grep -a2 "## METRICS" mapping/${sample}.MarkDuplicates.metrics.txt | tail -1 | awk -F"\t" '{print $7}')
-	nb_dups_single=$(grep -a2 "## METRICS" mapping/${sample}.MarkDuplicates.metrics.txt | tail -1 | awk -F"\t" '{print $6}')
-	nb_dups_optical=$(grep -a2 "## METRICS" mapping/${sample}.MarkDuplicates.metrics.txt | tail -1 | awk -F"\t" '{print $8}')
-	nb_dups=$(( $nb_dups_pair * 2 + $nb_dups_single + $nb_dups_optical ))
+    #sambamba
+    if [[ -e MarkDuplicates/${sample}.md.bam.metrics ]]; then
+	nb_dups=$(grep duplicates MarkDuplicates/${sample}.md.bam.metrics | awk '{print $1}')
 	perc_dups=$(echo "${nb_dups} ${nb_mapped}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     else
 	nb_dups='NA'
@@ -86,8 +83,18 @@ do
 
     nb_ontarget='NA'
     perc_ontarget='NA'
-    mean_depth='NA'
-    frag_length='NA'
+
+    if [[ -e BamQC/SNV_noInterval_${sample}.recal.mosdepth.summary.txt ]]; then
+	mean_depth=$(tail -n 1 BamQC/SNV_noInterval_${sample}.recal.mosdepth.summary.txt | awk '{print $4}')
+    else
+	mean_depth='NA'
+    fi
+
+    if [[ -e BamQC/SV_noInterval_${sample}.recal_insert_size_metrics.txt ]]; then
+	frag_length=$(grep -A2 "## METRIC" BamQC/SV_noInterval_${sample}.recal_insert_size_metrics.txt | tail -n 1 | awk '{print $1}')
+    else
+	frag_length='NA'
+    fi
 
     echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${mean_depth} >> mqc.stats
 done
