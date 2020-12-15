@@ -57,7 +57,7 @@ annotateTools = params.annotateTools
 
 customRunName = checkRunName(workflow.runName, params.runName)
 step = getStep(params.samplePlan, params.step)
-samplePlanPath = getPath(step, params.samplePlan, params.outputDir)
+samplePlanPath = getPath(step, params.samplePlan, params.outDir)
 samplePlanCh = getSamplePlan(samplePlanPath)
 
 if (params.design){
@@ -111,7 +111,7 @@ def summary = [
   'Sequenced by': params.sequencingCenter ? params.sequencingCenter: null,
   'Panel of normals': params.pon && 'mutect2' in tools ? params.pon: null,
   'Save Genome Index': params.saveGenomeIndex ? 'Yes' : 'No',
-  'Output dir': params.outputDir,
+  'Output dir': params.outDir,
   'Launch dir': workflow.launchDir,
   'Working dir': workflow.workDir,
   'Script dir': workflow.projectDir,
@@ -183,7 +183,7 @@ process BuildBWAindexes {
   label 'bwa'
   tag {fasta}
 
-  publishDir params.outputDir, mode: params.publishDirMode,
+  publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/BWAIndex/${it}" : null }
 
   input:
@@ -208,7 +208,7 @@ process BuildDict {
   label 'gatk'
   tag {fasta}
 
-  publishDir params.outputDir, mode: params.publishDirMode,
+  publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
   input:
@@ -234,7 +234,7 @@ process BuildFastaFai {
   label 'samtools'
   tag {fasta}
 
-  publishDir params.outputDir, mode: params.publishDirMode,
+  publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
   input:
@@ -257,7 +257,7 @@ process BuildDbsnpIndex {
   label 'tabix'
   tag {dbsnp}
 
-  publishDir params.outputDir, mode: params.publishDirMode,
+  publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
   input:
@@ -280,7 +280,7 @@ process BuildGermlineResourceIndex {
   label 'tabix'
   tag {germlineResource}
 
-  publishDir params.outputDir, mode: params.publishDirMode,
+  publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
   input:
@@ -303,7 +303,7 @@ process BuildKnownIndelsIndex {
   label 'tabix'
   tag {knownIndels}
 
-  publishDir params.outputDir, mode: params.publishDirMode,
+  publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
   input:
@@ -326,7 +326,7 @@ process BuildPonIndex {
   label 'tabix'
   tag {pon}
 
-  publishDir params.outputDir, mode: params.publishDirMode,
+  publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
   input:
@@ -347,7 +347,7 @@ process BuildIntervals {
   label 'onlyLinux'
   tag {fastaFai}
 
-  publishDir params.outputDir, mode: params.publishDirMode,
+  publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
   input:
@@ -445,7 +445,7 @@ bedIntervalsCh = bedIntervalsCh
 
 bedIntervalsCh = bedIntervalsCh.dump(tag:'bedintervals')
 
-if (params.noIntervals && step != 'annotate') {file("${params.outputDir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outputDir}/noIntervals.bed"))}
+if (params.noIntervals && step != 'annotate') {file("${params.outDir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outDir}/noIntervals.bed"))}
 
 (intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(4)
 
@@ -516,7 +516,7 @@ process Fastqc {
 
   tag {sampleId}
 
-  publishDir "${params.outputDir}/Reports/${sampleId}/FastQC/${sampleId}", mode: params.publishDirMode
+  publishDir "${params.outDir}/Reports/${sampleId}/FastQC/${sampleId}", mode: params.publishDirMode
 
   input:
   set sampleId, sampleName, runId, file(reads) from inputPairReadsFastQC.mix(inputBamFastQCCh)
@@ -540,7 +540,7 @@ process Fastqc {
 //
 //  tag {sampleId + "-" + runId}
 //
-//  publishDir "${params.outputDir}/Reports/${sampleName}/FastQC/${sampleName}_${runId}", mode: params.publishDirMode
+//  publishDir "${params.outDir}/Reports/${sampleName}/FastQC/${sampleName}_${runId}", mode: params.publishDirMode
 //
 //  input:
 //  set sampleId, sampleName, runId, file("${sampleName}_${runId}.bam") from inputBamFastQCCh
@@ -693,7 +693,7 @@ process MarkDuplicates {
 
   tag {sampleId}
 
-  publishDir params.outputDir, mode: params.publishDirMode,
+  publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {
       if (it == "${sampleId}.md.bam.metrics") "Reports/${sampleId}/MarkDuplicates/${it}"
       else "Preprocessing/${sampleId}/DuplicateMarked/${it}"
@@ -722,7 +722,7 @@ process bamStats {
 
   tag {sampleId}
 
-  publishDir "${params.outputDir}/Reports/${sampleId}/Mapping", mode: params.publishDirMode
+  publishDir "${params.outDir}/Reports/${sampleId}/Mapping", mode: params.publishDirMode
 
   input:
   set sampleId, sampleName, file(bam), file(bai) from duplicateMarkedBamsCh
@@ -762,7 +762,7 @@ process bamFiltering {
   label 'cpus2'
   tag {sampleId}
 
-  publishDir "${params.outputDir}/Reports/${sampleId}/Filtering", mode: params.publishDirMode
+  publishDir "${params.outDir}/Reports/${sampleId}/Filtering", mode: params.publishDirMode
 
   input:
   set sampleId, sampleName, file(bam), file(bai), vCType from duplicateMarkedBamsMQCh
@@ -862,7 +862,7 @@ process GatherBQSRReports {
   label 'cpus2'
   tag {sampleId}
 
-  publishDir "${params.outputDir}/Preprocessing/${sampleId}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
+  publishDir "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
 
   input:
   set sampleId, sampleName, vCType, file(recal) from tableGatherBQSRReportsCh
@@ -890,23 +890,23 @@ recalTableTSVCh = recalTableTSVCh.mix(recalTableTSVnoIntCh)
 
 // Create TSV files to restart from this step
 recalTableTSVCh.map { sampleId, sampleName, vCType ->
-  bam = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
-  bai = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
-  recalTable = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
+  bam = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
+  bai = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
+  recalTable = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
   "${sampleId}\t${sampleName}\t${vCType}\t${bam}\t${bai}\t${recalTable}\n"
 }.collectFile(
-  name: 'markdup.samplePlan.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
+  name: 'markdup.samplePlan.tsv', sort: true, storeDir: "${params.outDir}/Preprocessing/TSV"
 )
 
 // TODO: find if generated files below are useful or not
 //recalTableSampleTSVCh
-//    .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV/") {
+//    .collectFile(storeDir: "${params.outDir}/Preprocessing/TSV/") {
 //        sampleId, sampleName, vCType ->
 //        status = statusMap[sampleId]
 //        gender = genderMap[sampleId]
-//        bam = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
-//        bai = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
-//        recalTable = "${params.outputDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
+//        bam = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
+//        bai = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
+//        recalTable = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
 //        ["duplicateMarked_${sampleName}.tsv", "${sampleId}\t${vCType}\t${sampleName}\t${bam}\t${bai}\t${recalTable}\n"]
 //}
 
@@ -963,7 +963,7 @@ process MergeBamRecal {
 
   tag {sampleId + "-" + vCType + "-" + sampleName}
 
-  publishDir "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated", mode: params.publishDirMode
+  publishDir "${params.outDir}/Preprocessing/${sampleName}/Recalibrated", mode: params.publishDirMode
 
   input:
   set sampleId, sampleName, vCType, file(bam) from bamMergeBamRecalCh
@@ -991,14 +991,14 @@ process IndexBamRecal {
 
   tag {sampleId + "-" + sampleName + "-" + vCType}
 
-  publishDir "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated", mode: params.publishDirMode
+  publishDir "${params.outDir}/Preprocessing/${sampleName}/Recalibrated", mode: params.publishDirMode
 
   input:
   set sampleId, sampleName, vCType, file(bam) from bamMergeBamRecalNoIntCh
 
   output:
-  set sampleId, sampleName, vCType, file("*bam.bai"), file("${sampleName}.recal.bam.bai") into bamRecalNoIntCh
-  set sampleId, sampleName, vCType, file("*bam.bai") into bamRecalQCnoIntCh
+  set sampleId, sampleName, vCType, file(bam), file("*bam.bai") into bamRecalNoIntCh
+  set sampleId, sampleName, vCType, file(bam) into bamRecalQCnoIntCh
   set sampleId, sampleName, vCType into bamRecalTSVnoIntCh
   file 'v_samtools.txt' into samtoolsIndexBamRecalVersionCh
 
@@ -1020,21 +1020,21 @@ bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
 
 // Creating a TSV file to restart from this step
 bamRecalTSVCh.map { sampleId, sampleName, vCType ->
-  bam = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
-  bai = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
+  bam = "${params.outDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
+  bai = "${params.outDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
   "${sampleId}\t${sampleName}\t${vCType}\t${bam}\t${bai}\n"
 }.collectFile(
-  name: 'recal.samplePlan.tsv', sort: true, storeDir: "${params.outputDir}/Preprocessing/TSV"
+  name: 'recal.samplePlan.tsv', sort: true, storeDir: "${params.outDir}/Preprocessing/TSV"
 )
 
 // TODO: find if generated files below are useful or not
 //bamRecalSampleTSVCh
-//    .collectFile(storeDir: "${params.outputDir}/Preprocessing/TSV") {
+//    .collectFile(storeDir: "${params.outDir}/Preprocessing/TSV") {
 //        sampleId, sampleName ->
 //        status = statusMap[sampleId]
 //        gender = genderMap[sampleId]
-//        bam = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
-//        bai = "${params.outputDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
+//        bam = "${params.outDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
+//        bai = "${params.outDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
 //        ["recalibrated_${sampleName}.tsv", "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\n"]
 //}
 
@@ -1055,7 +1055,7 @@ process SamtoolsStats {
 
   tag {sampleId + "-" + sampleName}
 
-  publishDir "${params.outputDir}/Reports/${sampleName}/SamToolsStats", mode: params.publishDirMode
+  publishDir "${params.outDir}/Reports/${sampleName}/SamToolsStats", mode: params.publishDirMode
 
   input:
   set sampleId, sampleName, vCType, file(bam) from bamRecalSamToolsStatsCh
@@ -1085,7 +1085,7 @@ process BamQC {
 
   tag {sampleId + "-" + sampleName}
 
-  publishDir "${params.outputDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
+  publishDir "${params.outDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
 
   input:
   set sampleId, sampleName, vCType, file(bam) from bamBamQCCh.dump(tag: 'bamBamQCCh')
@@ -1337,7 +1337,7 @@ process MergeMutect2Stats {
   tag {sampleNameTumor + "_vs_" + sampleNameNormal}
   label 'gatk'
 
-  publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/Mutect2", mode: params.publishDirMode
+  publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/Mutect2", mode: params.publishDirMode
 
   input:
   set caller, pairName, sampleNameTumor_vs_sampleNameNormal, file(vcfFiles) from mutect2OutForStatsCh // corresponding small VCF chunks
@@ -1378,7 +1378,7 @@ process ConcatVCF {
 
   tag {variantCaller + "-" + sampleName}
 
-  publishDir "${params.outputDir}/VariantCalling/${sampleName}/${"$variantCaller"}", mode: params.publishDirMode
+  publishDir "${params.outDir}/VariantCalling/${sampleName}/${"$variantCaller"}", mode: params.publishDirMode
 
   input:
   set variantCaller, sampleId, sampleName, file(vcFiles) from vcfConcatenateVCFsCh
@@ -1459,7 +1459,7 @@ process MergePileupSummaries {
 
   tag {pairName + "_" + sampleNameTumor}
 
-  publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
+  publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
 
   input:
   set pairName, sampleNameTumor, file(pileupSums) from pileupSummariesCh
@@ -1488,7 +1488,7 @@ process CalculateContamination {
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
-  publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
+  publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
 
   input:
   set sampleIdNormal, sampleNameNormal, vCType, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, VCType, file(bamTumor), file(baiTumor) from pairBamCalculateContaminationCh
@@ -1518,7 +1518,7 @@ process FilterMutect2Calls {
 
   tag {sampleNameTN}
 
-  publishDir "${params.outputDir}/VariantCalling/${sampleNameTN}/${"$variantCaller"}", mode: params.publishDirMode
+  publishDir "${params.outDir}/VariantCalling/${sampleNameTN}/${"$variantCaller"}", mode: params.publishDirMode
 
   input:
   set variantCaller, sampleId, sampleNameTN, file(unfiltered), file(unfilteredIndex) from vcfConcatenatedForFilterCh
@@ -1568,7 +1568,7 @@ process MantaSingle {
 
   tag {sampleName}
 
-  publishDir "${params.outputDir}/VariantCalling/${sampleName}/Manta", mode: params.publishDirMode
+  publishDir "${params.outDir}/VariantCalling/${sampleName}/Manta", mode: params.publishDirMode
 
   input:
   set sampleId, sampleName, vCType, file(bam), file(bai) from bamMantaSingleCh
@@ -1625,7 +1625,7 @@ process Manta {
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal + "_" + vCType}
 
-  publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/Manta", mode: params.publishDirMode
+  publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/Manta", mode: params.publishDirMode
 
   input:
   set sampleIdNormal, sampleNameNormal, vCType, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, vCType, file(bamTumor), file(baiTumor) from pairBamMantaCh
@@ -1740,7 +1740,7 @@ process ConvertAlleleCounts {
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
-  publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/ASCAT", mode: params.publishDirMode
+  publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/ASCAT", mode: params.publishDirMode
 
   input:
   set sampleIdNormal, sampleNameNormal, sampleIdTumor, sampleNameTumor, file(alleleCountNormal), file(alleleCountTumor) from alleleCounterOutCh
@@ -1770,7 +1770,7 @@ process Ascat {
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
-  publishDir "${params.outputDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/ASCAT", mode: params.publishDirMode
+  publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/ASCAT", mode: params.publishDirMode
 
   input:
   set sampleIdNormal, sampleNameNormal, sampleNameTumor, file(bafNormal), file(logrNormal), file(bafTumor), file(logrTumor) from convertAlleleCountsOutCh
@@ -1846,11 +1846,11 @@ if (step == 'annotate') {
     // The small snippet `vcf.minus(vcf.fileName)[-2]` catches sampleName
     // This field is used to output final annotated VCFs in the correct directory
     Channel.empty().mix(
-      Channel.fromPath("${params.outputDir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
+      Channel.fromPath("${params.outDir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
         .flatten().map{vcf -> ['HaplotypeCaller', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-      Channel.fromPath("${params.outputDir}/VariantCalling/*/Manta/*[!candidate]SV.vcf.gz")
+      Channel.fromPath("${params.outDir}/VariantCalling/*/Manta/*[!candidate]SV.vcf.gz")
         .flatten().map{vcf -> ['Manta', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-      Channel.fromPath("${params.outputDir}/VariantCalling/*/Mutect2/*.vcf.gz")
+      Channel.fromPath("${params.outDir}/VariantCalling/*/Mutect2/*.vcf.gz")
         .flatten().map{vcf -> ['Mutect2', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
     ).choice(vcfToAnnotateCh, vcfNoAnnotateCh) {
       annotateTools == [] || (annotateTools != [] && it[0] in annotateTools) ? 0 : 1
@@ -1873,7 +1873,7 @@ process Snpeff {
   tag {"${sampleName} - ${variantCaller} - ${vcf}"}
   label 'snpeff'
 
-  publishDir params.outputDir, mode: params.publishDirMode, saveAs: {
+  publishDir params.outDir, mode: params.publishDirMode, saveAs: {
     if (it == "${reducedVCF}_snpEff.ann.vcf") null
     else "Reports/${sampleName}/snpEff/${it}"
   }
@@ -1918,7 +1918,7 @@ process CompressVCFsnpEff {
   tag {"${sampleName} - ${vcf}"}
   label 'tabix'
 
-  publishDir "${params.outputDir}/Annotation/${sampleName}/snpEff", mode: params.publishDirMode
+  publishDir "${params.outDir}/Annotation/${sampleName}/snpEff", mode: params.publishDirMode
 
   input:
   set variantCaller, sampleName, file(vcf) from snpeffVCFCh
@@ -1951,7 +1951,7 @@ compressVCFsnpEffOutCh = compressVCFsnpEffOutCh.dump(tag:'VCF')
 process GetSoftwareVersions {
   label 'python'
 
-  publishDir path:"${params.outputDir}/PipelineInfo", mode: params.publishDirMode
+  publishDir path:"${params.outDir}/PipelineInfo", mode: params.publishDirMode
 
   input:
   file 'v_ascat.txt' from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty('')
@@ -1983,7 +1983,7 @@ yamlSoftwareVersionCh = yamlSoftwareVersionCh.dump(tag:'SOFTWARE VERSIONS')
 
 process MultiQC {
   label 'multiqc'
-  publishDir "${params.outputDir}/Reports/MultiQC", mode: params.publishDirMode
+  publishDir "${params.outDir}/Reports/MultiQC", mode: params.publishDirMode
 
   input:
   file splan from Channel.value(file(samplePlanPath))
@@ -2014,7 +2014,7 @@ process MultiQC {
   """
   apStats2MultiQC.sh -s ${splan} ${designOpts}
   apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
-  multiqc -f ${rtitle} ${rfilename} ${modules_list} --config ${multiqcConfig} .
+  multiqc . -f ${rtitle} ${rfilename} -c multiqc-config-header.yaml -c $multiqcConfig $modules_list
   """
 }
 
