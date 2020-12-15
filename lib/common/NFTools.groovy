@@ -151,9 +151,9 @@ abstract class NFTools extends BaseScript {
                 .map { k,v -> "<dt>$k</dt><dd><samp>${v ?: '<span style=\"color:#999999;\">N/A</a>'}</samp></dd>" }
                 .reduce { a, b -> return [a, b].join("\n            ") }
                 .map { x -> """
-    id: '$workflow.manifest.name-summary'
+    id: 'summary'
     description: " - this information is collected when the pipeline is started."
-    section_name: '$workflow.manifest.name Workflow Summary'
+    section_name: 'Workflow Summary'
     section_href: '$workflow.manifest.homePage'
     plot_type: 'html'
     data: |

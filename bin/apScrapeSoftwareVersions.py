@@ -43,7 +43,7 @@ for k in results:
 # Dump to YAML
 yaml_output = '''
 id: 'software_versions'
-section_name: 'vegan software versions'
+section_name: 'Software versions'
 section_href: 'https://github.com/nf-core/sarek'
 plot_type: 'html'
 description: 'are collected at run time from the software output.'

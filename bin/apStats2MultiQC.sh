@@ -47,7 +47,7 @@ fi
 
 all_samples=$(awk -F, '{print $1}' $splan)
 
-echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Number_of_duplicates,Percent_of_duplicates" > mqc.stats
+echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Number_of_duplicates,Percent_of_duplicates,Normalized_strand_correlation,Relative_strand_correlation,Fraction_of_reads_in_peaks" > mqc.stats
 
 for sample in $all_samples
 do
@@ -55,25 +55,25 @@ do
     sname=$(grep "$sample," $splan | awk -F, '{print $2}')
 
     #ALIGNMENT
-    nb_reads=$(grep 'Total' mapping/${sample}_bwa.log | awk -F "\t" '{print $2}')
+    nb_reads=$(grep 'Total' Mapping/${sample}_bwa.log | awk -F "\t" '{print $2}')
     if [[ $is_pe == 1 ]]; then
 	nb_frag=$(( $nb_reads / 2 ))
     else
 	nb_frag=$nb_reads
     fi
-    tail -n +3 mapping/${sample}_bwa.log > mapping/${sample}_bwa.mqc
+    tail -n +3 Mapping/${sample}_bwa.log > Mapping/${sample}_bwa.mqc
 
     #Mapping stats (always in reads - so must be converted for PE)
     #These statistics are calculated after spike cleaning but before filtering
-    #nb_mapped=$(awk -F, '$1=="Mapped"{print $2}' mapping/${sample}_mappingstats.mqc)
-    #nb_mapped_hq=$(awk -F, '$1=="HighQual"{print $2}' mapping/${sample}_mappingstats.mqc)
-    #nb_mapped_lq=$(awk -F, '$1=="LowQual"{print $2}' mapping/${sample}_mappingstats.mqc)
-    #perc_mapped=$(echo "${nb_mapped} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
-    #perc_mapped_hq=$(echo "${nb_mapped_hq} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
-    #perc_mapped_lq=$(echo "${nb_mapped_lq} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+    nb_mapped=$(awk -F, '$1=="Mapped"{print $2}' Mapping/${sample}_mappingstats.mqc)
+    nb_mapped_hq=$(awk -F, '$1=="HighQual"{print $2}' Mapping/${sample}_mappingstats.mqc)
+    nb_mapped_lq=$(awk -F, '$1=="LowQual"{print $2}' Mapping/${sample}_mappingstats.mqc)
+    perc_mapped=$(echo "${nb_mapped} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+    perc_mapped_hq=$(echo "${nb_mapped_hq} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+    perc_mapped_lq=$(echo "${nb_mapped_lq} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
 
     #PICARD
-    if [[ -e MarkDuplicates/${sample}.MarkDuplicates.metrics.txt ]]; then
+    if [[ -e mapping/${sample}.MarkDuplicates.metrics.txt ]]; then
 	nb_dups_pair=$(grep -a2 "## METRICS" mapping/${sample}.MarkDuplicates.metrics.txt | tail -1 | awk -F"\t" '{print $7}')
 	nb_dups_single=$(grep -a2 "## METRICS" mapping/${sample}.MarkDuplicates.metrics.txt | tail -1 | awk -F"\t" '{print $6}')
 	nb_dups_optical=$(grep -a2 "## METRICS" mapping/${sample}.MarkDuplicates.metrics.txt | tail -1 | awk -F"\t" '{print $8}')
@@ -84,7 +84,31 @@ do
 	perc_dups='NA'
     fi
 
+    #PPQT
+    if [[ -e ppqt/${sample}.spp.out && -e ppqt/${sample}_spp_nsc_mqc.tsv ]]; then
+	frag_length=$(awk '{print $3}' ppqt/${sample}.spp.out | sed 's/,.*//')
+	nsc=$(grep "$sample" ppqt/${sample}_spp_nsc_mqc.tsv | awk '{print $2}')  
+	rsc=$(grep "$sample" ppqt/${sample}_spp_rsc_mqc.tsv | awk '{print $2}')
+    else
+	frag_length='NA'
+	nsc='NA'
+	rsc='NA'
+    fi
+
+    #PeakCalling 
+    if [[ ! -z $design ]];
+    then
+	peaktype=$(grep "^$sample" ${design} | awk -F, '{print $5}') 
+	if [ -e peakCalling/${peaktype}/${sample}_peaks.FRiP_mqc.tsv ]; then
+	    frip=$(grep "$sample" peakCalling/${peaktype}/${sample}_peaks.FRiP_mqc.tsv | awk '{print $2}')
+	else
+	    frip='NA'
+	fi
+    else
+	frip='NA'
+    fi
+
     #To file
-    echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${nb_dups},${perc_dups} >> mqc.stats
+    echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${nb_dups},${perc_dups},${nsc},${rsc},${frip} >> mqc.stats
 done
 
