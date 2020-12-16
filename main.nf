@@ -62,6 +62,13 @@ samplePlanCh = getSamplePlan(samplePlanPath)
 
 if (params.design){
   (genderMap, statusMap, pairMap) = extractInfos(getDesign(params.design))
+}else{
+  log.info "=================================================================\n" +
+            "  INFO: No design file detected.\n" +
+            "  Variant detection (SV/SNV) will be skipped.\n" +
+            "  Please set up a design file '--design' to run these steps.\n" +
+            "================================================================"
+  tools = ''
 }
 
 /*
@@ -490,6 +497,8 @@ if (params.splitFastq){
 }
 inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 
+
+
 /*
 ================================================================================
                                   QUALITY CHECK
@@ -567,7 +576,9 @@ process Fastqc {
 ================================================================================
 */
 
-// STEP 1: MAPPING READS TO REFERENCE GENOME WITH BWA MEM
+/*
+ * ALIGN READS TO REFERENCE GENOME WITH BWA-MEM
+ */
 
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
 inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
@@ -612,7 +623,6 @@ process MapReads {
   """
 }
 
-bamMappedCh = bamMappedCh.dump(tag:'Mapped BAM')
 // Sort BAM whether they are standalone or should be merged
 singleBamCh = Channel.create()
 multipleBamCh = Channel.create()
@@ -629,7 +639,11 @@ singleBamCh = singleBamCh.map {
 }
 singleBamCh = singleBamCh.dump(tag:'Single BAM')
 
-// STEP 1: MERGING BAM FROM MULTIPLE LANES
+
+/*
+ * MERGING BAM FROM MULTIPLE LANES
+ */ 
+
 process MergeBamMapped {
   label 'samtools'
   label 'cpus8'
@@ -639,7 +653,7 @@ process MergeBamMapped {
   set sampleId, sampleName, runId, file(bam) from multipleBamCh
 
   output:
-  set sampleId, sampleName, file("${sampleName}.bam") into mergedBamCh, mergedBamUCh
+  set sampleId, sampleName, file("${sampleName}.bam") into mergedBamCh
   file 'v_samtools.txt' into samtoolsMergeBamMappedVersionCh
 
   script:
@@ -649,10 +663,13 @@ process MergeBamMapped {
   """
 }
 
-mergedBamCh = mergedBamCh.dump(tag:'Merged BAM')
-mergedBamCh = mergedBamCh.mix(singleBamCh)
-mergedBamCh = mergedBamCh.dump(tag:'BAMs for MD')
-(mergedBamCh, mergedBamToIndexCh, mergedBamUCh) = mergedBamCh.into(3)
+mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'bams')
+(mergedBamCh, mergedBamToStatsCh, mergedBamToIndexCh) = mergedBamCh.into(3)
+
+
+/*
+ * INDEX ALIGNED BAM FILE
+ */
 
 process IndexBamFile {
   label 'samtools'
@@ -666,12 +683,43 @@ process IndexBamFile {
   set sampleId, sampleName, file(bam), file("*.bai") into indexedBamCh
   file 'v_samtools.txt' into samtoolsIndexBamFileVersionCh
 
-  //when: !params.knownIndels
-
   script:
   """
   samtools index ${bam}
   mv ${bam}.bai ${bam.baseName}.bai
+  samtools --version &> v_samtools.txt 2>&1 || true
+  """
+}
+
+/*
+ * BWA-MEM MAPPING STATISTICS
+ */
+
+process bamStats {
+  label 'samtools'
+  label 'cpus2'
+
+  tag {sampleId}
+
+  publishDir "${params.outDir}/Reports/${sampleId}/Mapping", mode: params.publishDirMode
+
+  input:
+  set sampleId, sampleName, file(bam) from mergedBamToStatsCh
+
+  output:
+  file("*_mappingstats.mqc") into bamStatsMqcCh
+  file("*bwa.log") into bwaMqcCh
+  file 'v_samtools.txt' into samtoolsMappingStatsVersionCh
+
+  script:
+  """
+  getBWAstats.sh -i ${bam} -p ${task.cpus} > ${sampleId}_bwa.log
+  aligned="\$(samtools view -@ $task.cpus -F 0x100 -F 0x4 -F 0x800 -c ${bam})"
+  hqbam="\$(samtools view -@ $task.cpus -F 0x100 -F 0x800 -F 0x4 -q 20 -c ${bam})"
+  lqbam="\$((\$aligned - \$hqbam))"
+  echo -e "Mapped,\${aligned}" > ${sampleId}_mappingstats.mqc
+  echo -e "HighQual,\${hqbam}" >> ${sampleId}_mappingstats.mqc
+  echo -e "LowQual,\${lqbam}" >> ${sampleId}_mappingstats.mqc
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
@@ -683,7 +731,11 @@ process IndexBamFile {
 ================================================================================
 */
 
-// STEP 1: MARKING DUPLICATES
+
+/*
+ * Duplicates - sambamba
+ */
+
 // TODO: rename duplicateMarkedBamsMQCh to duplicateMarkedBamsFilterCh
 process MarkDuplicates {
   label 'sambamba'
@@ -714,52 +766,27 @@ process MarkDuplicates {
   """
 }
 
-// STEP 1.1: MAPPING STATS
-process bamStats {
-  label 'samtools'
-  label 'cpus2'
 
-  tag {sampleId}
+/*
+ * FILTER ALIGNED BAM FILE FOR SNV/SV
+ */
+duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.dump(tag:'mdbams')
 
-  publishDir "${params.outDir}/Reports/${sampleId}/Mapping", mode: params.publishDirMode
-
-  input:
-  set sampleId, sampleName, file(bam), file(bai) from duplicateMarkedBamsCh
-
-  output:
-  file("*_mappingstats.mqc") into bamStatsMqcCh
-  file("*bwa.log") into bwaMqcCh
-  file 'v_samtools.txt' into samtoolsMappingStatsVersionCh
-
-  script:
-  """
-  getBWAstats.sh -i ${bam} -p ${task.cpus} > ${sampleId}_bwa.log
-
-  aligned="\$(samtools view -@ $task.cpus -F 0x100 -F 0x4 -F 0x800 -c ${bam})"
-  hqbam="\$(samtools view -@ $task.cpus -F 0x100 -F 0x800 -F 0x4 -q 10 -c ${bam})"
-  lqbam="\$((\$aligned - \$hqbam))"
-  echo -e "Mapped,\${aligned}" > ${sampleId}_mappingstats.mqc
-  echo -e "HighQual,\${hqbam}" >> ${sampleId}_mappingstats.mqc
-  echo -e "LowQual,\${lqbam}" >> ${sampleId}_mappingstats.mqc
-    
-  #UniqueHits=\$(samtools idxstats ${bam} |  awk '{ UNIQ_HIT+=\$3 } END { print UNIQ_HIT }')
-  #samtools idxstats ${bam} |  awk -v Unique_hits="\$UniqueHits" '{
-  #Total_reads+=\$3+\$4; Mapped_reads+=\$3; Unmapped+=\$4 } END {
-  #      printf("Total_reads\\t%d\\nMapped_reads\\t%d\\nUnique_hits\\t%d\\nMulti_hits\\t%d\\nUnmapped\\t%d\\n.uniq(%%)\\t%.2f \\n", \
-  #      Total_reads, Mapped_reads, Unique_hits, (Mapped_reads - Unique_hits), Unmapped, (Unique_hits*100/Total_reads))
-  #}' > ${sampleName}.md.mapping.stats
-  samtools --version &> v_samtools.txt 2>&1 || true
-  """
+if (('manta' in tools) && ('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
+  // Duplicates the channel for SV and SNV filtering
+  duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.flatMap { it -> [it + 'SV', it + 'SNV']}
+}else if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
+  // SV only
+  duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.flatMap { it -> [it + 'SV']}
+}else{
+  // SNV only if no design or just SNV
+  duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.flatMap { it -> [it + 'SNV']}
 }
 
-duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.flatMap { it -> [it + 'SV', it + 'SNV']}
-
-// STEP 2: BAM FILTERING
-// Mapping Filter
 process bamFiltering {
   label 'samtools'
   label 'cpus2'
-  tag {sampleId}
+  tag {sampleId + vCType}
 
   publishDir "${params.outDir}/Reports/${sampleId}/Filtering", mode: params.publishDirMode
 
@@ -767,7 +794,7 @@ process bamFiltering {
   set sampleId, sampleName, file(bam), file(bai), vCType from duplicateMarkedBamsMQCh
 
   output:
-  set sampleId, sampleName, vCType, file("${sampleId}.filtered.${vCType}.bam"), file("${sampleId}.filtered.${vCType}.bam.bai") into filteredBamCh
+  set sampleId, sampleName, vCType, file("${sampleId}.filtered.${vCType}.bam"), file("${sampleId}.filtered.${vCType}.bam.bai") into filteredBamCh, filteredBamQCCh
   file("${sampleId}.filtered.${vCType}.idxstats") into bamFilterReportCh
   file 'v_samtools.txt' into samtoolsBamFilterVersionCh
 
@@ -791,7 +818,169 @@ process bamFiltering {
   """
 }
 
-(bamMDCh, bamMDToJoinCh) = filteredBamCh.into(2) // duplicateMarked + MapQ
+/*
+================================================================================
+                                  QUALITY CHECK
+================================================================================
+*/
+
+filteredBamCh = filteredBamCh.dump(tag:'fbams')
+
+// Run the QC on the SNV bam only if available - on the SV otherwise
+if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
+  filteredBamQCCh
+    .filter { it[2] == 'SV' }
+    .dump(tag:'qcbams')
+    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh }
+}else{
+  filteredBamQCCh
+    .filter { it[2] == 'SNV' }
+    .dump(tag:'qcbams')
+    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh }
+}
+
+//(bamMDCh, bamMDToJoinCh, bamSamtoolsStatsCh, bamQualimapCh, bamInsertSizeCh, bamMosdepthCh) = filteredBamCh.into(6) // duplicateMarked + Filtered
+//bamMDCh = bamMDCh.dump(tag:'fbams')
+//
+//process SamtoolsStats {
+//  label 'samtools'
+//  label 'cpus2'
+//  tag {sampleId + "-" + sampleName}
+//  publishDir "${params.outDir}/Reports/${sampleName}/SamToolsStats", mode: params.publishDirMode
+//
+//  input:
+//  set sampleId, sampleName, vCType, file(bam), file(bai) from bamSamtoolsStatsCh
+//
+//  output:
+//  file ("${bam}.samtools.stats.out") into samtoolsStatsReportCh
+//  file 'v_samtools.txt' into samtoolsStatsVersionCh
+//
+//  when: !('samtoolsStats' in skipQC)
+//
+//  script:
+//  """
+//  samtools stats ${bam} > ${bam}.samtools.stats.out
+//  samtools --version &> v_samtools.txt 2>&1 || true
+//  """
+//}
+//
+//samtoolsStatsReportCh = samtoolsStatsReportCh.dump(tag:'SAMTools')
+//bamMappedBamQCCh = bamMappedBamQCCh.dump(tag: 'bamMappedBamQCCh')
+
+// TODO : pourquoi y a-t-il plus de bam que de sample ??
+//bamBamQCCh = bamMappedBamQCCh.map{ it -> it.plus(2, '')}.mix(bamRecalBamQCCh) // Mapreads + MapQ + MarkDuplicates + ApplyBQSR
+
+/*
+ * BAM QC
+ */
+
+process Qualimap {
+  label 'qualimap'
+  label 'memoryMax'
+  label 'cpus16'
+
+  tag {sampleId + "-" + sampleName}
+
+  publishDir "${params.outDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
+
+  input:
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamQualimapCh.dump(tag: 'bamRecalBamQCCh')
+  file(targetBED) from targetBedCh
+
+  output:
+  file("${bam.baseName}") into bamQCReportCh
+  file 'v_qualimap.txt' into qualimapVersionCh
+
+  when: !('bamqc' in skipQC)
+
+  script:
+  new_bed_command = params.targetBED ? "awk 'BEGIN{OFS=\"\\t\"}{print \$1,\$2,\$3,\$4,0,\".\"}' ${targetBED} > new.bed" : ''
+  use_bed = params.targetBED ? "-gff new.bed" : ''
+  """
+  $new_bed_command
+  qualimap --java-mem-size=${task.memory.toGiga()}G \
+    bamqc \
+    -bam ${bam} \
+    --paint-chromosome-limits \
+    --genome-gc-distr HUMAN \
+    $use_bed \
+    -nt ${task.cpus} \
+    -skip-duplicated \
+    --skip-dup-mode 0 \
+    -outdir ${bam.baseName} \
+    -outformat HTML
+  qualimap --version &> v_qualimap.txt 2>&1 || true
+  """
+}
+
+bamQCReportCh = bamQCReportCh.dump(tag:'BamQC')
+
+/*
+ * Calculate Insert Size
+ */
+
+process getFragmentSize {
+  tag "${sampleId}"
+  label 'picard'
+  label 'cpu2'
+  label 'memoryMax'
+
+  publishDir path: "${params.outDir}/fragSize", mode: "copy"
+ 
+  input:
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamInsertSizeCh
+
+  output:
+  file("*.{pdf,txt}") into fragmentSizeCh
+
+  script:
+  """
+  picard CollectInsertSizeMetrics \
+      I=${bam} \
+      O=${bam.baseName}_insert_size_metrics.txt \
+      H=${bam.baseName}_insert_size_hist.pdf \
+      M=0.5
+  """
+}
+
+/*
+ * Calculate sequencing depth
+ */
+
+process getSeqDepth {
+  tag "${sampleId}"
+  label 'mosdepth'
+  label 'cpu2'
+  label 'memoryMax'
+
+  publishDir path: "${params.outDir}/depth", mode: "copy"
+ 
+  input:
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamMosdepthCh
+  file(bed) from mosdepthBedCh
+
+  output:
+  file("*.txt") into mosdepthOutputCh
+
+  script:
+  bedCmd = params.targetBED ? "--by ${bed}" : ''
+  """
+  mosdepth -t ${task.cpus} --quantize 0:1:10:50:100: ${bedCmd} ${bam.baseName} ${bam}
+  """
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*
 ================================================================================
@@ -799,6 +988,7 @@ process bamFiltering {
 ================================================================================
 */
 
+(bamMDCh, bamMDToJoinCh) = filteredBamCh.into(2)
 bamBaseRecalibratorCh = bamMDCh.combine(intBaseRecalibratorCh)
 bamBaseRecalibratorCh = bamBaseRecalibratorCh.dump(tag:'BAM FOR BASERECALIBRATOR')
 
@@ -1010,7 +1200,7 @@ process IndexBamRecal {
   """
 }
 
-bamRecalCh = bamRecalCh.mix(bamRecalNoIntCh).dump(tag:'BAM')
+bamRecalCh = bamRecalCh.mix(bamRecalNoIntCh)
 //bamRecalQCCh = bamRecalQCCh.mix(bamRecalQCnoIntCh)
 bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
 
@@ -1040,167 +1230,6 @@ bamRecalTSVCh.map { sampleId, sampleName, vCType ->
 // When no knownIndels for mapping, Channel bamRecalCh is indexedBamCh
 // TODO: seems not suited to the actual layout, have to refactor line below (indexed bam are not filtered)
 // bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh.flatMap { it -> [it.plus(2, 'SV'), it.plus(2, 'SNV')]}
-
-
-/*
-================================================================================
-                                  QUALITY CHECK
-================================================================================
-*/
-
-process SamtoolsStats {
-  label 'samtools'
-  label 'cpus2'
-  tag {sampleId + "-" + sampleName}
-  publishDir "${params.outDir}/Reports/${sampleName}/SamToolsStats", mode: params.publishDirMode
-
-  input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamRecalSamToolsStatsCh
-
-  output:
-  file ("${bam}.samtools.stats.out") into samtoolsStatsReportCh
-  file 'v_samtools.txt' into samtoolsStatsVersionCh
-
-  when: !('samtoolsStats' in skipQC)
-  script:
-
-  """
-  samtools stats ${bam} > ${bam}.samtools.stats.out
-  samtools --version &> v_samtools.txt 2>&1 || true
-  """
-}
-
-samtoolsStatsReportCh = samtoolsStatsReportCh.dump(tag:'SAMTools')
-bamMappedBamQCCh = bamMappedBamQCCh.dump(tag: 'bamMappedBamQCCh')
-
-// TODO : pourquoi y a-t-il plus de bam que de sample ??
-bamBamQCCh = bamMappedBamQCCh.map{ it -> it.plus(2, '')}.mix(bamRecalBamQCCh) // Mapreads + MapQ + MarkDuplicates + ApplyBQSR
-
-/*
- * BAM QC
- */
-
-process Qualimap {
-  label 'qualimap'
-  label 'memoryMax'
-  label 'cpus16'
-
-  tag {sampleId + "-" + sampleName}
-
-  publishDir "${params.outDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
-
-  input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamRecalQualimapCh.dump(tag: 'bamRecalBamQCCh')
-  file(targetBED) from targetBedCh
-
-  output:
-  file("${bam.baseName}") into bamQCReportCh
-  file 'v_qualimap.txt' into qualimapVersionCh
-
-  when: !('bamqc' in skipQC)
-
-  script:
-  new_bed_command = params.targetBED ? "awk 'BEGIN{OFS=\"\\t\"}{print \$1,\$2,\$3,\$4,0,\".\"}' ${targetBED} > new.bed" : ''
-  use_bed = params.targetBED ? "-gff new.bed" : ''
-  """
-  $new_bed_command
-  qualimap --java-mem-size=${task.memory.toGiga()}G \
-    bamqc \
-    -bam ${bam} \
-    --paint-chromosome-limits \
-    --genome-gc-distr HUMAN \
-    $use_bed \
-    -nt ${task.cpus} \
-    -skip-duplicated \
-    --skip-dup-mode 0 \
-    -outdir ${bam.baseName} \
-    -outformat HTML
-  qualimap --version &> v_qualimap.txt 2>&1 || true
-  """
-}
-
-bamQCReportCh = bamQCReportCh.dump(tag:'BamQC')
-
-/*
- * Calculate Insert Size
- */
-
-process getFragmentSize {
-  tag "${sampleId}"
-  label 'picard'
-  label 'cpu2'
-  label 'memoryMax'
-
-  publishDir path: "${params.outDir}/fragSize", mode: "copy"
- 
-  input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamRecalInsertSizeCh
-
-  output:
-  file("*.{pdf,txt}") into fragmentSizeCh
-
-  script:
-  """
-  picard CollectInsertSizeMetrics \
-      I=${bam} \
-      O=${bam.baseName}_insert_size_metrics.txt \
-      H=${bam.baseName}_insert_size_histogram.pdf \
-      M=0.5
-  """
-}
-
-/*
- * Calculate sequencing depth
- */
-
-process getSeqDepth {
-  tag "${prefix}"
-  label 'mosdepth'
-  label 'cpu2'
-  label 'memoryMax'
-
-  publishDir path: "${params.outDir}/depth", mode: "copy"
- 
-  input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamRecalMosdepthCh
-  file(bed) from mosdepthBedCh
-
-  output:
-  file("*.txt") into mosdepthOutputCh
-
-  script:
-  bedCmd = params.targetBED ? "--by ${bed}" : ''
-  """
-  mosdepth -t ${task.cpus} --quantize 0:1:10:50:100: ${bedCmd} ${bam.baseName} ${bam}
-  """
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /*
@@ -2026,7 +2055,7 @@ process GetSoftwareVersions {
   file 'v_gatk.txt' from gatkVersionCh.first().ifEmpty('')
   file 'v_manta.txt' from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
   file 'v_qualimap.txt' from qualimapVersionCh.first().ifEmpty('')
-  file 'v_samtools.txt' from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh).mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsStatsVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
+  file 'v_samtools.txt' from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh).mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
   file 'v_snpeff.txt' from snpeffVersionCh.first().ifEmpty('')
 
   output:
@@ -2062,7 +2091,7 @@ process MultiQC {
   file ('BamQC/*') from fragmentSizeCh.collect().ifEmpty([])
   file ('FastQC/*') from fastqcReportCh.collect().ifEmpty([])
   file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
-  file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
+  //file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
   file ('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
 
   output:
