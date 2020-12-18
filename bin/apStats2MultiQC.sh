@@ -47,7 +47,7 @@ fi
 
 all_samples=$(awk -F, '{print $1}' $splan)
 
-echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Number_of_duplicates,Percent_of_duplicates,Number_reads_on_target,Percent_reads_on_target,Mean_depth" > mqc.stats
+echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_overlap,Percent_of_lq_mapped_reads,Number_of_duplicates,Percent_of_duplicates,Number_reads_on_target,Percent_reads_on_target,Mean_depth" > mqc.stats
 
 for sample in $all_samples
 do
@@ -81,21 +81,33 @@ do
 	perc_dups='NA'
     fi
 
-    nb_ontarget='NA'
-    perc_ontarget='NA'
+    #On target
+    if [[ -e Mapping/${sample}.md_onTarget.bam.metrics ]]; then
+	nb_ontarget=$(grep "mapped (" Mapping/${sample}.md_onTarget.bam.metrics | awk '{print $1}')
+	perc_ontarget=$(echo "${nb_ontarget} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+    else
+	nb_ontarget='NA'
+	perc_ontarget='NA'
+    fi
 
-    if [[ -e BamQC/SNV_noInterval_${sample}.recal.mosdepth.summary.txt ]]; then
-	mean_depth=$(tail -n 1 BamQC/SNV_noInterval_${sample}.recal.mosdepth.summary.txt | awk '{print $4}')
+    if [[ -e BamQC/${sample}.filtered.SNV.mosdepth.summary.txt ]]; then
+	mean_depth=$(tail -n 1 BamQC/${sample}.filtered.SNV.mosdepth.summary.txt | awk '{print $4}')
     else
 	mean_depth='NA'
     fi
 
-    if [[ -e BamQC/SV_noInterval_${sample}.recal_insert_size_metrics.txt ]]; then
-	frag_length=$(grep -A2 "## METRIC" BamQC/SV_noInterval_${sample}.recal_insert_size_metrics.txt | tail -n 1 | awk '{print $1}')
+    if [[ -e BamQC/${sample}.filtered.SNV_insert_size_metrics.txt ]]; then
+	frag_length=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_insert_size_metrics.txt | tail -n 1 | awk '{print $1}')
     else
 	frag_length='NA'
     fi
 
-    echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${mean_depth} >> mqc.stats
+    if [[ -e BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt ]]; then
+	perc_over=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt | tail -n 1 | awk '{print $11}')
+    else
+	perc_over='NA'
+    fi
+
+    echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${perc_over},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${mean_depth} >> mqc.stats
 done
 
