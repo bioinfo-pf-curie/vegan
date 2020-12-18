@@ -2,14 +2,13 @@ version-0.1.1
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Run BQSR for SNV calling only
+  - Report reads overlap from picard
   - Report insert size distribution with picard
   - Add coverage stats with mosdepth
   - The design file is now optional
   - Update the multiQC report
   - Replace --outputDir by --outDir
-
-BUG FIXES
-
 
 *********************************
 version-0.1.0

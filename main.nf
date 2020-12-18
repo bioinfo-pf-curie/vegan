@@ -68,7 +68,7 @@ if (params.design){
             "  Variant detection (SV/SNV) will be skipped.\n" +
             "  Please set up a design file '--design' to run these steps.\n" +
             "================================================================"
-  tools = ''
+  tools = []
 }
 
 /*
@@ -111,8 +111,8 @@ def summary = [
   'Step': step ?: null,
   'Tools': params.tools ? params.tools.join(', '): null,
   'QC tools skip': params.skipQC ? skipQC.join(', ') : null,
-  'SV tools skip': params.skipFilterSV ? skipFilterSV.join(', ') : null,
-  'SNV tools skip': params.skipFilterSNV ? skipFilterSNV.join(', ') : null,
+  'SV filters': params.SVFilters ? params.SVFilters.join(', ') : null,
+  'SNV filters': params.SNVFilters ? params.SNVFilters.join(', ') : null,
   'Intervals': params.noIntervals && step != 'annotate' ? 'Do not use' : null,
   'GVCF': 'haplotypecaller' in tools ? params.noGVCF ? 'No' : 'Yes' : null,
   'Sequenced by': params.sequencingCenter ? params.sequencingCenter: null,
@@ -175,7 +175,9 @@ ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
 if (params.targetBED){
   Channel
     .value(file(params.targetBED))
-    .into {targetBedCh; mosdepthBedCh}
+    .set {targetBedCh}
+}else{
+  targetBedCh = Channel.empty()
 }
 
 // Print summary and genareta summary channel
@@ -501,7 +503,7 @@ inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 
 /*
 ================================================================================
-                                  QUALITY CHECK
+                           RAW DATA QUALITY CHECK
 ================================================================================
 */
 
@@ -572,7 +574,7 @@ process Fastqc {
 
 /*
 ================================================================================
-                                  MAPPING
+                              READS MAPPING
 ================================================================================
 */
 
@@ -581,7 +583,7 @@ process Fastqc {
  */
 
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
-inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
+inputPairReadsCh = inputPairReadsCh.dump(tag:'input')
 
 process MapReads {
   label 'gatkBwaSamtools'
@@ -624,6 +626,9 @@ process MapReads {
 }
 
 // Sort BAM whether they are standalone or should be merged
+
+bamMappedCh=bamMappedCh.dump(tag:'debug')
+
 singleBamCh = Channel.create()
 multipleBamCh = Channel.create()
 bamMappedCh.groupTuple(by:[0, 1])
@@ -637,35 +642,40 @@ singleBamCh = singleBamCh.map {
   sampleId, sampleName, runId, bam ->
     [sampleId, sampleName, bam]
 }
-singleBamCh = singleBamCh.dump(tag:'Single BAM')
 
+singleBamCh = singleBamCh.dump(tag:'sbams')
+multipleBamCh = multipleBamCh
+                  .map{it -> [it[0], it[1], it[3][0]]}
+                  .groupTuple()
+		  .dump(tag:'mbams')
 
 /*
  * MERGING BAM FROM MULTIPLE LANES
  */ 
 
+
+// TODO - validate and discuss
 process MergeBamMapped {
   label 'samtools'
   label 'cpus8'
   tag {sampleId}
 
   input:
-  set sampleId, sampleName, runId, file(bam) from multipleBamCh
+  set sampleId, sampleName, bams from multipleBamCh
 
   output:
-  set sampleId, sampleName, file("${sampleName}.bam") into mergedBamCh
+  set sampleId, sampleName, file("*_merged.bam") into mergedBamCh
   file 'v_samtools.txt' into samtoolsMergeBamMappedVersionCh
 
   script:
   """
-  samtools merge --threads ${task.cpus} ${sampleName}.bam ${bam}
+  samtools merge --threads ${task.cpus} ${sampleId}_merged.bam ${bams[0]}
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
 
 mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'bams')
 (mergedBamCh, mergedBamToStatsCh, mergedBamToIndexCh) = mergedBamCh.into(3)
-
 
 /*
  * INDEX ALIGNED BAM FILE
@@ -686,7 +696,6 @@ process IndexBamFile {
   script:
   """
   samtools index ${bam}
-  mv ${bam}.bai ${bam.baseName}.bai
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
@@ -736,7 +745,6 @@ process bamStats {
  * Duplicates - sambamba
  */
 
-// TODO: rename duplicateMarkedBamsMQCh to duplicateMarkedBamsFilterCh
 process MarkDuplicates {
   label 'sambamba'
   label 'cpus16'
@@ -754,10 +762,8 @@ process MarkDuplicates {
   set sampleId, sampleName, file(bam) from mergedBamCh
 
   output:
-  set sampleId, sampleName, file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh, duplicateMarkedBamsMQCh
+  set sampleId, sampleName, file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh
   file ("${sampleId}.md.bam.metrics") into markDuplicatesReportCh
-
-  //when: params.knownIndels
 
   script:
   """
@@ -768,19 +774,53 @@ process MarkDuplicates {
 
 
 /*
+ * BAM on Target
+ */
+
+process bamOnTarget {
+  label 'bedtools'
+  label 'cpusMax'
+  label 'memoryMax'
+  tag {sampleId}
+
+  when:
+  params.targetBED
+
+  input:
+  set sampleId, sampleName, file(bam), file(bai) from duplicateMarkedBamsCh
+  file(targetBED) from targetBedCh
+
+  output:
+  set sampleId, sampleName, file("*_onTarget.bam"), file("*_onTarget.bam.bai") into procBamsCh
+  file ("${bam.baseName}_onTarget.bam.metrics") into onTargetReportCh
+
+  script:
+  """
+  intersectBed -abam ${bam} -b ${targetBED} > ${bam.baseName}_onTarget.bam
+  samtools index ${bam.baseName}_onTarget.bam
+  samtools flagstat ${bam.baseName}_onTarget.bam > ${bam.baseName}_onTarget.bam.metrics
+  """
+}
+
+if (!params.targetBED){
+  procBamsCh = duplicateMarkedBamsCh
+}
+
+/*
  * FILTER ALIGNED BAM FILE FOR SNV/SV
  */
-duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.dump(tag:'mdbams')
+
+procBamsCh = procBamsCh.dump(tag:'pbams')
 
 if (('manta' in tools) && ('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
   // Duplicates the channel for SV and SNV filtering
-  duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.flatMap { it -> [it + 'SV', it + 'SNV']}
+  procBamsCh = procBamsCh.flatMap { it -> [it + 'SV', it + 'SNV']}
 }else if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
   // SV only
-  duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.flatMap { it -> [it + 'SV']}
+  procBamsCh = procBamsCh.flatMap { it -> [it + 'SV']}
 }else{
   // SNV only if no design or just SNV
-  duplicateMarkedBamsMQCh = duplicateMarkedBamsMQCh.flatMap { it -> [it + 'SNV']}
+  procBamsCh = procBamsCh.flatMap { it -> [it + 'SNV']}
 }
 
 process bamFiltering {
@@ -791,7 +831,7 @@ process bamFiltering {
   publishDir "${params.outDir}/Reports/${sampleId}/Filtering", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, file(bam), file(bai), vCType from duplicateMarkedBamsMQCh
+  set sampleId, sampleName, file(bam), file(bai), vCType from procBamsCh
 
   output:
   set sampleId, sampleName, vCType, file("${sampleId}.filtered.${vCType}.bam"), file("${sampleId}.filtered.${vCType}.bam.bai") into filteredBamCh, filteredBamQCCh
@@ -831,12 +871,12 @@ if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || '
   filteredBamQCCh
     .filter { it[2] == 'SV' }
     .dump(tag:'qcbams')
-    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh }
+    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh; bamWGSmetricsCh }
 }else{
   filteredBamQCCh
     .filter { it[2] == 'SNV' }
     .dump(tag:'qcbams')
-    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh }
+    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh; bamWGSmetricsCh }
 }
 
 //(bamMDCh, bamMDToJoinCh, bamSamtoolsStatsCh, bamQualimapCh, bamInsertSizeCh, bamMosdepthCh) = filteredBamCh.into(6) // duplicateMarked + Filtered
@@ -884,7 +924,7 @@ process Qualimap {
   publishDir "${params.outDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamQualimapCh.dump(tag: 'bamRecalBamQCCh')
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamQualimapCh
   file(targetBED) from targetBedCh
 
   output:
@@ -912,8 +952,6 @@ process Qualimap {
   qualimap --version &> v_qualimap.txt 2>&1 || true
   """
 }
-
-bamQCReportCh = bamQCReportCh.dump(tag:'BamQC')
 
 /*
  * Calculate Insert Size
@@ -957,7 +995,7 @@ process getSeqDepth {
  
   input:
   set sampleId, sampleName, vCType, file(bam), file(bai) from bamMosdepthCh
-  file(bed) from mosdepthBedCh
+  file(bed) from targetBedCh
 
   output:
   file("*.txt") into mosdepthOutputCh
@@ -969,30 +1007,64 @@ process getSeqDepth {
   """
 }
 
+/*
+ * Calculate reads overlap
+ */
 
+process getWGSmetrics {
+  tag "${sampleId}"
+  label 'picard'
+  label 'cpu2'
+  label 'memoryMax'
 
+  publishDir path: "${params.outDir}/WGSmetrics", mode: "copy"
+ 
+  input:
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamWGSmetricsCh
+  file(reference) from fastaCh
+  file(bed) from targetBedCh
 
+  output:
+  file("*.txt") into wgsMetricsOutputCh
 
-
-
-
-
-
-
-
+  script:
+  memOption = "\"-Xms" +  (task.memory.toGiga() / 2).trunc() + "g -Xmx" + (task.memory.toGiga() - 1) + "g\""
+  if ( params.targetBED ){
+  """
+  samtools view -H ${bam} > intervals.bed
+  awk '{OFS="\t";print \$1,\$2+1,\$3,"+",\$4}' ${bed} >> intervals.bed
+  picard ${memOption} CollectWgsMetrics \
+       USE_FAST_ALGORITHM=true \
+       I=${bam} \
+       O=${bam.baseName}_collect_wgs_metrics.txt \
+       R=${reference} \
+       INTERVALS=intervals.bed
+  """
+  }else{
+  """
+  picard ${memOption} CollectWgsMetrics \
+       USE_FAST_ALGORITHM=true \
+       I=${bam} \
+       O=${bam.baseName}_collect_wgs_metrics.txt \
+       R=${reference}
+  """
+  }
+}
 
 
 /*
 ================================================================================
-                                  RECALIBRATING
+                          RECALIBRATING
 ================================================================================
 */
 
 (bamMDCh, bamMDToJoinCh) = filteredBamCh.into(2)
 bamBaseRecalibratorCh = bamMDCh.combine(intBaseRecalibratorCh)
-bamBaseRecalibratorCh = bamBaseRecalibratorCh.dump(tag:'BAM FOR BASERECALIBRATOR')
 
-// STEP 3: CREATING RECALIBRATION TABLES
+/*
+ * CREATING RECALIBRATION TABLES
+ */
+
 process BaseRecalibrator {
   label 'gatk'
   label 'cpus1'
@@ -1012,7 +1084,8 @@ process BaseRecalibrator {
   set sampleId, sampleName, vCType, file("${prefix}${sampleId}.recal.table") into tableGatherBQSRReportsCh
   set sampleId, sampleName, vCType into recalTableTSVnoIntCh
 
-  when: params.knownIndels
+  //when: params.knownIndels
+  when: ('haplotypecaller' in tools || 'mutect2' in tools ) && vCType == 'SNV'
 
   script:
   dbsnpOptions = params.dbsnp ? "--known-sites ${dbsnp}" : ""
@@ -1035,8 +1108,7 @@ process BaseRecalibrator {
 }
 
 if (!params.noIntervals) tableGatherBQSRReportsCh = tableGatherBQSRReportsCh.groupTuple(by:[0, 1, 2])
-
-//tableGatherBQSRReportsCh = tableGatherBQSRReportsCh.dump(tag:'BQSR REPORTS')
+tableGatherBQSRReportsCh = tableGatherBQSRReportsCh.dump(tag:'bqsr')
 
 // TODO: test with no Intervals
 if (params.noIntervals) {
@@ -1204,7 +1276,7 @@ bamRecalCh = bamRecalCh.mix(bamRecalNoIntCh)
 //bamRecalQCCh = bamRecalQCCh.mix(bamRecalQCnoIntCh)
 bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
 
-(bamRecalBamQCCh, bamRecalQualimapCh, bamRecalSamToolsStatsCh, bamRecalMosdepthCh, bamRecalInsertSizeCh) = bamRecalCh.into(5)
+//(bamRecalQualimapCh, bamRecalSamToolsStatsCh, bamRecalMosdepthCh, bamRecalInsertSizeCh) = bamRecalCh.into(4)
 (bamRecalTSVCh, bamRecalSampleTSVCh) = bamRecalTSVCh.into(2)
 
 // Creating a TSV file to restart from this step
@@ -1232,6 +1304,15 @@ bamRecalTSVCh.map { sampleId, sampleName, vCType ->
 // bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh.flatMap { it -> [it.plus(2, 'SV'), it.plus(2, 'SNV')]}
 
 
+
+
+
+
+
+
+
+
+
 /*
 ================================================================================
                             VARIANT CALLING
@@ -1241,7 +1322,6 @@ bamRecalTSVCh.map { sampleId, sampleName, vCType ->
 if (params.design){
   // When starting with variant calling, Channel bamRecalCh is samplePlanCh
   bamRecalCh = step in 'variantcalling' ? samplePlanCh : bamRecalCh
-  bamRecalCh = bamRecalCh.dump(tag:'BAM')
 
   // Here we have a recalibrated bam set
   // The TSV file is formatted like: "sampleId status sampleName vCType bamFile baiFile"
@@ -2085,10 +2165,12 @@ process MultiQC {
   file workflow_summary from workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml")
   file (versions) from yamlSoftwareVersionCh
   file ('Mapping/*') from bwaMqcCh.collect().ifEmpty([])
-  file ('Mapping/*') from bamStatsMqcCh.collect().ifEmpty([]) 
+  file ('Mapping/*') from bamStatsMqcCh.collect().ifEmpty([])
+  file ('Mapping/*') from onTargetReportCh.collect().ifEmpty([])
   file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
   file ('BamQC/*') from mosdepthOutputCh.collect().ifEmpty([])
   file ('BamQC/*') from fragmentSizeCh.collect().ifEmpty([])
+  file ('BamQC/*') from wgsMetricsOutputCh.collect().ifEmpty([])
   file ('FastQC/*') from fastqcReportCh.collect().ifEmpty([])
   file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
   //file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
