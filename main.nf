@@ -460,7 +460,7 @@ bedIntervalsCh = bedIntervalsCh.dump(tag:'bedintervals')
 
 if (params.noIntervals && step != 'annotate') {file("${params.outDir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outDir}/noIntervals.bed"))}
 
-(intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(4)
+(intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(5)
 
 // PREPARING CHANNELS FOR PREPROCESSING AND QC
 
@@ -500,12 +500,12 @@ if (params.splitFastq){
 inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 
 
-
 /*
 ================================================================================
                            RAW DATA QUALITY CHECK
 ================================================================================
 */
+
 
 // Removing inputFile2 wich is null in case of uBAM
 // TODO - should be the same for singleEnd data
@@ -515,6 +515,7 @@ inputBamCh = inputBamCh.map {
 }
 (inputBamCh, inputBamFastQCCh) = inputBamCh.into(2)
 (inputPairReadsCh, inputPairReadsFastQC) = inputPairReadsCh.into(2)
+
 
 /*
  * FastQC
@@ -578,6 +579,7 @@ process Fastqc {
 ================================================================================
 */
 
+
 /*
  * ALIGN READS TO REFERENCE GENOME WITH BWA-MEM
  */
@@ -626,9 +628,6 @@ process MapReads {
 }
 
 // Sort BAM whether they are standalone or should be merged
-
-bamMappedCh=bamMappedCh.dump(tag:'debug')
-
 singleBamCh = Channel.create()
 multipleBamCh = Channel.create()
 bamMappedCh.groupTuple(by:[0, 1])
@@ -649,12 +648,11 @@ multipleBamCh = multipleBamCh
                   .groupTuple()
 		  .dump(tag:'mbams')
 
+
 /*
  * MERGING BAM FROM MULTIPLE LANES
  */ 
 
-
-// TODO - validate and discuss
 process MergeBamMapped {
   label 'samtools'
   label 'cpus8'
@@ -676,6 +674,7 @@ process MergeBamMapped {
 
 mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'bams')
 (mergedBamCh, mergedBamToStatsCh, mergedBamToIndexCh) = mergedBamCh.into(3)
+
 
 /*
  * INDEX ALIGNED BAM FILE
@@ -699,6 +698,7 @@ process IndexBamFile {
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
+
 
 /*
  * BWA-MEM MAPPING STATISTICS
@@ -806,12 +806,12 @@ if (!params.targetBED){
   procBamsCh = duplicateMarkedBamsCh
 }
 
+
 /*
  * FILTER ALIGNED BAM FILE FOR SNV/SV
  */
 
 procBamsCh = procBamsCh.dump(tag:'pbams')
-
 if (('manta' in tools) && ('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
   // Duplicates the channel for SV and SNV filtering
   procBamsCh = procBamsCh.flatMap { it -> [it + 'SV', it + 'SNV']}
@@ -839,16 +839,16 @@ process bamFiltering {
   file 'v_samtools.txt' into samtoolsBamFilterVersionCh
 
   script:
+
   dupParams = (vCType == 'SNV' && 'markduplicates' in SNVFilters) | (vCType == 'SV' && 'markduplicates' in SVFilters) ? "-F 0x0400" : ""
-  // Remove unmapped reads (0x4)
-  // Delete singletons and keep paired reads
-  // Delete secondary and not primary alignment (0x100)
-  uniqParams =  (vCType == 'SNV' && 'uniq' in SNVFilters) | (vCType == 'SV' && 'uniq' in SVFilters) ? "-F 0x4 -F 0x0008 -f 0x001 -F 0x100 -F 0x800" :  ""
-  uniqFilter = (vCType == 'SNV' && 'uniq' in SNVFilters) | (vCType == 'SV' && 'uniq' in SVFilters) ? "samtools view -@ ${task.cpus} -h ${uniqParams} ${bam} | grep -v -e \\\"XA:Z:\\\" -e \\\"SA:Z:\\\" |" : ""
-  // Delete low quality reads MAQ
-  mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : ""
+  mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : "" 
+  // Remove singletons and keep paired reads + Delete secondary and not primary alignment (0x100)
+  uniqParams =  (vCType == 'SNV' && 'uniq' in SNVFilters) | (vCType == 'SV' && 'uniq' in SVFilters) ? "-F 0x004 -F 0x0008 -f 0x001 -F 0x100 -F 0x800" :  ""
+  uniqFilter = (vCType == 'SNV' && 'uniq' in SNVFilters) | (vCType == 'SV' && 'uniq' in SVFilters) ? "| grep -v -e \\\"XA:Z:\\\" -e \\\"SA:Z:\\\" | samtools view -b -" : "| samtools view -b -"
   """
-  ${uniqFilter} samtools view  -@ ${task.cpus} -b ${dupParams} ${mapqParams} ${bam} > ${sampleId}.filtered.${vCType}.bam
+  samtools view -h -@ ${task.cpus} ${uniqParams} ${dupParams} ${mapqParams} ${bam} ${uniqFilter} > ${sampleId}.filtered.${vCType}.bam
+  ##${uniqFilter} 
+  ##samtools view  -@ ${task.cpus} -b ${dupParams} ${mapqParams} ${bam} > ${sampleId}.filtered.${vCType}.bam
   samtools index ${sampleId}.filtered.${vCType}.bam 
   samtools flagstat ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.flagstats
   samtools idxstats ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.idxstats
@@ -858,11 +858,13 @@ process bamFiltering {
   """
 }
 
+
 /*
 ================================================================================
                                   QUALITY CHECK
 ================================================================================
 */
+
 
 filteredBamCh = filteredBamCh.dump(tag:'fbams')
 
@@ -906,12 +908,11 @@ if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || '
 //
 //samtoolsStatsReportCh = samtoolsStatsReportCh.dump(tag:'SAMTools')
 //bamMappedBamQCCh = bamMappedBamQCCh.dump(tag: 'bamMappedBamQCCh')
-
-// TODO : pourquoi y a-t-il plus de bam que de sample ??
 //bamBamQCCh = bamMappedBamQCCh.map{ it -> it.plus(2, '')}.mix(bamRecalBamQCCh) // Mapreads + MapQ + MarkDuplicates + ApplyBQSR
 
+
 /*
- * BAM QC
+ * QUALIMAP
  */
 
 process Qualimap {
@@ -953,8 +954,9 @@ process Qualimap {
   """
 }
 
+
 /*
- * Calculate Insert Size
+ * INSERT SIZE
  */
 
 process getFragmentSize {
@@ -981,8 +983,9 @@ process getFragmentSize {
   """
 }
 
+
 /*
- * Calculate sequencing depth
+ * SEQUENCING DEPTH
  */
 
 process getSeqDepth {
@@ -1007,8 +1010,9 @@ process getSeqDepth {
   """
 }
 
+
 /*
- * Calculate reads overlap
+ * MATES OVERLAP
  */
 
 process getWGSmetrics {
@@ -1058,8 +1062,12 @@ process getWGSmetrics {
 ================================================================================
 */
 
-(bamMDCh, bamMDToJoinCh) = filteredBamCh.into(2)
-bamBaseRecalibratorCh = bamMDCh.combine(intBaseRecalibratorCh)
+
+filteredBamCh
+  .filter { it[2] == 'SNV' }
+  .into {bamBaseRecalibratorCh; bamBaseRecalibratorToJoinCh}
+bamBaseRecalibratorCh = bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
+
 
 /*
  * CREATING RECALIBRATION TABLES
@@ -1084,8 +1092,7 @@ process BaseRecalibrator {
   set sampleId, sampleName, vCType, file("${prefix}${sampleId}.recal.table") into tableGatherBQSRReportsCh
   set sampleId, sampleName, vCType into recalTableTSVnoIntCh
 
-  //when: params.knownIndels
-  when: ('haplotypecaller' in tools || 'mutect2' in tools ) && vCType == 'SNV'
+  when: ('haplotypecaller' in tools || 'mutect2' in tools )
 
   script:
   dbsnpOptions = params.dbsnp ? "--known-sites ${dbsnp}" : ""
@@ -1107,16 +1114,16 @@ process BaseRecalibrator {
   """
 }
 
-if (!params.noIntervals) tableGatherBQSRReportsCh = tableGatherBQSRReportsCh.groupTuple(by:[0, 1, 2])
-tableGatherBQSRReportsCh = tableGatherBQSRReportsCh.dump(tag:'bqsr')
+/*
+ * MERGE BQSR TABLES PER INERVALS
+ */
 
-// TODO: test with no Intervals
-if (params.noIntervals) {
-  (tableGatherBQSRReportsCh, tableGatherBQSRReportsNoIntCh) = tableGatherBQSRReportsCh.into(2)
-  recalTableCh = tableGatherBQSRReportsNoIntCh
-} else recalTableTSVnoIntCh.close()
+if (!params.noIntervals) {
+  tableGatherBQSRReportsCh = tableGatherBQSRReportsCh.groupTuple(by:[0, 1, 2])
+}else{
+  (tableGatherBQSRReportsCh, recalTableCh) = tableGatherBQSRReportsCh.into(2)
+}
 
-// STEP 3.5: MERGING RECALIBRATION TABLES
 process GatherBQSRReports {
   label 'gatk'
   label 'memorySingleCPU2Task'
@@ -1145,11 +1152,8 @@ process GatherBQSRReports {
   """
 }
 
-recalTableCh = recalTableCh.dump(tag:'RECAL TABLE')
-
+// Create TSV files to restart from this step 
 recalTableTSVCh = recalTableTSVCh.mix(recalTableTSVnoIntCh)
-
-// Create TSV files to restart from this step
 recalTableTSVCh.map { sampleId, sampleName, vCType ->
   bam = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
   bai = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
@@ -1171,17 +1175,14 @@ recalTableTSVCh.map { sampleId, sampleName, vCType ->
 //        ["duplicateMarked_${sampleName}.tsv", "${sampleId}\t${vCType}\t${sampleName}\t${bam}\t${bai}\t${recalTable}\n"]
 //}
 
-bamApplyBQSRCh = step in 'recalibrate' ? samplePlanCh : bamMDToJoinCh.join(recalTableCh, by:[0,1,2])
-
-bamApplyBQSRCh = bamApplyBQSRCh.dump(tag:'BAM + BAI + RECAL TABLE')
-// [DUMP: recal.table] ['normal', 'normal', normal.md.bam, normal.md.bai, normal.recal.table]
-
+bamApplyBQSRCh = step in 'recalibrate' ? samplePlanCh : bamBaseRecalibratorToJoinCh.join(recalTableCh, by:[0,1,2])
 bamApplyBQSRCh = bamApplyBQSRCh.combine(intApplyBQSRCh)
 
-bamApplyBQSRCh = bamApplyBQSRCh.dump(tag:'BAM + BAI + RECAL TABLE + INT')
-// [DUMP: BAM + BAI + RECAL TABLE + INT] ['normal', 'normal', normal.md.bam, normal.md.bai, normal.recal.table, 1_1-200000.bed]
 
-// STEP 4: RECALIBRATING
+/*
+ * RECALIBRATING
+ */
+
 process ApplyBQSR {
   label 'gatk'
   label 'memorySingleCPU2Task'
@@ -1217,8 +1218,12 @@ process ApplyBQSR {
 bamMergeBamRecalCh = bamMergeBamRecalCh.groupTuple(by:[0, 1, 2])
 (bamMergeBamRecalCh, bamMergeBamRecalNoIntCh) = bamMergeBamRecalCh.into(2)
 
-// EP 4.5: MERGING THE RECALIBRATED BAM FILES
-process MergeBamRecal {
+
+/*
+ * MERGING THE RECALIBRATED BAM FILES
+ */
+
+process MergeAndIndexBamRecal {
   label 'samtools'
   label 'cpus8'
 
@@ -1245,7 +1250,11 @@ process MergeBamRecal {
   """
 }
 
-// STEP 4.5': INDEXING THE RECALIBRATED BAM FILES
+
+/*
+ * INDEXING THE MERGED RECALIBRATED BAM FILES
+ */ 
+
 process IndexBamRecal {
   label 'samtools'
   label 'cpus8'
@@ -1259,7 +1268,6 @@ process IndexBamRecal {
 
   output:
   set sampleId, sampleName, vCType, file(bam), file("*bam.bai") into bamRecalNoIntCh
-  //set sampleId, sampleName, vCType, file(bam) into bamRecalQCnoIntCh
   set sampleId, sampleName, vCType into bamRecalTSVnoIntCh
   file 'v_samtools.txt' into samtoolsIndexBamRecalVersionCh
 
