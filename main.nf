@@ -620,9 +620,9 @@ process MapReads {
   input = hasExtension(inputFile[0], "bam") ? "-p /dev/stdin - 2> >(tee ${inputFile[0]}.bwa.stderr.log >&2)" : "${inputFile[0]} ${inputFile[1]}"
   """
   ${convertToFastq}
-  bwa mem ${params.bwaOptions} -R \"${readGroup}\" -t ${task.cpus} -M ${fasta} \
+  bwa mem ${params.bwaOptions} -R \"${readGroup}\" -t ${task.cpus} ${fasta} \
   ${input} | \
-  samtools sort --threads ${task.cpus} -m 2G - > ${sampleId}.bam
+  samtools sort --threads ${task.cpus} - > ${sampleId}.bam
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
@@ -1036,7 +1036,7 @@ process getWGSmetrics {
   if ( params.targetBED ){
   """
   samtools view -H ${bam} > intervals.bed
-  awk '{OFS="\t";print \$1,\$2+1,\$3,"+",\$4}' ${bed} >> intervals.bed
+  awk '{OFS="\t";print \$1,\$2+1,\$3,"+","inter"NR}' ${bed} >> intervals.bed
   picard ${memOption} CollectWgsMetrics \
        USE_FAST_ALGORITHM=true \
        I=${bam} \
