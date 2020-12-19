@@ -169,14 +169,14 @@ table_cond_formatting_rules:
         pass:
           - gt: 70
         warn:
-          - gt: 50
+          - lt: 70
         fail:
           - lt: 50
     Mean_depth:
         pass:
           - gt: 75
         warn:
-          - gt: 30
+          - lt: 75
         fail:
           - lt: 30
     Fragment_length:
