@@ -87,8 +87,8 @@ custom_data:
               suffix: '%'
               placement: 8000
             Percent_of_overlap:
-              title: 'Mates Overlap'
-              description: 'Fraction of bases with overlapping mates'
+              title: 'Bases Overlap (%)'
+              description: 'Percentage of bases with overlapping mates'
               min: 0
               max: 100
               scale: 'RdYlGn'
@@ -169,14 +169,14 @@ table_cond_formatting_rules:
         pass:
           - gt: 70
         warn:
-          - gt: 50
+          - lt: 70
         fail:
           - lt: 50
     Mean_depth:
         pass:
           - gt: 75
         warn:
-          - gt: 30
+          - lt: 75
         fail:
           - lt: 30
     Fragment_length:

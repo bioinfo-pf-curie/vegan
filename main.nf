@@ -523,7 +523,7 @@ inputBamCh = inputBamCh.map {
 
 process Fastqc {
   label 'fastqc'
-  label 'cpus2'
+  label 'lowCpu'
 
   tag {sampleId}
 
@@ -540,7 +540,7 @@ process Fastqc {
 
   script:
   """
-  fastqc -t ${task.cpu} -q ${reads}
+  fastqc -t ${task.cpus} -q ${reads}
   fastqc --version > v_fastqc.txt
   """
 }
@@ -589,8 +589,8 @@ inputPairReadsCh = inputPairReadsCh.dump(tag:'input')
 
 process MapReads {
   label 'gatkBwaSamtools'
-  label 'cpusMax'
-  label 'memoryMax'
+  label 'highCpu'
+  label 'extraMem'
 
   tag {sampleId}
 
@@ -620,9 +620,9 @@ process MapReads {
   input = hasExtension(inputFile[0], "bam") ? "-p /dev/stdin - 2> >(tee ${inputFile[0]}.bwa.stderr.log >&2)" : "${inputFile[0]} ${inputFile[1]}"
   """
   ${convertToFastq}
-  bwa mem ${params.bwaOptions} -R \"${readGroup}\" -t ${task.cpus} -M ${fasta} \
+  bwa mem ${params.bwaOptions} -R \"${readGroup}\" -t ${task.cpus} ${fasta} \
   ${input} | \
-  samtools sort --threads ${task.cpus} -m 2G - > ${sampleId}.bam
+  samtools sort --threads ${task.cpus} - > ${sampleId}.bam
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
@@ -655,7 +655,7 @@ multipleBamCh = multipleBamCh
 
 process MergeBamMapped {
   label 'samtools'
-  label 'cpus8'
+  label 'highCpu'
   tag {sampleId}
 
   input:
@@ -682,7 +682,7 @@ mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'bams')
 
 process IndexBamFile {
   label 'samtools'
-  label 'cpus8'
+  label 'minCpu'
   tag {sampleId}
 
   input:
@@ -706,7 +706,7 @@ process IndexBamFile {
 
 process bamStats {
   label 'samtools'
-  label 'cpus2'
+  label 'lowCpu'
 
   tag {sampleId}
 
@@ -723,8 +723,8 @@ process bamStats {
   script:
   """
   getBWAstats.sh -i ${bam} -p ${task.cpus} > ${sampleId}_bwa.log
-  aligned="\$(samtools view -@ $task.cpus -F 0x100 -F 0x4 -F 0x800 -c ${bam})"
-  hqbam="\$(samtools view -@ $task.cpus -F 0x100 -F 0x800 -F 0x4 -q 20 -c ${bam})"
+  aligned="\$(samtools view -@ ${task.cpus} -F 0x100 -F 0x4 -F 0x800 -c ${bam})"
+  hqbam="\$(samtools view -@ ${task.cpus} -F 0x100 -F 0x800 -F 0x4 -q 20 -c ${bam})"
   lqbam="\$((\$aligned - \$hqbam))"
   echo -e "Mapped,\${aligned}" > ${sampleId}_mappingstats.mqc
   echo -e "HighQual,\${hqbam}" >> ${sampleId}_mappingstats.mqc
@@ -747,8 +747,8 @@ process bamStats {
 
 process MarkDuplicates {
   label 'sambamba'
-  label 'cpus16'
-  label 'memoryMax'
+  label 'highCpu'
+  label 'highMem'
 
   tag {sampleId}
 
@@ -779,8 +779,8 @@ process MarkDuplicates {
 
 process bamOnTarget {
   label 'bedtools'
-  label 'cpusMax'
-  label 'memoryMax'
+  label 'minCpu'
+  label 'medMem'
   tag {sampleId}
 
   when:
@@ -825,7 +825,7 @@ if (('manta' in tools) && ('ascat' in tools || 'haplotypecaller' in tools || 'mu
 
 process bamFiltering {
   label 'samtools'
-  label 'cpus2'
+  label 'medCpu'
   tag {sampleId + vCType}
 
   publishDir "${params.outDir}/Reports/${sampleId}/Filtering", mode: params.publishDirMode
@@ -917,8 +917,8 @@ if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || '
 
 process Qualimap {
   label 'qualimap'
-  label 'memoryMax'
-  label 'cpus16'
+  label 'medMem'
+  label 'medCpu'
 
   tag {sampleId + "-" + sampleName}
 
@@ -962,8 +962,8 @@ process Qualimap {
 process getFragmentSize {
   tag "${sampleId}"
   label 'picard'
-  label 'cpu2'
-  label 'memoryMax'
+  label 'medCpu'
+  label 'medMem'
 
   publishDir path: "${params.outDir}/fragSize", mode: "copy"
  
@@ -991,8 +991,8 @@ process getFragmentSize {
 process getSeqDepth {
   tag "${sampleId}"
   label 'mosdepth'
-  label 'cpu2'
-  label 'memoryMax'
+  label 'medCpu'
+  label 'medMem'
 
   publishDir path: "${params.outDir}/depth", mode: "copy"
  
@@ -1018,14 +1018,15 @@ process getSeqDepth {
 process getWGSmetrics {
   tag "${sampleId}"
   label 'picard'
-  label 'cpu2'
-  label 'memoryMax'
+  label 'medCpu'
+  label 'medMem'
 
   publishDir path: "${params.outDir}/WGSmetrics", mode: "copy"
  
   input:
   set sampleId, sampleName, vCType, file(bam), file(bai) from bamWGSmetricsCh
   file(reference) from fastaCh
+  file(dict) from dictCh
   file(bed) from targetBedCh
 
   output:
@@ -1033,26 +1034,18 @@ process getWGSmetrics {
 
   script:
   memOption = "\"-Xms" +  (task.memory.toGiga() / 2).trunc() + "g -Xmx" + (task.memory.toGiga() - 1) + "g\""
-  if ( params.targetBED ){
+  bedTointerCmd=params.targetBED ? "picard BedToIntervalList I=${bed} O=intervals.bed SD=${dict}":""
+  bedCmd=params.targetBED ? "INTERVALS=intervals.bed" : ""
+
   """
-  samtools view -H ${bam} > intervals.bed
-  awk '{OFS="\t";print \$1,\$2+1,\$3,"+",\$4}' ${bed} >> intervals.bed
+  ${bedTointerCmd}
   picard ${memOption} CollectWgsMetrics \
        USE_FAST_ALGORITHM=true \
        I=${bam} \
        O=${bam.baseName}_collect_wgs_metrics.txt \
        R=${reference} \
-       INTERVALS=intervals.bed
+       ${bedCmd}
   """
-  }else{
-  """
-  picard ${memOption} CollectWgsMetrics \
-       USE_FAST_ALGORITHM=true \
-       I=${bam} \
-       O=${bam.baseName}_collect_wgs_metrics.txt \
-       R=${reference}
-  """
-  }
 }
 
 
@@ -1075,7 +1068,7 @@ bamBaseRecalibratorCh = bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
 
 process BaseRecalibrator {
   label 'gatk'
-  label 'cpus1'
+  label 'minCpu'
   tag {sampleId}
 
   input:
@@ -1127,7 +1120,7 @@ if (!params.noIntervals) {
 process GatherBQSRReports {
   label 'gatk'
   label 'memorySingleCPU2Task'
-  label 'cpus2'
+  label 'lowCpu'
   tag {sampleId}
 
   publishDir "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
@@ -1186,7 +1179,7 @@ bamApplyBQSRCh = bamApplyBQSRCh.combine(intApplyBQSRCh)
 process ApplyBQSR {
   label 'gatk'
   label 'memorySingleCPU2Task'
-  label 'cpus2'
+  label 'lowCpu'
 
   tag {sampleId + "-" + sampleName + "-" + vCType + "-" + intervalBed.baseName}
 
@@ -1225,7 +1218,7 @@ bamMergeBamRecalCh = bamMergeBamRecalCh.groupTuple(by:[0, 1, 2])
 
 process MergeAndIndexBamRecal {
   label 'samtools'
-  label 'cpus8'
+  label 'medCpu'
 
   tag {sampleId + "-" + vCType + "-" + sampleName}
 
@@ -1257,7 +1250,7 @@ process MergeAndIndexBamRecal {
 
 process IndexBamRecal {
   label 'samtools'
-  label 'cpus8'
+  label 'lowCpu'
 
   tag {sampleId + "-" + sampleName + "-" + vCType}
 
@@ -1383,7 +1376,7 @@ if (params.design){
 process HaplotypeCaller {
   label 'gatk'
   label 'memorySingleCPUTaskSq'
-  label 'cpus2'
+  label 'lowCpu'
 
   tag {sampleName + "-" + intervalBed.baseName}
 
@@ -1461,7 +1454,7 @@ vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
 process Mutect2 {
   tag {sampleNameTumor + "_vs_" + sampleNameNormal + "-" + intervalBed.baseName}
   label 'gatk'
-  label 'cpus_1'
+  label 'minCpu'
 
   input:
   set sampleIdNormal, sampleNameNormal, VCType, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, VCType, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamMutect2Ch
@@ -1555,7 +1548,7 @@ vcfConcatenateVCFsCh = vcfConcatenateVCFsCh.dump(tag:'VCF to merge')
 
 process ConcatVCF {
   label 'bcftools'
-  label 'cpus8'
+  label 'higCpu'
 
   tag {variantCaller + "-" + sampleName}
 
@@ -1602,7 +1595,7 @@ vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
 process PileupSummariesForMutect2 {
   tag {sampleNameTumor + "_vs_" + sampleNameNormal + "_" + intervalBed.baseName }
   label 'gatk'
-  label 'cpus_1'
+  label 'minCpu'
 
   input:
   set sampleIdNormal, sampleNameNormal, vCType, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, vCType, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
@@ -1636,7 +1629,7 @@ pileupSummariesCh = pileupSummariesCh.groupTuple(by:[0,1])
 
 process MergePileupSummaries {
   label 'gatk'
-  label 'cpus_1'
+  label 'minCpu'
 
   tag {pairName + "_" + sampleNameTumor}
 
@@ -1665,7 +1658,7 @@ process MergePileupSummaries {
 
 process CalculateContamination {
   label 'gatk'
-  label 'cpus_1'
+  label 'minCpu'
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
@@ -1744,8 +1737,8 @@ process FilterMutect2Calls {
 
 process MantaSingle {
   label 'manta'
-  label 'cpusMax'
-  label 'memoryMax'
+  label 'highCpu'
+  label 'highMem'
 
   tag {sampleName}
 
@@ -1801,8 +1794,8 @@ vcfMantaSingleCh = vcfMantaSingleCh.dump(tag:'Single Manta')
 
 process Manta {
   label 'manta'
-  label 'cpusMax'
-  label 'memoryMax'
+  label 'highCpu'
+  label 'highMem'
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal + "_" + vCType}
 

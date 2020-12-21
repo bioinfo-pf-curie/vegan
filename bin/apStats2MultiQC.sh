@@ -47,7 +47,7 @@ fi
 
 all_samples=$(awk -F, '{print $1}' $splan)
 
-echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_overlap,Percent_of_lq_mapped_reads,Number_of_duplicates,Percent_of_duplicates,Number_reads_on_target,Percent_reads_on_target,Mean_depth" > mqc.stats
+echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_on_target,Percent_reads_on_target,Mean_depth" > mqc.stats
 
 for sample in $all_samples
 do
@@ -103,7 +103,10 @@ do
     fi
 
     if [[ -e BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt ]]; then
+	## PERC_EXC_OVERLAP is between 0 and 0.5 as this is the fraction of aligned bases that would be filtered out because they were the second observation from an insert with overlapping reads.
+	## So we multiply by 2 to have the % of base overlap
 	perc_over=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt | tail -n 1 | awk '{print $11}')
+	perc_over=$(echo "${perc_over}" | awk ' { printf "%.*f",2,$1*2*100 } ')
     else
 	perc_over='NA'
     fi

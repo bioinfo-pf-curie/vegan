@@ -2,6 +2,7 @@ version-0.1.1
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Update ressources
   - Run BQSR for SNV calling only
   - Report reads overlap from picard
   - Report insert size distribution with picard
