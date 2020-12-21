@@ -87,8 +87,8 @@ custom_data:
               suffix: '%'
               placement: 8000
             Percent_of_overlap:
-              title: 'Mates Overlap'
-              description: 'Fraction of bases with overlapping mates'
+              title: 'Bases Overlap (%)'
+              description: 'Percentage of bases with overlapping mates'
               min: 0
               max: 100
               scale: 'RdYlGn'
