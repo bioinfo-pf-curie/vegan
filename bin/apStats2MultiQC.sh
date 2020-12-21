@@ -106,7 +106,7 @@ do
 	## PERC_EXC_OVERLAP is between 0 and 0.5 as this is the fraction of aligned bases that would be filtered out because they were the second observation from an insert with overlapping reads.
 	## So we multiply by 2 to have the % of base overlap
 	perc_over=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt | tail -n 1 | awk '{print $11}')
-	perc_over=$(echo "${perc_over}" | awk ' { printf "%.*f",2,$1*2**100 } ')
+	perc_over=$(echo "${perc_over}" | awk ' { printf "%.*f",2,$1*2*100 } ')
     else
 	perc_over='NA'
     fi
