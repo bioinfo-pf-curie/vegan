@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo -e "usage : stats2multiqc.sh -s SAMPLE_PLAN -d DESIGN [-p][-h]"
+    echo -e "usage : stats2multiqc.sh -s SAMPLE_PLAN -d DESIGN [-p][-t][-h]"
     echo -e "Use option -h|--help for more information"
 }
 
@@ -14,7 +14,7 @@ function help {
     echo
     echo "   -s SAMPLE_PLAN"
     echo "   -d DESIGN"
-    echo "   [-p]: paired-end mode"
+    echo "   [-p] paired-end mode"
     echo "   [-h]: help"
     exit;
 }
@@ -47,7 +47,7 @@ fi
 
 all_samples=$(awk -F, '{print $1}' $splan)
 
-echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_on_target,Percent_reads_on_target,Mean_depth" > mqc.stats
+echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_on_target,Percent_reads_on_target,Mean_depth,30X_cov,80X_cov" > mqc.stats
 
 for sample in $all_samples
 do
@@ -96,6 +96,17 @@ do
 	mean_depth='NA'
     fi
 
+    if [[ -e BamQC/${sample}.filtered.SNV.mosdepth.region.dist.txt ]]; then 
+	cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' BamQC/${sample}.filtered.SNV.mosdepth.region.dist.txt)
+	cov80=$(awk '$1=="total" && $2=="80"{print $3*100}' BamQC/${sample}.filtered.SNV.mosdepth.region.dist.txt)
+    elif [[ -e BamQC/${sample}.filtered.SNV.mosdepth.global.dist.txt ]]; then
+	cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' BamQC/${sample}.filtered.SNV.mosdepth.global.dist.txt)
+	cov80=$(awk '$1=="total" && $2=="80"{print $3*100}' BamQC/${sample}.filtered.SNV.mosdepth.global.dist.txt)
+    else
+	cov30='NA'
+	cov80='NA'
+    fi
+
     if [[ -e BamQC/${sample}.filtered.SNV_insert_size_metrics.txt ]]; then
 	frag_length=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_insert_size_metrics.txt | tail -n 1 | awk '{print $1}')
     else
@@ -111,6 +122,6 @@ do
 	perc_over='NA'
     fi
 
-    echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${perc_over},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${mean_depth} >> mqc.stats
+    echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${perc_over},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${mean_depth},${cov30},${cov80} >> mqc.stats
 done
 

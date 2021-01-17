@@ -1002,6 +1002,7 @@ process getSeqDepth {
 
   output:
   file("*.txt") into mosdepthOutputCh
+  file("*{.bed.gz,.bed.gz.csi}") into mosdepthBedOutputCh
 
   script:
   bedCmd = params.targetBED ? "--by ${bed}" : ''
@@ -2188,9 +2189,10 @@ process MultiQC {
   rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
   metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
   designOpts= params.design ? "-d ${params.design}" : ""
+  isPE = params.singleEnd ? "" : "-p"
   modules_list = "-m custom_content -m fastqc -m picard -m gatk -m bcftools -m snpeff -m qualimap -m picard -m mosdepth"
   """
-  apStats2MultiQC.sh -s ${splan} ${designOpts}
+  apStats2MultiQC.sh -s ${splan} ${designOpts} ${isPE}
   apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
   multiqc . -f ${rtitle} ${rfilename} -c multiqc-config-header.yaml -c $multiqcConfig $modules_list
   """
