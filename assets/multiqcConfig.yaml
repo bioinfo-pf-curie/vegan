@@ -86,15 +86,6 @@ custom_data:
               format: '{:,.1f}'
               suffix: '%'
               placement: 8000
-            Percent_of_overlap:
-              title: 'Bases Overlap (%)'
-              description: 'Percentage of bases with overlapping mates'
-              min: 0
-              max: 100
-              scale: 'RdYlGn'
-              format: '{:,.1f}'
-              suffix: '%'
-              placement: 8500
             Number_of_duplicates:
               title: 'Duplicates'
               scale: 'RdYlGn'
@@ -123,11 +114,36 @@ custom_data:
               format: '{:,.1f}'
               suffix: '%'
               placement: 12000
+            Percent_of_overlap:
+              title: 'Bases Overlap (%)'
+              description: 'Percentage of bases with overlapping mates'
+              min: 0
+              max: 100
+              scale: 'RdYlGn'
+              format: '{:,.1f}'
+              suffix: '%'
+              placement: 12500
             Mean_depth:
               title: 'Mean Depth'
               scale: 'RdYlGn'
               format: '{:,.1f}'
               placement: 13000
+            30X_cov:
+              title: '30X Coverage (%)'
+              min: 0
+              max: 100
+              scale: 'RdYlGn'
+              format: '{:,.1f}'
+              suffix: '%'
+              placement: 14000
+            80X_cov:
+              title: '80X Coverage (%)'
+              min: 0
+              max: 100
+              scale: 'RdYlGn'
+              format: '{:,.1f}'
+              suffix: '%'
+              placement: 15000
 
     bwa_logs:
         file_format: 'tsv'
@@ -220,9 +236,12 @@ remove_sections:
   - fastqc_per_sequence_quality_scores
   - fastqc_overrepresented_sequences
   - fastqc_status_checks
+  - mosdepth-coverage-cov
 
 fn_clean_exts:
     - '_bwa.log'
     - '_bwa.mqc'
+    - '.filtered.SNV.txt'
+    - '.filtered.SNV.bam'
 
 plots_force_interactive: True
