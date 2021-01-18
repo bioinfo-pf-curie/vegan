@@ -55,7 +55,7 @@ SVFilters = params.SVFilters
 SNVFilters = params.SNVFilters
 annotateTools = params.annotateTools
 
-customRunName = checkRunName(workflow.runName, params.runName)
+customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
 samplePlanPath = getPath(step, params.samplePlan, params.outDir)
 samplePlanCh = getSamplePlan(samplePlanPath)
@@ -1120,7 +1120,7 @@ if (!params.noIntervals) {
 
 process GatherBQSRReports {
   label 'gatk'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
   label 'lowCpu'
   tag {sampleId}
 
@@ -1179,7 +1179,7 @@ bamApplyBQSRCh = bamApplyBQSRCh.combine(intApplyBQSRCh)
 
 process ApplyBQSR {
   label 'gatk'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
   label 'lowCpu'
 
   tag {sampleId + "-" + sampleName + "-" + vCType + "-" + intervalBed.baseName}
@@ -1376,7 +1376,7 @@ if (params.design){
 // STEP GATK HAPLOTYPECALLER.1
 process HaplotypeCaller {
   label 'gatk'
-  label 'memorySingleCPUTaskSq'
+  label 'medMemSq'
   label 'lowCpu'
 
   tag {sampleName + "-" + intervalBed.baseName}
@@ -1865,7 +1865,7 @@ vcfMantaCh = vcfMantaCh.dump(tag:'Manta')
 // Based on Jesper Eisfeldt's code
 process AlleleCounter {
   label 'canceritAllelecount'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
 
   tag {sampleName}
 
@@ -1911,7 +1911,7 @@ alleleCounterOutCh = alleleCounterOutCh.map {
 // https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
 process ConvertAlleleCounts {
   label 'ascat'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
@@ -1941,7 +1941,7 @@ process ConvertAlleleCounts {
 // https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
 process Ascat {
   label 'ascat'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
