@@ -77,7 +77,8 @@ if (params.design){
 ================================================================================
 */
 
-// Initialize each reference with params.genomes, catch the command line first if it was defined
+// Initialize each reference with default values in params.genomes, catch the genome defined on the command line first
+// if it was defined
 params << [
   fasta: params.genome && !('annotate' in step) ? params.genomes[params.genome].fasta ?: null : null,
   acLoci: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLoci ?: null : null,
@@ -106,7 +107,6 @@ def summary = [
   'Run Name': customRunName,
   'Max Resources': "${params.maxMemory} memory, ${params.maxCpus} cpus, ${params.maxTime} time per job",
   'Container': workflow.containerEngine && workflow.container ? "${workflow.containerEngine} - ${workflow.container}" : null,
-  'Input': params.input ?: null,
   'Target BED': params.targetBED ?: null,
   'Step': step ?: null,
   'Tools': params.tools ? params.tools.getClass() == String ? params.tools : params.tools.join(', '): null,
@@ -164,21 +164,13 @@ fastaCh = params.fasta && !('annotate' in step) ? Channel.value(file(params.fast
 fastaFaiCh = params.fastaFai && !('annotate' in step) ? Channel.value(file(params.fastaFai)) : "null"
 germlineResourceCh = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
 intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
-
 knownIndelsCh = params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
-
 snpEffCacheCh = params.snpEffCache ? Channel.value(file(params.snpEffCache)) : "null"
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
 ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
-if (params.targetBED){
-  Channel
-    .value(file(params.targetBED))
-    .set {targetBedCh}
-}else{
-  targetBedCh = Channel.empty()
-}
+targetBedCh = params.targetBED ? Channel.value(file(params.targetBED)) : Channel.empty()
 
 // Print summary and genareta summary channel
 workflowSummaryCh = summarize(params, summary, workflow)
@@ -192,7 +184,7 @@ metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
 
 // And then initialize channels based on params or indexes that were just built
 
-process BuildBWAindexes {
+process buildBWAindexes {
   label 'bwa'
   tag {fasta}
 
@@ -217,7 +209,7 @@ process BuildBWAindexes {
 
 bwaIndexCh = params.bwaIndex ? Channel.value(file(params.bwaIndex)) : bwaIndexesCh
 
-process BuildDict {
+process buildDict {
   label 'gatk'
   tag {fasta}
 
@@ -266,7 +258,7 @@ process BuildFastaFai {
 
 fastaFaiCh = params.fastaFai ? Channel.value(file(params.fastaFai)) : fastaFaiBuiltCh
 
-process BuildDbsnpIndex {
+process buildDbsnpIndex {
   label 'tabix'
   tag {dbsnp}
 
@@ -289,7 +281,7 @@ process BuildDbsnpIndex {
 
 dbsnpIndexCh = params.dbsnp ? params.dbsnpIndex ? Channel.value(file(params.dbsnpIndex)) : dbsnpIndexBuiltCh : "null"
 
-process BuildGermlineResourceIndex {
+process buildGermlineResourceIndex {
   label 'tabix'
   tag {germlineResource}
 
@@ -469,7 +461,13 @@ if (params.noIntervals && step != 'annotate') {file("${params.outDir}/noInterval
 if (step == "mapping") {
   def runIds = [:]
   samplePlanCh.map {
+    // Sample Plan
+    // platformID - biologicalName - fastq1 - fastq2
+    // Design
+    // platformIdNormal - platformIdTumor - pairName - sex
     runIds[it[0]] = runIds.containsKey(it[0]) ? runIds[it[0]] + 1 : 0
+    // sampleId, sampleName, runID, inputFiles
+    // runId = platformId_XX
     return it[0,1] + [[it[0], runIds[it[0]].toString()].join("_")] + [it[2..-1]]
   }.branch {
      bamCh: it[3][0] =~ /.*bam$/
@@ -1304,15 +1302,6 @@ bamRecalTSVCh.map { sampleId, sampleName, vCType ->
 // When no knownIndels for mapping, Channel bamRecalCh is indexedBamCh
 // TODO: seems not suited to the actual layout, have to refactor line below (indexed bam are not filtered)
 // bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh.flatMap { it -> [it.plus(2, 'SV'), it.plus(2, 'SNV')]}
-
-
-
-
-
-
-
-
-
 
 
 /*
