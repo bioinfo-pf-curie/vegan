@@ -80,6 +80,7 @@ if (params.design){
 // Initialize each reference with params.genomes, catch the command line first if it was defined
 params << [
   fasta: params.genome && !('annotate' in step) ? params.genomes[params.genome].fasta ?: null : null,
+  gtf: params.genome ? params.genomes[params.genome].gtf ?: null : null,
   acLoci: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLoci ?: null : null,
   acLociGC: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLociGC ?: null : null,
   bwaIndex: params.genome && params.genomes[params.genome].fasta && 'mapping' in step ? params.genomes[params.genome].bwaIndex ?: null : null,
@@ -162,6 +163,7 @@ acLociGCCh = params.acLociGC && 'ascat' in tools ? Channel.value(file(params.acL
 dbsnpCh = params.dbsnp && ('mapping' in step || 'haplotypecaller' in tools || 'mutect2' in tools) ? Channel.value(file(params.dbsnp)) : "null"
 fastaCh = params.fasta && !('annotate' in step) ? Channel.value(file(params.fasta)) : "null"
 fastaFaiCh = params.fastaFai && !('annotate' in step) ? Channel.value(file(params.fastaFai)) : "null"
+gtfCh = params.gtf ? Channel.value(file(params.gtf)) : "null"
 germlineResourceCh = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
 intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
 
@@ -873,12 +875,12 @@ if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || '
   filteredBamQCCh
     .filter { it[2] == 'SV' }
     .dump(tag:'qcbams')
-    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh; bamWGSmetricsCh }
+    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh; bamGeneCovCh; bamWGSmetricsCh }
 }else{
   filteredBamQCCh
     .filter { it[2] == 'SNV' }
     .dump(tag:'qcbams')
-    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh; bamWGSmetricsCh }
+    .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh; bamGeneCovCh; bamWGSmetricsCh }
 }
 
 //(bamMDCh, bamMDToJoinCh, bamSamtoolsStatsCh, bamQualimapCh, bamInsertSizeCh, bamMosdepthCh) = filteredBamCh.into(6) // duplicateMarked + Filtered
@@ -1007,7 +1009,52 @@ process getSeqDepth {
   script:
   bedCmd = params.targetBED ? "--by ${bed}" : ''
   """
-  mosdepth -t ${task.cpus} --quantize 0:1:10:50:100: ${bedCmd} ${bam.baseName} ${bam}
+  mosdepth -t ${task.cpus} -n --quantize 0:1:10:50:100: ${bedCmd} ${bam.baseName} ${bam}
+  """
+}
+
+
+/*
+ * GENES COVERAGE
+ */
+
+process prepareExonInfo {
+  label 'bedtools'
+  label 'medCpu'
+  label 'medMem'
+
+  input:
+  file(gtf) from gtfCh
+  file(bed) from targetBedCh
+
+  output:
+  file("*exon.bed") into exonBedCh
+
+  script:
+  targetCmd = params.targetBED ? " | intersectBed -a stdin -b ${bed} ": ''
+  """
+  awk -F"\t" -v type='gene_id' 'BEGIN{OFS="\t"} \$3=="exon" {split(\$9,annot,";");for(i=1;i<=length(annot);i++){if (annot[i]~type){anntype=annot[i]}} print \$1,\$4-1,\$5,anntype}' ${gtf} | sed -e 's/gene_id//' -e 's/"//g' | sort -u -k1,1V -k2,2n ${targetCmd} > ${gtf.baseName}_exon.bed
+  """
+}
+
+process genesCoverage {
+  label 'mosdepth'
+  label 'medCpu'
+  label 'medMem'
+  publishDir path: "${params.outDir}/depth", mode: "copy"
+
+  input:
+  set sampleId, sampleName, vCType, file(bam), file(bai) from bamGeneCovCh
+  file(exon) from exonBedCh
+
+  output:
+  file("*.mqc") into geneCovMqc
+  file("*.pdf") into geneCovOutput
+
+  script:
+  """
+  mosdepth -n -t ${task.cpus} --by ${exon} ${sampleId}.genecov ${bam}
+  apGeneCov.r --cov ${sampleId}.genecov.regions.bed.gz --oprefix ${sampleId}_covdensity
   """
 }
 
@@ -2170,7 +2217,8 @@ process MultiQC {
   file ('Mapping/*') from bamStatsMqcCh.collect().ifEmpty([])
   file ('Mapping/*') from onTargetReportCh.collect().ifEmpty([])
   file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
-  file ('BamQC/*') from mosdepthOutputCh.collect().ifEmpty([])
+  file ('coverage/*') from mosdepthOutputCh.collect().ifEmpty([])
+  file ('coverage/*') from geneCovMqc.collect().ifEmpty([])
   file ('BamQC/*') from fragmentSizeCh.collect().ifEmpty([])
   file ('BamQC/*') from wgsMetricsOutputCh.collect().ifEmpty([])
   file ('FastQC/*') from fastqcReportCh.collect().ifEmpty([])
