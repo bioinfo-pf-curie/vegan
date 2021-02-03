@@ -101,6 +101,7 @@ params << [
                                 SUMMARY
 ================================================================================
 */
+
 // Header info
 def summary = [
   'Pipeline Release': workflow.revision ?: null,
@@ -109,10 +110,10 @@ def summary = [
   'Container': workflow.containerEngine && workflow.container ? "${workflow.containerEngine} - ${workflow.container}" : null,
   'Target BED': params.targetBED ?: null,
   'Step': step ?: null,
-  'Tools': params.tools ? params.tools.getClass() == String ? params.tools : params.tools.join(', '): null,
-  'QC tools skip': params.skipQC ? params.skipQC.getClass() == String ? params.skipQC : skipQC.join(', ') : null,
-  'SV filters': params.SVFilters ? params.SVFilters.getClass() == String ? params.SVFilters : params.SVFilters.join(', ') : null,
-  'SNV filters': params.SNVFilters ? params.SNVFilters.getClass() == String ? params.SNVFilters : params.SNVFilters.join(', ') : null,
+  'Tools': params.tools ? params.tools instanceof Collection ? params.tools.join(', ') : params.tools: null,
+  'QC tools skip': params.skipQC ? params.skipQC instanceof Collection  ? params.skipQC.join(', ') : skipQC : null,
+  'SV filters': params.SVFilters ? params.SVFilters instanceof Collection  ? params.SVFilters.join(', ') : params.SVFilters : null,
+  'SNV filters': params.SNVFilters ? params.SNVFilters instanceof Collection  ? params.SNVFilters.join(', ') : params.SNVFilters : null,
   'Intervals': params.noIntervals && step != 'annotate' ? 'Do not use' : null,
   'GVCF': 'haplotypecaller' in tools ? params.noGVCF ? 'No' : 'Yes' : null,
   'Sequenced by': params.sequencingCenter ? params.sequencingCenter: null,
