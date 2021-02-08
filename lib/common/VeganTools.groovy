@@ -34,11 +34,11 @@ abstract class VeganTools extends NFTools {
      *
      * @return inputPath
      */
-    static Object getPath(step, inputParam, outputDir) {
+    static Object getPath(step, inputParam, outDir) {
         def inputPath = inputParam && ["tsv", "csv", "vcf", "vcf.gz"].collect { hasExtension(inputParam, it) }.any() ?
                 inputParam : null
         if (!inputParam && !['mapping', 'annotate'].contains(step)) {
-            inputPath = step == 'recalibrate' ? "$outputDir/Preprocessing/TSV/duplicateMarked.tsv" : "$outputDir/Preprocessing/TSV/recalibrated.tsv"
+            inputPath = step == 'recalibrate' ? "$outDir/Preprocessing/TSV/duplicateMarked.tsv" : "$outDir/Preprocessing/TSV/recalibrated.tsv"
         }
         return inputPath
     }

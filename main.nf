@@ -46,7 +46,7 @@ welcome()
 
 // Use lintedParams as default params object
 //def params = lintedParams
-def paramsWithUsage = readParamsFromJsonSettings("$baseDir/parameters.settings.json")
+def paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
 def params = lint(params, paramsWithUsage)
 
 tools = params.tools
@@ -55,7 +55,7 @@ SVFilters = params.SVFilters
 SNVFilters = params.SNVFilters
 annotateTools = params.annotateTools
 
-customRunName = checkRunName(workflow.runName, params.runName)
+customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
 samplePlanPath = getPath(step, params.samplePlan, params.outDir)
 samplePlanCh = getSamplePlan(samplePlanPath)
@@ -77,7 +77,8 @@ if (params.design){
 ================================================================================
 */
 
-// Initialize each reference with params.genomes, catch the command line first if it was defined
+// Initialize each reference with default values in params.genomes, catch the genome defined on the command line first
+// if it was defined
 params << [
   fasta: params.genome && !('annotate' in step) ? params.genomes[params.genome].fasta ?: null : null,
   gtf: params.genome ? params.genomes[params.genome].gtf ?: null : null,
@@ -101,19 +102,19 @@ params << [
                                 SUMMARY
 ================================================================================
 */
+
 // Header info
 def summary = [
   'Pipeline Release': workflow.revision ?: null,
   'Run Name': customRunName,
   'Max Resources': "${params.maxMemory} memory, ${params.maxCpus} cpus, ${params.maxTime} time per job",
   'Container': workflow.containerEngine && workflow.container ? "${workflow.containerEngine} - ${workflow.container}" : null,
-  'Input': params.input ?: null,
   'Target BED': params.targetBED ?: null,
   'Step': step ?: null,
-  'Tools': params.tools ? params.tools.getClass() == String ? params.tools : params.tools.join(', '): null,
-  'QC tools skip': params.skipQC ? params.skipQC.getClass() == String ? params.skipQC : skipQC.join(', ') : null,
-  'SV filters': params.SVFilters ? params.SVFilters.getClass() == String ? params.SVFilters : params.SVFilters.join(', ') : null,
-  'SNV filters': params.SNVFilters ? params.SNVFilters.getClass() == String ? params.SNVFilters : params.SNVFilters.join(', ') : null,
+  'Tools': params.tools ? params.tools instanceof Collection ? params.tools.join(', ') : params.tools: null,
+  'QC tools skip': params.skipQC ? params.skipQC instanceof Collection  ? params.skipQC.join(', ') : skipQC : null,
+  'SV filters': params.SVFilters ? params.SVFilters instanceof Collection  ? params.SVFilters.join(', ') : params.SVFilters : null,
+  'SNV filters': params.SNVFilters ? params.SNVFilters instanceof Collection  ? params.SNVFilters.join(', ') : params.SNVFilters : null,
   'Intervals': params.noIntervals && step != 'annotate' ? 'Do not use' : null,
   'GVCF': 'haplotypecaller' in tools ? params.noGVCF ? 'No' : 'Yes' : null,
   'Sequenced by': params.sequencingCenter ? params.sequencingCenter: null,
@@ -166,22 +167,13 @@ fastaFaiCh = params.fastaFai && !('annotate' in step) ? Channel.value(file(param
 gtfCh = params.gtf ? Channel.value(file(params.gtf)) : "null"
 germlineResourceCh = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
 intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
-
 knownIndelsCh = params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
-
 snpEffCacheCh = params.snpEffCache ? Channel.value(file(params.snpEffCache)) : "null"
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
 ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
-if (params.targetBED){
-  Channel
-    .value(file(params.targetBED))
-    .set {targetBedCh}
-}else{
-  targetBedCh = Channel.empty()
-}
-
+targetBedCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 // Print summary and genareta summary channel
 workflowSummaryCh = summarize(params, summary, workflow)
 metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
@@ -194,7 +186,7 @@ metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
 
 // And then initialize channels based on params or indexes that were just built
 
-process BuildBWAindexes {
+process buildBWAindexes {
   label 'bwa'
   tag {fasta}
 
@@ -219,7 +211,7 @@ process BuildBWAindexes {
 
 bwaIndexCh = params.bwaIndex ? Channel.value(file(params.bwaIndex)) : bwaIndexesCh
 
-process BuildDict {
+process buildDict {
   label 'gatk'
   tag {fasta}
 
@@ -245,7 +237,7 @@ process BuildDict {
 
 dictCh = params.dict ? Channel.value(file(params.dict)) : dictBuiltCh
 
-process BuildFastaFai {
+process buildFastaFai {
   label 'samtools'
   tag {fasta}
 
@@ -268,7 +260,7 @@ process BuildFastaFai {
 
 fastaFaiCh = params.fastaFai ? Channel.value(file(params.fastaFai)) : fastaFaiBuiltCh
 
-process BuildDbsnpIndex {
+process buildDbsnpIndex {
   label 'tabix'
   tag {dbsnp}
 
@@ -291,7 +283,7 @@ process BuildDbsnpIndex {
 
 dbsnpIndexCh = params.dbsnp ? params.dbsnpIndex ? Channel.value(file(params.dbsnpIndex)) : dbsnpIndexBuiltCh : "null"
 
-process BuildGermlineResourceIndex {
+process buildGermlineResourceIndex {
   label 'tabix'
   tag {germlineResource}
 
@@ -314,7 +306,7 @@ process BuildGermlineResourceIndex {
 
 germlineResourceIndexCh = params.germlineResource ? params.germlineResourceIndex ? Channel.value(file(params.germlineResourceIndex)) : germlineResourceIndexBuiltCh : "null"
 
-process BuildKnownIndelsIndex {
+process buildKnownIndelsIndex {
   label 'tabix'
   tag {knownIndels}
 
@@ -322,7 +314,7 @@ process BuildKnownIndelsIndex {
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
 
   input:
-  each file(knownIndels) from knownIndelsCh
+  file(knownIndels) from knownIndelsCh
 
   output:
   file("${knownIndels}.tbi") into knownIndelsIndexBuiltCh
@@ -337,7 +329,7 @@ process BuildKnownIndelsIndex {
 
 knownIndelsIndexCh = params.knownIndels ? params.knownIndelsIndex ? Channel.value(file(params.knownIndelsIndex)) : knownIndelsIndexBuiltCh.collect() : "null"
 
-process BuildPonIndex {
+process buildPonIndex {
   label 'tabix'
   tag {pon}
 
@@ -358,7 +350,7 @@ process BuildPonIndex {
   """
 }
 
-process BuildIntervals {
+process buildIntervals {
   label 'onlyLinux'
   tag {fastaFai}
 
@@ -390,7 +382,7 @@ intervalsCh = params.noIntervals ? "null" : params.intervals && !('annotate' in 
 
 // STEP 0: CREATING INTERVALS FOR PARALLELIZATION (PREPROCESSING AND VARIANT CALLING)
 
-process CreateIntervalBeds {
+process createIntervalBeds {
   label 'onlyLinux'
   tag {intervals.fileName}
 
@@ -398,7 +390,7 @@ process CreateIntervalBeds {
   file(intervals) from intervalsCh
 
   output:
-  file '*.bed' into bedIntervalsCh mode flatten
+  file('*.bed') into bedIntervalsCh mode flatten
 
   when: (!params.noIntervals) && step != 'annotate'
 
@@ -471,7 +463,13 @@ if (params.noIntervals && step != 'annotate') {file("${params.outDir}/noInterval
 if (step == "mapping") {
   def runIds = [:]
   samplePlanCh.map {
+    // Sample Plan
+    // platformID - biologicalName - fastq1 - fastq2
+    // Design
+    // platformIdNormal - platformIdTumor - pairName - sex
     runIds[it[0]] = runIds.containsKey(it[0]) ? runIds[it[0]] + 1 : 0
+    // sampleId, sampleName, runID, inputFiles
+    // runId = platformId_XX
     return it[0,1] + [[it[0], runIds[it[0]].toString()].join("_")] + [it[2..-1]]
   }.branch {
      bamCh: it[3][0] =~ /.*bam$/
@@ -499,7 +497,6 @@ if (params.splitFastq){
        newReads2 = file("${sampleName}_${newIdRun}_R2.fastq.gz")
        [sampleId, sampleName, newIdRun, [newReads1, newReads2]]}
 }
-inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT')
 
 
 /*
@@ -518,21 +515,22 @@ inputBamCh = inputBamCh.map {
 (inputBamCh, inputBamFastQCCh) = inputBamCh.into(2)
 (inputPairReadsCh, inputPairReadsFastQC) = inputPairReadsCh.into(2)
 
+inputPairReadsCh = inputPairReadsCh.dump(tag:'inputPairReadsCh')
 
 /*
  * FastQC
  */
 
-process Fastqc {
+process fastQC {
   label 'fastqc'
   label 'lowCpu'
 
   tag {sampleId}
 
-  publishDir "${params.outDir}/Reports/${sampleId}/FastQC/${sampleId}", mode: params.publishDirMode
+  publishDir "${params.outDir}/Reports/${sampleId}/FastQC/${sampleId}", mode: params.publishDirMode, overwrite: true
 
   input:
-  set sampleId, sampleName, runId, file(reads) from inputPairReadsFastQC.mix(inputBamFastQCCh)
+  tuple val(sampleId), val(sampleName), val(runId), file(reads) from inputPairReadsFastQC.mix(inputBamFastQCCh)
 
   output:
   file("*.{html,zip}") into fastqcReportCh
@@ -587,9 +585,9 @@ process Fastqc {
  */
 
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
-inputPairReadsCh = inputPairReadsCh.dump(tag:'input')
+inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT MAP READS')
 
-process MapReads {
+process mapReads {
   label 'gatkBwaSamtools'
   label 'highCpu'
   label 'extraMem'
@@ -597,15 +595,15 @@ process MapReads {
   tag {sampleId}
 
   input:
-  set sampleId, sampleName, runId, file(inputFile) from inputPairReadsCh
+  tuple val(sampleId), val(sampleName), val(runId), file(inputFile) from inputPairReadsCh
   file(bwaIndex) from bwaIndexCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
 
   output:
-  set sampleId, sampleName, runId, file("${sampleId}.bam") into bamMappedCh
-  set sampleId, val("${sampleName}_${runId}"), file("${sampleId}.bam") into bamMappedBamQCCh
-  file 'v_samtools.txt' into samtoolsMapReadsVersionCh
+  tuple val(sampleId), val(sampleName), val(runId), file("${sampleId}.bam") into bamMappedCh
+  tuple val(sampleId), val("${sampleName}_${runId}"), file("${sampleId}.bam") into bamMappedBamQCCh
+  file('v_samtools.txt') into samtoolsMapReadsVersionCh
 
   script:
   // -K is an hidden option, used to fix the number of reads processed by bwa mem
@@ -655,17 +653,17 @@ multipleBamCh = multipleBamCh
  * MERGING BAM FROM MULTIPLE LANES
  */ 
 
-process MergeBamMapped {
+process mergeBamMapped {
   label 'samtools'
   label 'highCpu'
   tag {sampleId}
 
   input:
-  set sampleId, sampleName, bams from multipleBamCh
+  tuple val(sampleId), val(sampleName), val(bams) from multipleBamCh
 
   output:
-  set sampleId, sampleName, file("*_merged.bam") into mergedBamCh
-  file 'v_samtools.txt' into samtoolsMergeBamMappedVersionCh
+  tuple val(sampleId), val(sampleName), file("*_merged.bam") into mergedBamCh
+  file('v_samtools.txt') into samtoolsMergeBamMappedVersionCh
 
   script:
   """
@@ -682,17 +680,17 @@ mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'bams')
  * INDEX ALIGNED BAM FILE
  */
 
-process IndexBamFile {
+process indexBamFile {
   label 'samtools'
   label 'minCpu'
   tag {sampleId}
 
   input:
-  set sampleId, sampleName, file(bam) from mergedBamToIndexCh
+  tuple val(sampleId), val(sampleName), file(bam) from mergedBamToIndexCh
 
   output:
-  set sampleId, sampleName, file(bam), file("*.bai") into indexedBamCh
-  file 'v_samtools.txt' into samtoolsIndexBamFileVersionCh
+  tuple val(sampleId), val(sampleName), file(bam), file("*.bai") into indexedBamCh
+  file('v_samtools.txt') into samtoolsIndexBamFileVersionCh
 
   script:
   """
@@ -715,12 +713,12 @@ process bamStats {
   publishDir "${params.outDir}/Reports/${sampleId}/Mapping", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, file(bam) from mergedBamToStatsCh
+  tuple val(sampleId), val(sampleName), file(bam) from mergedBamToStatsCh
 
   output:
   file("*_mappingstats.mqc") into bamStatsMqcCh
   file("*bwa.log") into bwaMqcCh
-  file 'v_samtools.txt' into samtoolsMappingStatsVersionCh
+  file('v_samtools.txt') into samtoolsMappingStatsVersionCh
 
   script:
   """
@@ -747,7 +745,7 @@ process bamStats {
  * Duplicates - sambamba
  */
 
-process MarkDuplicates {
+process markDuplicates {
   label 'sambamba'
   label 'highCpu'
   label 'highMem'
@@ -764,7 +762,7 @@ process MarkDuplicates {
   set sampleId, sampleName, file(bam) from mergedBamCh
 
   output:
-  set sampleId, sampleName, file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh
+  tuple sampleId, sampleName, file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh
   file ("${sampleId}.md.bam.metrics") into markDuplicatesReportCh
 
   script:
@@ -779,6 +777,8 @@ process MarkDuplicates {
  * BAM on Target
  */
 
+bamsToTargetCh = params.targetBED ? duplicateMarkedBamsCh : Channel.empty()
+
 process bamOnTarget {
   label 'bedtools'
   label 'minCpu'
@@ -789,12 +789,12 @@ process bamOnTarget {
   params.targetBED
 
   input:
-  set sampleId, sampleName, file(bam), file(bai) from duplicateMarkedBamsCh
+  tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamsToTargetCh
   file(targetBED) from targetBedCh
 
   output:
-  set sampleId, sampleName, file("*_onTarget.bam"), file("*_onTarget.bam.bai") into procBamsCh
-  file ("${bam.baseName}_onTarget.bam.metrics") into onTargetReportCh
+  tuple val(sampleId), val(sampleName), file("*_onTarget.bam"), file("*_onTarget.bam.bai") into onTargetBamsCh
+  file("${bam.baseName}_onTarget.bam.metrics") into onTargetReportCh
 
   script:
   """
@@ -804,10 +804,7 @@ process bamOnTarget {
   """
 }
 
-if (!params.targetBED){
-  procBamsCh = duplicateMarkedBamsCh
-}
-
+procBamsCh = params.targetBED ? onTargetBamsCh : duplicateMarkedBamsCh
 
 /*
  * FILTER ALIGNED BAM FILE FOR SNV/SV
@@ -917,7 +914,7 @@ if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || '
  * QUALIMAP
  */
 
-process Qualimap {
+process qualimap {
   label 'qualimap'
   label 'medMem'
   label 'medCpu'
@@ -927,12 +924,12 @@ process Qualimap {
   publishDir "${params.outDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamQualimapCh
+  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamQualimapCh
   file(targetBED) from targetBedCh
 
   output:
   file("${bam.baseName}") into bamQCReportCh
-  file 'v_qualimap.txt' into qualimapVersionCh
+  file('v_qualimap.txt') into qualimapVersionCh
 
   when: !('bamqc' in skipQC)
 
@@ -1075,7 +1072,7 @@ process getWGSmetrics {
   publishDir path: "${params.outDir}/WGSmetrics", mode: "copy"
  
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamWGSmetricsCh
+  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamWGSmetricsCh
   file(reference) from fastaCh
   file(dict) from dictCh
   file(bed) from targetBedCh
@@ -1117,13 +1114,13 @@ bamBaseRecalibratorCh = bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
  * CREATING RECALIBRATION TABLES
  */
 
-process BaseRecalibrator {
+process baseRecalibrator {
   label 'gatk'
   label 'minCpu'
   tag {sampleId}
 
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh
+  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh
   file(dbsnp) from dbsnpCh
   file(dbsnpIndex) from dbsnpIndexCh
   file(fasta) from fastaCh
@@ -1133,8 +1130,8 @@ process BaseRecalibrator {
   file(knownIndelsIndex) from knownIndelsIndexCh
 
   output:
-  set sampleId, sampleName, vCType, file("${prefix}${sampleId}.recal.table") into tableGatherBQSRReportsCh
-  set sampleId, sampleName, vCType into recalTableTSVnoIntCh
+  tuple val(sampleId), val(sampleName), val(vCType), file("${prefix}${sampleId}.recal.table") into tableGatherBQSRReportsCh
+  tuple val(sampleId), val(sampleName), val(vCType) into recalTableTSVnoIntCh
 
   when: ('haplotypecaller' in tools || 'mutect2' in tools )
 
@@ -1168,9 +1165,9 @@ if (!params.noIntervals) {
   (tableGatherBQSRReportsCh, recalTableCh) = tableGatherBQSRReportsCh.into(2)
 }
 
-process GatherBQSRReports {
+process gatherBQSRReports {
   label 'gatk'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
   label 'lowCpu'
   tag {sampleId}
 
@@ -1227,21 +1224,21 @@ bamApplyBQSRCh = bamApplyBQSRCh.combine(intApplyBQSRCh)
  * RECALIBRATING
  */
 
-process ApplyBQSR {
+process applyBQSR {
   label 'gatk'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
   label 'lowCpu'
 
   tag {sampleId + "-" + sampleName + "-" + vCType + "-" + intervalBed.baseName}
 
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai), file(recalibrationReport), file(intervalBed) from bamApplyBQSRCh
+  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai), file(recalibrationReport), file(intervalBed) from bamApplyBQSRCh
   file(dict) from dictCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
 
   output:
-  set sampleId, sampleName, vCType, file("${prefix}${sampleId}.recal.bam") into bamMergeBamRecalCh
+  tuple val(sampleId), val(sampleName), val(vCType), file("${prefix}${sampleId}.recal.bam") into bamMergeBamRecalCh
   file("v_gatk.txt") into gatkVersionCh
 
   script:
@@ -1276,13 +1273,13 @@ process MergeAndIndexBamRecal {
   publishDir "${params.outDir}/Preprocessing/${sampleName}/Recalibrated", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, vCType, file(bam) from bamMergeBamRecalCh
+  tuple val(sampleId), val(sampleName), val(vCType), file(bam) from bamMergeBamRecalCh
 
   output:
-  set sampleId, sampleName, vCType, file("*recal.bam"), file("*recal.bam.bai") into bamRecalCh
+  tuple val(sampleId), val(sampleName), val(vCType), file("*recal.bam"), file("*recal.bam.bai") into bamRecalCh
   //set sampleId, sampleName, vCType, file("${sampleId}.${vCType}.recal.bam") into bamRecalQCCh
-  set sampleId, sampleName, vCType into bamRecalTSVCh
-  file 'v_samtools.txt' into samtoolsMergeBamRecalVersionCh
+  tuple val(sampleId), val(sampleName), val(vCType) into bamRecalTSVCh
+  file('v_samtools.txt') into samtoolsMergeBamRecalVersionCh
 
   when: !(params.noIntervals)
 
@@ -1356,15 +1353,6 @@ bamRecalTSVCh.map { sampleId, sampleName, vCType ->
 // bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh.flatMap { it -> [it.plus(2, 'SV'), it.plus(2, 'SNV')]}
 
 
-
-
-
-
-
-
-
-
-
 /*
 ================================================================================
                             VARIANT CALLING
@@ -1426,7 +1414,7 @@ if (params.design){
 // STEP GATK HAPLOTYPECALLER.1
 process HaplotypeCaller {
   label 'gatk'
-  label 'memorySingleCPUTaskSq'
+  label 'medMemSq'
   label 'lowCpu'
 
   tag {sampleName + "-" + intervalBed.baseName}
@@ -1915,7 +1903,7 @@ vcfMantaCh = vcfMantaCh.dump(tag:'Manta')
 // Based on Jesper Eisfeldt's code
 process AlleleCounter {
   label 'canceritAllelecount'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
 
   tag {sampleName}
 
@@ -1961,7 +1949,7 @@ alleleCounterOutCh = alleleCounterOutCh.map {
 // https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
 process ConvertAlleleCounts {
   label 'ascat'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
@@ -1991,7 +1979,7 @@ process ConvertAlleleCounts {
 // https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
 process Ascat {
   label 'ascat'
-  label 'memorySingleCPU2Task'
+  label 'lowMem'
 
   tag {sampleNameTumor + "_vs_" + sampleNameNormal}
 
@@ -2173,25 +2161,25 @@ compressVCFsnpEffOutCh = compressVCFsnpEffOutCh.dump(tag:'VCF')
  * @output software_versions_mqc.yaml
  */
 // TODO: find a way to get multiqc version ?
-process GetSoftwareVersions {
+process getSoftwareVersions {
   label 'python'
 
   publishDir path:"${params.outDir}/PipelineInfo", mode: params.publishDirMode
 
   input:
-  file 'v_ascat.txt' from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty('')
-  file 'v_allelecount.txt' from alleleCountsVersionCh.first().ifEmpty('')
-  file 'v_bcftools.txt' from bcftoolsVersionCh.first().ifEmpty('')
-  file 'v_bwa.txt' from bwaVersionCh.ifEmpty('')
-  file 'v_fastqc.txt' from fastqcVersionCh.ifEmpty('')
-  file 'v_gatk.txt' from gatkVersionCh.first().ifEmpty('')
-  file 'v_manta.txt' from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
-  file 'v_qualimap.txt' from qualimapVersionCh.first().ifEmpty('')
-  file 'v_samtools.txt' from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh).mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
-  file 'v_snpeff.txt' from snpeffVersionCh.first().ifEmpty('')
+  file('v_ascat.txt') from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty('')
+  file('v_allelecount.txt') from alleleCountsVersionCh.first().ifEmpty('')
+  file('v_bcftools.txt') from bcftoolsVersionCh.first().ifEmpty('')
+  file('v_bwa.txt') from bwaVersionCh.ifEmpty('')
+  file('v_fastqc.txt') from fastqcVersionCh.first().ifEmpty('')
+  file('v_gatk.txt') from gatkVersionCh.first().ifEmpty('')
+  file('v_manta.txt') from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
+  file('v_qualimap.txt') from qualimapVersionCh.first().ifEmpty('')
+  file('v_samtools.txt') from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh).mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
+  file('v_snpeff.txt') from snpeffVersionCh.first().ifEmpty('')
 
   output:
-  file 'software_versions_mqc.yaml' into yamlSoftwareVersionCh
+  file('software_versions_mqc.yaml') into yamlSoftwareVersionCh
 
   when: !('versions' in skipQC)
 
@@ -2206,7 +2194,7 @@ process GetSoftwareVersions {
 
 yamlSoftwareVersionCh = yamlSoftwareVersionCh.dump(tag:'SOFTWARE VERSIONS')
 
-process MultiQC {
+process multiQC {
   label 'multiqc'
   publishDir "${params.outDir}/Reports/MultiQC", mode: params.publishDirMode
 
@@ -2227,11 +2215,11 @@ process MultiQC {
   file ('FastQC/*') from fastqcReportCh.collect().ifEmpty([])
   file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
   //file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
-  file ('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
+  file('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
 
   output:
-  file "*multiqc_report.html" into multiQCOutCh
-  file "*_data"
+  file("*multiqc_report.html") into multiQCOutCh
+  file("*_data")
 
   when: !('multiqc' in skipQC)
 

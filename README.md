@@ -101,7 +101,7 @@ Other options:
     --multiqc_config                    Specify a custom config file for MultiQC
     -name STRING                        Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
 
-    --outputDir PATH                    The output directory where the results will be saved
+    --outDir PATH                    The output directory where the results will be saved
     --sequencing_center STRING          Name of sequencing center to be displayed in BAM file
 
 ======================================================================
