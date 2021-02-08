@@ -968,7 +968,10 @@ process getFragmentSize {
   label 'medMem'
 
   publishDir path: "${params.outDir}/fragSize", mode: "copy"
- 
+
+  when:
+  !params.singleEnd 
+
   input:
   set sampleId, sampleName, vCType, file(bam), file(bai) from bamInsertSizeCh
 
