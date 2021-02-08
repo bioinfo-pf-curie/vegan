@@ -406,7 +406,7 @@
       "group": "References"
     },
     {
-      "name": "outputDir",
+      "name": "outDir",
       "label": "Output directory",
       "usage": "The output directory where the results will be saved",
       "type": "path",
