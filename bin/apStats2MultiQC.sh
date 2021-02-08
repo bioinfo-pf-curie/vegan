@@ -92,18 +92,18 @@ do
       perc_ontarget='NA'
     fi
 
-    if [[ -e BamQC/${sample}.filtered.SNV.mosdepth.summary.txt ]]; then
-	    mean_depth=$(tail -n 1 BamQC/${sample}.filtered.SNV.mosdepth.summary.txt | awk '{print $4}')
+    if [[ -e coverage/${sample}.filtered.SNV.mosdepth.summary.txt ]]; then
+	mean_depth=$(tail -n 1 coverage/${sample}.filtered.SNV.mosdepth.summary.txt | awk '{print $4}')
     else
 	    mean_depth='NA'
     fi
 
-    if [[ -e BamQC/${sample}.filtered.SNV.mosdepth.region.dist.txt ]]; then 
-      cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' BamQC/${sample}.filtered.SNV.mosdepth.region.dist.txt)
-      cov80=$(awk '$1=="total" && $2=="80"{print $3*100}' BamQC/${sample}.filtered.SNV.mosdepth.region.dist.txt)
-    elif [[ -e BamQC/${sample}.filtered.SNV.mosdepth.global.dist.txt ]]; then
-      cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' BamQC/${sample}.filtered.SNV.mosdepth.global.dist.txt)
-      cov80=$(awk '$1=="total" && $2=="80"{print $3*100}' BamQC/${sample}.filtered.SNV.mosdepth.global.dist.txt)
+    if [[ -e coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt ]]; then 
+	cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
+	cov80=$(awk '$1=="total" && $2=="80"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
+    elif [[ -e coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt ]]; then
+	cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
+	cov80=$(awk '$1=="total" && $2=="80"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
     else
 	    cov30='NA'
 	    cov80='NA'
@@ -118,8 +118,8 @@ do
     if [[ -e BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt ]]; then
 	## PERC_EXC_OVERLAP is between 0 and 0.5 as this is the fraction of aligned bases that would be filtered out because they were the second observation from an insert with overlapping reads.
 	## So we multiply by 2 to have the % of base overlap
-      perc_over=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt | tail -n 1 | awk '{print $11}')
-      perc_over=$(echo "${perc_over}" | awk ' { printf "%.*f",2,$1*2*100 } ')
+	perc_over=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt | tail -n 1 | awk '{print $11}')
+	perc_over=$(echo "${perc_over}" | awk ' { printf "%.*f",2,$1*100 } ')
     else
 	    perc_over='NA'
     fi
