@@ -56,11 +56,13 @@ do
 
     #ALIGNMENT
     nb_reads=$(grep 'Total' Mapping/${sample}_bwa.log | awk -F "\t" '{print $2}')
+
     if [[ $is_pe == 1 ]]; then
-	nb_frag=$(( $nb_reads / 2 ))
+	    nb_frag=$(( $nb_reads / 2 ))
     else
-	nb_frag=$nb_reads
+	    nb_frag=$nb_reads
     fi
+
     tail -n +3 Mapping/${sample}_bwa.log > Mapping/${sample}_bwa.mqc
 
     #Mapping stats (always in reads - so must be converted for PE)
@@ -74,26 +76,26 @@ do
 
     #sambamba
     if [[ -e MarkDuplicates/${sample}.md.bam.metrics ]]; then
-	nb_dups=$(grep duplicates MarkDuplicates/${sample}.md.bam.metrics | awk '{print $1}')
-	perc_dups=$(echo "${nb_dups} ${nb_mapped}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+      nb_dups=$(grep duplicates MarkDuplicates/${sample}.md.bam.metrics | awk '{print $1}')
+      perc_dups=$(echo "${nb_dups} ${nb_mapped}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     else
-	nb_dups='NA'
-	perc_dups='NA'
+      nb_dups='NA'
+      perc_dups='NA'
     fi
 
     #On target
     if [[ -e Mapping/${sample}.md_onTarget.bam.metrics ]]; then
-	nb_ontarget=$(grep "mapped (" Mapping/${sample}.md_onTarget.bam.metrics | awk '{print $1}')
-	perc_ontarget=$(echo "${nb_ontarget} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+      nb_ontarget=$(grep "mapped (" Mapping/${sample}.md_onTarget.bam.metrics | awk '{print $1}')
+      perc_ontarget=$(echo "${nb_ontarget} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     else
-	nb_ontarget='NA'
-	perc_ontarget='NA'
+      nb_ontarget='NA'
+      perc_ontarget='NA'
     fi
 
     if [[ -e coverage/${sample}.filtered.SNV.mosdepth.summary.txt ]]; then
 	mean_depth=$(tail -n 1 coverage/${sample}.filtered.SNV.mosdepth.summary.txt | awk '{print $4}')
     else
-	mean_depth='NA'
+	    mean_depth='NA'
     fi
 
     if [[ -e coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt ]]; then 
@@ -103,14 +105,14 @@ do
 	cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
 	cov80=$(awk '$1=="total" && $2=="80"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
     else
-	cov30='NA'
-	cov80='NA'
+	    cov30='NA'
+	    cov80='NA'
     fi
 
     if [[ -e BamQC/${sample}.filtered.SNV_insert_size_metrics.txt ]]; then
-	frag_length=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_insert_size_metrics.txt | tail -n 1 | awk '{print $1}')
+	    frag_length=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_insert_size_metrics.txt | tail -n 1 | awk '{print $1}')
     else
-	frag_length='NA'
+	    frag_length='NA'
     fi
 
     if [[ -e BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt ]]; then
@@ -119,7 +121,7 @@ do
 	perc_over=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt | tail -n 1 | awk '{print $11}')
 	perc_over=$(echo "${perc_over}" | awk ' { printf "%.*f",2,$1*100 } ')
     else
-	perc_over='NA'
+	    perc_over='NA'
     fi
 
     echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${perc_over},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${mean_depth},${cov30},${cov80} >> mqc.stats
