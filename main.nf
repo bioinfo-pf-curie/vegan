@@ -171,8 +171,7 @@ snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
 ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
-targetBedCh = params.targetBED ? Channel.value(file(params.targetBED)) : Channel.empty()
-
+targetBedCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 // Print summary and genareta summary channel
 workflowSummaryCh = summarize(params, summary, workflow)
 metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
