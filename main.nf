@@ -673,7 +673,7 @@ process mergeBamMapped {
 }
 
 mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'bams')
-(mergedBamCh, mergedBamToStatsCh, mergedBamToIndexCh) = mergedBamCh.into(3)
+(mergedBamCh, mergedBamPreseqCh, mergedBamToStatsCh, mergedBamToIndexCh) = mergedBamCh.into(4)
 
 
 /*
@@ -730,6 +730,36 @@ process bamStats {
   echo -e "HighQual,\${hqbam}" >> ${sampleId}_mappingstats.mqc
   echo -e "LowQual,\${lqbam}" >> ${sampleId}_mappingstats.mqc
   samtools --version &> v_samtools.txt 2>&1 || true
+  """
+}
+
+
+/*
+ * Preseq (before alignment filtering)
+ */
+
+process preseq {
+  tag "${prefix}"
+  label 'preseq'
+  label 'lowCpu'
+  label 'medMem'
+  publishDir "${params.outDir}/preseq", mode: 'copy'
+
+  when:
+  !params.skipPreseq
+
+  input:
+  set val(sampleID), val(sampleName), file(bam) from mergedBamPreseqCh
+
+  output:
+  file "*.ccurve.txt" into preseqStatsCh
+  file("v_preseq.txt") into preseqVersionCh
+
+  script:
+  defectMode = params.preseqDefect ? '-D' : ''
+  """
+  preseq &> v_preseq.txt
+  preseq lc_extrap -v $defectMode -output ${bam.baseName}.ccurve.txt -bam ${bam}
   """
 }
 
@@ -2173,6 +2203,7 @@ process getSoftwareVersions {
   file('v_bwa.txt') from bwaVersionCh.ifEmpty('')
   file('v_fastqc.txt') from fastqcVersionCh.first().ifEmpty('')
   file('v_gatk.txt') from gatkVersionCh.first().ifEmpty('')
+  file 'v_preseq.txt' from chPreseqVersion.first().ifEmpty([])
   file('v_manta.txt') from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
   file('v_qualimap.txt') from qualimapVersionCh.first().ifEmpty('')
   file('v_samtools.txt') from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh).mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
@@ -2207,6 +2238,7 @@ process multiQC {
   file ('Mapping/*') from bwaMqcCh.collect().ifEmpty([])
   file ('Mapping/*') from bamStatsMqcCh.collect().ifEmpty([])
   file ('Mapping/*') from onTargetReportCh.collect().ifEmpty([])
+  file ('preseq/*') from preseqStatsCh.collect().ifEmpty([])
   file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
   file ('coverage/*') from mosdepthOutputCh.collect().ifEmpty([])
   file ('coverage/*') from geneCovMqc.collect().ifEmpty([])
@@ -2229,7 +2261,7 @@ process multiQC {
   metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
   designOpts= params.design ? "-d ${params.design}" : ""
   isPE = params.singleEnd ? "" : "-p"
-  modules_list = "-m custom_content -m fastqc -m picard -m gatk -m bcftools -m snpeff -m qualimap -m picard -m mosdepth"
+  modules_list = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m qualimap -m picard -m mosdepth"
   """
   apStats2MultiQC.sh -s ${splan} ${designOpts} ${isPE}
   apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
