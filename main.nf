@@ -739,7 +739,7 @@ process bamStats {
  */
 
 process preseq {
-  tag "${prefix}"
+  tag "${sampleID}"
   label 'preseq'
   label 'lowCpu'
   label 'medMem'
@@ -2203,7 +2203,7 @@ process getSoftwareVersions {
   file('v_bwa.txt') from bwaVersionCh.ifEmpty('')
   file('v_fastqc.txt') from fastqcVersionCh.first().ifEmpty('')
   file('v_gatk.txt') from gatkVersionCh.first().ifEmpty('')
-  file 'v_preseq.txt' from chPreseqVersion.first().ifEmpty([])
+  file 'v_preseq.txt' from preseqVersionCh.first().ifEmpty([])
   file('v_manta.txt') from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
   file('v_qualimap.txt') from qualimapVersionCh.first().ifEmpty('')
   file('v_samtools.txt') from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh).mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
