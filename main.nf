@@ -944,44 +944,44 @@ if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || '
  * QUALIMAP
  */
 
-process qualimap {
-  label 'qualimap'
-  label 'medMem'
-  label 'medCpu'
-
-  tag {sampleId + "-" + sampleName}
-
-  publishDir "${params.outDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
-
-  input:
-  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamQualimapCh
-  file(targetBED) from targetBedCh
-
-  output:
-  file("${bam.baseName}") into bamQCReportCh
-  file('v_qualimap.txt') into qualimapVersionCh
-
-  when: !('bamqc' in skipQC)
-
-  script:
-  new_bed_command = params.targetBED ? "awk 'BEGIN{OFS=\"\\t\"}{print \$1,\$2,\$3,\$4,0,\".\"}' ${targetBED} > new.bed" : ''
-  use_bed = params.targetBED ? "-gff new.bed" : ''
-  """
-  $new_bed_command
-  qualimap --java-mem-size=${task.memory.toGiga()}G \
-    bamqc \
-    -bam ${bam} \
-    --paint-chromosome-limits \
-    --genome-gc-distr HUMAN \
-    $use_bed \
-    -nt ${task.cpus} \
-    -skip-duplicated \
-    --skip-dup-mode 0 \
-    -outdir ${bam.baseName} \
-    -outformat HTML
-  qualimap --version &> v_qualimap.txt 2>&1 || true
-  """
-}
+//process qualimap {
+//  label 'qualimap'
+//  label 'medMem'
+//  label 'medCpu'
+//
+//  tag {sampleId + "-" + sampleName}
+//
+//  publishDir "${params.outDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
+//
+//  input:
+//  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamQualimapCh
+//  file(targetBED) from targetBedCh
+//
+//  output:
+//  file("${bam.baseName}") into bamQCReportCh
+//  file('v_qualimap.txt') into qualimapVersionCh
+//
+//  when: !('bamqc' in skipQC)
+//
+//  script:
+//  new_bed_command = params.targetBED ? "awk 'BEGIN{OFS=\"\\t\"}{print \$1,\$2,\$3,\$4,0,\".\"}' ${targetBED} > new.bed" : ''
+//  use_bed = params.targetBED ? "-gff new.bed" : ''
+//  """
+//  $new_bed_command
+//  qualimap --java-mem-size=${task.memory.toGiga()}G \
+//    bamqc \
+//    -bam ${bam} \
+//    --paint-chromosome-limits \
+//    --genome-gc-distr HUMAN \
+//    $use_bed \
+//    -nt ${task.cpus} \
+//    -skip-duplicated \
+//    --skip-dup-mode 0 \
+//    -outdir ${bam.baseName} \
+//    -outformat HTML
+//  qualimap --version &> v_qualimap.txt 2>&1 || true
+//  """
+//}
 
 
 /*
@@ -2205,7 +2205,7 @@ process getSoftwareVersions {
   file('v_gatk.txt') from gatkVersionCh.first().ifEmpty('')
   file 'v_preseq.txt' from preseqVersionCh.first().ifEmpty([])
   file('v_manta.txt') from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
-  file('v_qualimap.txt') from qualimapVersionCh.first().ifEmpty('')
+  //file('v_qualimap.txt') from qualimapVersionCh.first().ifEmpty('')
   file('v_samtools.txt') from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh).mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
   file('v_snpeff.txt') from snpeffVersionCh.first().ifEmpty('')
 
@@ -2239,7 +2239,7 @@ process multiQC {
   file ('Mapping/*') from bamStatsMqcCh.collect().ifEmpty([])
   file ('Mapping/*') from onTargetReportCh.collect().ifEmpty([])
   file ('preseq/*') from preseqStatsCh.collect().ifEmpty([])
-  file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
+  //file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
   file ('coverage/*') from mosdepthOutputCh.collect().ifEmpty([])
   file ('coverage/*') from geneCovMqc.collect().ifEmpty([])
   file ('BamQC/*') from fragmentSizeCh.collect().ifEmpty([])
