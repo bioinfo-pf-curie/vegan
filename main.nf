@@ -45,9 +45,9 @@ welcome()
 */
 
 // Use lintedParams as default params object
-//def params = lintedParams
-def paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
-def params = lint(params, paramsWithUsage)
+// params = lintedParams
+paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
+params = lint(params, paramsWithUsage)
 
 tools = params.tools
 skipQC = params.skipQC
@@ -62,7 +62,7 @@ samplePlanCh = getSamplePlan(samplePlanPath)
 
 if (params.design){
   (genderMap, statusMap, pairMap) = extractInfos(getDesign(params.design))
-}else{
+} else {
   log.info "=================================================================\n" +
             "  INFO: No design file detected.\n" +
             "  Variant detection (SV/SNV) will be skipped.\n" +
@@ -104,7 +104,7 @@ params << [
 */
 
 // Header info
-def summary = [
+summary = [
   'Pipeline Release': workflow.revision ?: null,
   'Run Name': customRunName,
   'Max Resources': "${params.maxMemory} memory, ${params.maxCpus} cpus, ${params.maxTime} time per job",
@@ -188,7 +188,8 @@ metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
 
 process buildBWAindexes {
   label 'bwa'
-  tag {fasta}
+
+  tag "${fasta}"
 
   publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/BWAIndex/${it}" : null }
@@ -213,7 +214,8 @@ bwaIndexCh = params.bwaIndex ? Channel.value(file(params.bwaIndex)) : bwaIndexes
 
 process buildDict {
   label 'gatk'
-  tag {fasta}
+
+  tag "${fasta}"
 
   publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
@@ -239,7 +241,8 @@ dictCh = params.dict ? Channel.value(file(params.dict)) : dictBuiltCh
 
 process buildFastaFai {
   label 'samtools'
-  tag {fasta}
+
+  tag "${fasta}"
 
   publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
@@ -262,7 +265,8 @@ fastaFaiCh = params.fastaFai ? Channel.value(file(params.fastaFai)) : fastaFaiBu
 
 process buildDbsnpIndex {
   label 'tabix'
-  tag {dbsnp}
+
+  tag "${dbsnp}"
 
   publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
@@ -285,7 +289,8 @@ dbsnpIndexCh = params.dbsnp ? params.dbsnpIndex ? Channel.value(file(params.dbsn
 
 process buildGermlineResourceIndex {
   label 'tabix'
-  tag {germlineResource}
+
+  tag "${germlineResource}"
 
   publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
@@ -308,7 +313,8 @@ germlineResourceIndexCh = params.germlineResource ? params.germlineResourceIndex
 
 process buildKnownIndelsIndex {
   label 'tabix'
-  tag {knownIndels}
+
+  tag "${knownIndels}"
 
   publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
@@ -331,7 +337,8 @@ knownIndelsIndexCh = params.knownIndels ? params.knownIndelsIndex ? Channel.valu
 
 process buildPonIndex {
   label 'tabix'
-  tag {pon}
+
+  tag "${pon}"
 
   publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
@@ -352,7 +359,8 @@ process buildPonIndex {
 
 process buildIntervals {
   label 'onlyLinux'
-  tag {fastaFai}
+
+  tag "${fastaFai}"
 
   publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
@@ -384,7 +392,8 @@ intervalsCh = params.noIntervals ? "null" : params.intervals && !('annotate' in 
 
 process createIntervalBeds {
   label 'onlyLinux'
-  tag {intervals.fileName}
+
+  tag "${intervals.fileName}"
 
   input:
   file(intervals) from intervalsCh
@@ -435,7 +444,7 @@ process createIntervalBeds {
 
 bedIntervalsCh = bedIntervalsCh
   .map { intervalFile ->
-    def duration = 0.0
+    duration = 0.0
     for (line in intervalFile.readLines()) {
       final fields = line.split('\t')
       if (fields.size() >= 5) duration += fields[4].toFloat()
@@ -461,7 +470,8 @@ if (params.noIntervals && step != 'annotate') {file("${params.outDir}/noInterval
 // TODO: not working
 //(inputBamCh, inputPairReadsCh) = step == 'mapping' ? forkMappingSamplePlan(samplePlanCh) : [Channel.empty(), Channel.empty()]
 if (step == "mapping") {
-  def runIds = [:]
+  runIds = [:]
+
   samplePlanCh.map {
     // Sample Plan
     // platformID - biologicalName - fastq1 - fastq2
@@ -525,12 +535,15 @@ process fastQC {
   label 'fastqc'
   label 'lowCpu'
 
-  tag {sampleId}
+  tag "${sampleId}"
 
   publishDir "${params.outDir}/Reports/${sampleId}/FastQC/${sampleId}", mode: params.publishDirMode, overwrite: true
 
   input:
-  tuple val(sampleId), val(sampleName), val(runId), file(reads) from inputPairReadsFastQC.mix(inputBamFastQCCh)
+  tuple val(sampleId),
+    val(sampleName),
+    val(runId),
+    file(reads) from inputPairReadsFastQC.mix(inputBamFastQCCh)
 
   output:
   file("*.{html,zip}") into fastqcReportCh
@@ -592,17 +605,25 @@ process mapReads {
   label 'highCpu'
   label 'extraMem'
 
-  tag {sampleId}
+  tag "${sampleId}"
 
   input:
-  tuple val(sampleId), val(sampleName), val(runId), file(inputFile) from inputPairReadsCh
+  tuple val(sampleId),
+    val(sampleName),
+    val(runId),
+    file(inputFile) from inputPairReadsCh
   file(bwaIndex) from bwaIndexCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
 
   output:
-  tuple val(sampleId), val(sampleName), val(runId), file("${sampleId}.bam") into bamMappedCh
-  tuple val(sampleId), val("${sampleName}_${runId}"), file("${sampleId}.bam") into bamMappedBamQCCh
+  tuple val(sampleId),
+    val(sampleName),
+    val(runId),
+    file("${sampleId}.bam") into bamMappedCh
+  tuple val(sampleId),
+    val("${sampleName}_${runId}"),
+    file("${sampleId}.bam") into bamMappedBamQCCh
   file('v_samtools.txt') into samtoolsMapReadsVersionCh
 
   script:
@@ -656,13 +677,18 @@ multipleBamCh = multipleBamCh
 process mergeBamMapped {
   label 'samtools'
   label 'highCpu'
-  tag {sampleId}
+
+  tag "${sampleId}"
 
   input:
-  tuple val(sampleId), val(sampleName), val(bams) from multipleBamCh
+  tuple val(sampleId),
+    val(sampleName),
+    val(bams) from multipleBamCh
 
   output:
-  tuple val(sampleId), val(sampleName), file("*_merged.bam") into mergedBamCh
+  tuple val(sampleId),
+    val(sampleName),
+    file("*_merged.bam") into mergedBamCh
   file('v_samtools.txt') into samtoolsMergeBamMappedVersionCh
 
   script:
@@ -683,13 +709,19 @@ mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'bams')
 process indexBamFile {
   label 'samtools'
   label 'minCpu'
-  tag {sampleId}
+
+  tag "${sampleId}"
 
   input:
-  tuple val(sampleId), val(sampleName), file(bam) from mergedBamToIndexCh
+  tuple val(sampleId),
+    val(sampleName),
+    file(bam) from mergedBamToIndexCh
 
   output:
-  tuple val(sampleId), val(sampleName), file(bam), file("*.bai") into indexedBamCh
+  tuple val(sampleId),
+    val(sampleName),
+    file(bam),
+    file("*.bai") into indexedBamCh
   file('v_samtools.txt') into samtoolsIndexBamFileVersionCh
 
   script:
@@ -713,7 +745,9 @@ process bamStats {
   publishDir "${params.outDir}/Reports/${sampleId}/Mapping", mode: params.publishDirMode
 
   input:
-  tuple val(sampleId), val(sampleName), file(bam) from mergedBamToStatsCh
+  tuple val(sampleId),
+    val(sampleName),
+    file(bam) from mergedBamToStatsCh
 
   output:
   file("*_mappingstats.mqc") into bamStatsMqcCh
@@ -780,7 +814,7 @@ process markDuplicates {
   label 'highCpu'
   label 'highMem'
 
-  tag {sampleId}
+  tag "${sampleId}"
 
   publishDir params.outDir, mode: params.publishDirMode,
     saveAs: {
@@ -789,10 +823,13 @@ process markDuplicates {
     }
 
   input:
-  set sampleId, sampleName, file(bam) from mergedBamCh
+  tuple val(sampleId), val(sampleName), file(bam) from mergedBamCh
 
   output:
-  tuple sampleId, sampleName, file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh
+  tuple val(sampleId),
+    val(sampleName),
+    file("${sampleId}.md.bam"),
+    file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh
   file ("${sampleId}.md.bam.metrics") into markDuplicatesReportCh
 
   script:
@@ -813,13 +850,17 @@ process bamOnTarget {
   label 'bedtools'
   label 'minCpu'
   label 'medMem'
+
   tag {sampleId}
 
   when:
   params.targetBED
 
   input:
-  tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamsToTargetCh
+  tuple val(sampleId),
+    val(sampleName),
+    file(bam),
+    file(bai) from bamsToTargetCh
   file(targetBED) from targetBedCh
 
   output:
@@ -855,15 +896,24 @@ if (('manta' in tools) && ('ascat' in tools || 'haplotypecaller' in tools || 'mu
 process bamFiltering {
   label 'samtools'
   label 'medCpu'
-  tag {sampleId + vCType}
+
+  tag "${sampleId}-${vCType}"
 
   publishDir "${params.outDir}/Reports/${sampleId}/Filtering", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, file(bam), file(bai), vCType from procBamsCh
+  tuple val(sampleId),
+    val(sampleName),
+    file(bam),
+    file(bai),
+    val(vCType) from procBamsCh
 
   output:
-  set sampleId, sampleName, vCType, file("${sampleId}.filtered.${vCType}.bam"), file("${sampleId}.filtered.${vCType}.bam.bai") into filteredBamCh, filteredBamQCCh
+  tuple val(sampleId),
+    val(sampleName),
+    val(vCType),
+    file("${sampleId}.filtered.${vCType}.bam"),
+    file("${sampleId}.filtered.${vCType}.bam.bai") into filteredBamCh, filteredBamQCCh
   file("${sampleId}.filtered.${vCType}.idxstats") into bamFilterReportCh
   file 'v_samtools.txt' into samtoolsBamFilterVersionCh
 
@@ -989,10 +1039,11 @@ if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || '
  */
 
 process getFragmentSize {
-  tag "${sampleId}"
   label 'picard'
   label 'medCpu'
   label 'medMem'
+
+  tag "${sampleId}"
 
   publishDir path: "${params.outDir}/fragSize", mode: "copy"
 
@@ -1000,7 +1051,11 @@ process getFragmentSize {
   !params.singleEnd 
 
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamInsertSizeCh
+  tuple val(sampleId),
+    val(sampleName),
+    val(vCType),
+    file(bam),
+    file(bai) from bamInsertSizeCh
 
   output:
   file("*.{pdf,txt}") into fragmentSizeCh
@@ -1021,15 +1076,20 @@ process getFragmentSize {
  */
 
 process getSeqDepth {
-  tag "${sampleId}"
   label 'mosdepth'
   label 'medCpu'
   label 'medMem'
 
+  tag "${sampleId}"
+
   publishDir path: "${params.outDir}/depth", mode: "copy"
  
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamMosdepthCh
+  tuple val(sampleId),
+    val(sampleName),
+    val(vCType),
+    file(bam),
+    file(bai) from bamMosdepthCh
   file(bed) from targetBedCh
 
   output:
@@ -1088,7 +1148,6 @@ process genesCoverage {
   """
 }
 
-
 /*
  * MATES OVERLAP
  */
@@ -1102,7 +1161,11 @@ process getWGSmetrics {
   publishDir path: "${params.outDir}/WGSmetrics", mode: "copy"
  
   input:
-  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamWGSmetricsCh
+  tuple val(sampleId),
+    val(sampleName),
+    val(vCType),
+    file(bam),
+    file(bai) from bamWGSmetricsCh
   file(reference) from fastaCh
   file(dict) from dictCh
   file(bed) from targetBedCh
@@ -1147,7 +1210,8 @@ bamBaseRecalibratorCh = bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
 process baseRecalibrator {
   label 'gatk'
   label 'minCpu'
-  tag {sampleId}
+
+  tag "${sampleId}"
 
   input:
   tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh
@@ -1199,16 +1263,17 @@ process gatherBQSRReports {
   label 'gatk'
   label 'lowMem'
   label 'lowCpu'
-  tag {sampleId}
+
+  tag "${sampleId}"
 
   publishDir "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
 
   input:
-  set sampleId, sampleName, vCType, file(recal) from tableGatherBQSRReportsCh
+  tuple val(sampleId), val(sampleName), val(vCType), file(recal) from tableGatherBQSRReportsCh
 
   output:
-  set sampleId, sampleName, vCType, file("${prefix}${sampleId}.recal.table") into recalTableCh
-  set sampleId, sampleName, vCType into recalTableTSVCh
+  tuple val(sampleId), val(sampleName), val(vCType), file("${prefix}${sampleId}.recal.table") into recalTableCh
+  tuple val(sampleId), val(sampleName), val(vCType) into recalTableTSVCh
 
   when: !(params.noIntervals)
 
@@ -1259,7 +1324,7 @@ process applyBQSR {
   label 'lowMem'
   label 'lowCpu'
 
-  tag {sampleId + "-" + sampleName + "-" + vCType + "-" + intervalBed.baseName}
+  tag "${sampleId}-${sampleName}-${vCType}-${intervalBed.baseName}"
 
   input:
   tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai), file(recalibrationReport), file(intervalBed) from bamApplyBQSRCh
@@ -1294,11 +1359,11 @@ bamMergeBamRecalCh = bamMergeBamRecalCh.groupTuple(by:[0, 1, 2])
  * MERGING THE RECALIBRATED BAM FILES
  */
 
-process MergeAndIndexBamRecal {
+process mergeAndIndexBamRecal {
   label 'samtools'
   label 'medCpu'
 
-  tag {sampleId + "-" + vCType + "-" + sampleName}
+  tag "${sampleId}-${vCType}-${sampleName}"
 
   publishDir "${params.outDir}/Preprocessing/${sampleName}/Recalibrated", mode: params.publishDirMode
 
@@ -1326,21 +1391,21 @@ process MergeAndIndexBamRecal {
  * INDEXING THE MERGED RECALIBRATED BAM FILES
  */ 
 
-process IndexBamRecal {
+process indexBamRecal {
   label 'samtools'
   label 'lowCpu'
 
-  tag {sampleId + "-" + sampleName + "-" + vCType}
+  tag "${sampleId}-${sampleName}-${vCType}"
 
   publishDir "${params.outDir}/Preprocessing/${sampleName}/Recalibrated", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, vCType, file(bam) from bamMergeBamRecalNoIntCh
+  tuple val(sampleId), val(sampleName), val(vCType), file(bam) from bamMergeBamRecalNoIntCh
 
   output:
-  set sampleId, sampleName, vCType, file(bam), file("*bam.bai") into bamRecalNoIntCh
-  set sampleId, sampleName, vCType into bamRecalTSVnoIntCh
-  file 'v_samtools.txt' into samtoolsIndexBamRecalVersionCh
+  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file("*bam.bai") into bamRecalNoIntCh
+  tuple val(sampleId), val(sampleName), val(vCType) into bamRecalTSVnoIntCh
+  file('v_samtools.txt') into samtoolsIndexBamRecalVersionCh
 
   when: params.noIntervals
 
@@ -1442,15 +1507,15 @@ if (params.design){
 
 
 // STEP GATK HAPLOTYPECALLER.1
-process HaplotypeCaller {
+process haplotypeCaller {
   label 'gatk'
   label 'medMemSq'
   label 'lowCpu'
 
-  tag {sampleName + "-" + intervalBed.baseName}
+  tag "${sampleName}-${intervalBed.baseName}"
 
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai), file(intervalBed) from bamHaplotypeCallerCh
+  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai), file(intervalBed) from bamHaplotypeCallerCh
   file(dbsnp) from dbsnpCh
   file(dbsnpIndex) from dbsnpIndexCh
   file(dict) from dictCh
@@ -1458,8 +1523,8 @@ process HaplotypeCaller {
   file(fastaFai) from fastaFaiCh
 
   output:
-  set val("HaplotypeCallerGVCF"), sampleId, sampleName, file("${intervalBed.baseName}_${sampleName}.g.vcf") into gvcfHaplotypeCallerCh
-  set sampleId, sampleName, file(intervalBed), file("${intervalBed.baseName}_${sampleName}.g.vcf") into gvcfGenotypeGVCFsCh
+  tuple val("HaplotypeCallerGVCF"), val(sampleId), val(sampleName), file("${intervalBed.baseName}_${sampleName}.g.vcf") into gvcfHaplotypeCallerCh
+  tuple val(sampleId), val(sampleName), file(intervalBed), file("${intervalBed.baseName}_${sampleName}.g.vcf") into gvcfGenotypeGVCFsCh
 
   when: 'haplotypecaller' in tools && vCType == 'SNV'
 
@@ -1482,12 +1547,12 @@ gvcfHaplotypeCallerCh = params.noGVCF ? gvcfHaplotypeCallerCh.close() :  gvcfHap
 
 // STEP GATK HAPLOTYPECALLER.2
 
-process GenotypeGVCFs {
+process genotypeGVCFs {
   label 'gatk'
-  tag {sampleName + "-" + intervalBed.baseName}
+  tag "${sampleName}-${intervalBed.baseName}"
 
   input:
-  set sampleId, sampleName, file(intervalBed), file(gvcf) from gvcfGenotypeGVCFsCh
+  tuple val(sampleId), val(sampleName), file(intervalBed), file(gvcf) from gvcfGenotypeGVCFsCh
   file(dbsnp) from dbsnpCh
   file(dbsnpIndex) from dbsnpIndexCh
   file(dict) from dictCh
@@ -1495,7 +1560,7 @@ process GenotypeGVCFs {
   file(fastaFai) from fastaFaiCh
 
   output:
-  set val("HaplotypeCaller"), sampleId, sampleName, file("${intervalBed.baseName}_${sampleName}.vcf") into vcfGenotypeGVCFsCh
+  tuple val("HaplotypeCaller"), val(sampleId), val(sampleName), file("${intervalBed.baseName}_${sampleName}.vcf") into vcfGenotypeGVCFsCh
 
   when: 'haplotypecaller' in tools
 
@@ -1520,13 +1585,14 @@ vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
 
 // STEP GATK MUTECT2.1 - RAW CALLS
 
-process Mutect2 {
-  tag {sampleNameTumor + "_vs_" + sampleNameNormal + "-" + intervalBed.baseName}
+process mutect2 {
   label 'gatk'
   label 'minCpu'
 
+  tag "${sampleNameTumor}_vs_${sampleNameNormal}-${intervalBed.baseName}"
+
   input:
-  set sampleIdNormal, sampleNameNormal, VCType, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, VCType, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamMutect2Ch
+  tuple val(sampleIdNormal), val(sampleNameNormal), val(VCType), file(bamNormal), file(baiNormal), val(sampleIdTumor), val(sampleNameTumor), val(VCType), file(bamTumor), file(baiTumor), file(intervalBed) from pairBamMutect2Ch
   file(dict) from dictCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
@@ -1535,15 +1601,14 @@ process Mutect2 {
   file(intervals) from intervalsCh
   file(ponIndex) from Channel.value(params.ponIndex ? file(params.ponIndex) : ponIndexBuiltCh)
 
-
   output:
-  set val("Mutect2"),
-    pairName,
+  tuple val("Mutect2"),
+    val(pairName),
     val("${sampleNameTumor}_vs_${sampleNameNormal}"),
     file("${intervalBed.baseName}_${sampleNameTumor}_vs_${sampleNameNormal}.vcf") into mutect2OutputCh
-  set pairName,
-    sampleNameTumor,
-    sampleNameNormal,
+  tuple val(pairName),
+    val(sampleNameTumor),
+    val(sampleNameNormal),
     file("${intervalBed.baseName}_${sampleNameTumor}_vs_${sampleNameNormal}.vcf.stats") optional true into mutect2StatsCh, intervalStatsFilesCh
 
   when: 'mutect2' in tools && vCType == 'SNV'
@@ -1576,15 +1641,16 @@ mutect2StatsCh = mutect2StatsCh.groupTuple(by:[0,1,2])
 
 // STEP GATK MUTECT2.2 - MERGING STATS
 
-process MergeMutect2Stats {
-  tag {sampleNameTumor + "_vs_" + sampleNameNormal}
+process mergeMutect2Stats {
   label 'gatk'
+
+  tag "${sampleNameTumor}_vs_${sampleNameNormal}"
 
   publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/Mutect2", mode: params.publishDirMode
 
   input:
-  set caller, pairName, sampleNameTumor_vs_sampleNameNormal, file(vcfFiles) from mutect2OutForStatsCh // corresponding small VCF chunks
-  set pairName, sampleNameTumor, sampleNameNormal, file(statsFiles) from mutect2StatsCh               // the actual stats files
+  tuple val(caller), val(pairName), val(sampleNameTumor_vs_sampleNameNormal), file(vcfFiles) from mutect2OutForStatsCh // corresponding small VCF chunks
+  tuple val(pairName), val(sampleNameTumor), val(sampleNameNormal), file(statsFiles) from mutect2StatsCh               // the actual stats files
   file(dict) from dictCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
@@ -1615,22 +1681,22 @@ process MergeMutect2Stats {
 vcfConcatenateVCFsCh = mutect2OutputCh.mix(vcfGenotypeGVCFsCh, gvcfHaplotypeCallerCh)
 vcfConcatenateVCFsCh = vcfConcatenateVCFsCh.dump(tag:'VCF to merge')
 
-process ConcatVCF {
+process concatVCF {
   label 'bcftools'
   label 'higCpu'
 
-  tag {variantCaller + "-" + sampleName}
+  tag "${variantCaller}-${sampleName}"
 
   publishDir "${params.outDir}/VariantCalling/${sampleName}/${"$variantCaller"}", mode: params.publishDirMode
 
   input:
-  set variantCaller, sampleId, sampleName, file(vcFiles) from vcfConcatenateVCFsCh
+  tuple val(variantCaller), val(sampleId), val(sampleName), file(vcFiles) from vcfConcatenateVCFsCh
   file(fastaFai) from fastaFaiCh
   file(targetBED) from targetBedCh
 
   output:
   // we have this funny *_* pattern to avoid copying the raw calls to publishdir
-  set variantCaller, sampleId, sampleName, file("*_*.vcf.gz"), file("*_*.vcf.gz.tbi") into vcfConcatenatedCh
+  tuple val(variantCaller), val(sampleId), val(sampleName), file("*_*.vcf.gz"), file("*_*.vcf.gz.tbi") into vcfConcatenatedCh
   file("v_bcftools.txt") into bcftoolsVersionCh
 
   when: ('haplotypecaller' in tools || 'mutect2' in tools)
@@ -1661,20 +1727,21 @@ vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
 
 // STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
 
-process PileupSummariesForMutect2 {
-  tag {sampleNameTumor + "_vs_" + sampleNameNormal + "_" + intervalBed.baseName }
+process pileupSummariesForMutect2 {
   label 'gatk'
   label 'minCpu'
 
+  tag "${sampleNameTumor}_vs_${sampleNameNormal}_${intervalBed.baseName}"
+
   input:
-  set sampleIdNormal, sampleNameNormal, vCType, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, vCType, file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
-  set sampleId, sampleNameTumor, sampleNameNormal, file(statsFile) from intervalStatsFilesCh
+  tuple val(sampleIdNormal), val(sampleNameNormal), val(vCType), file(bamNormal), file(baiNormal), val(sampleIdTumor), val(sampleNameTumor), val(vCType), file(bamTumor), file(baiTumor), file(intervalBed) from pairBamPileupSummariesCh
+  tuple val(sampleId), val(sampleNameTumor), val(sampleNameNormal), file(statsFile) from intervalStatsFilesCh
   file(germlineResource) from germlineResourceCh
   file(germlineResourceIndex) from germlineResourceIndexCh
 
   output:
-  set pairName,
-    sampleNameTumor,
+  tuple val(pairName),
+    val(sampleNameTumor),
     file("${intervalBed.baseName}_${sampleNameTumor}_pileupsummaries.table") into pileupSummariesCh
 
   when: 'mutect2' in tools && vCType == 'SNV'
@@ -1696,22 +1763,23 @@ pileupSummariesCh = pileupSummariesCh.groupTuple(by:[0,1])
 
 // STEP GATK MUTECT2.4 - MERGING PILEUP SUMMARIES
 
-process MergePileupSummaries {
+process mergePileupSummaries {
   label 'gatk'
   label 'minCpu'
 
-  tag {pairName + "_" + sampleNameTumor}
+  tag "${pairName}_${sampleNameTumor}"
 
   publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
 
   input:
-  set pairName, sampleNameTumor, file(pileupSums) from pileupSummariesCh
+  tuple val(pairName), val(sampleNameTumor), file(pileupSums) from pileupSummariesCh
   file(dict) from dictCh
 
   output:
   file("${sampleNameTumor}_pileupsummaries.table.tsv") into mergedPileupFileCh
 
   when: 'mutect2' in tools
+
   script:
   allPileups = pileupSums.collect{ "-I ${it} " }.join(' ')
   """
@@ -1725,16 +1793,25 @@ process MergePileupSummaries {
 
 // STEP GATK MUTECT2.5 - CALCULATING CONTAMINATION
 
-process CalculateContamination {
+process calculateContamination {
   label 'gatk'
   label 'minCpu'
 
-  tag {sampleNameTumor + "_vs_" + sampleNameNormal}
+  tag "${sampleNameTumor}_vs_${sampleNameNormal}"
 
   publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}/Mutect2", mode: params.publishDirMode
 
   input:
-  set sampleIdNormal, sampleNameNormal, vCType, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, VCType, file(bamTumor), file(baiTumor) from pairBamCalculateContaminationCh
+  tuple val(sampleIdNormal),
+    val(sampleNameNormal),
+    val(vCType),
+    file(bamNormal),
+    file(baiNormal),
+    val(sampleIdTumor),
+    val(sampleNameTumor),
+    val(VCType),
+    file(bamTumor),
+    file(baiTumor) from pairBamCalculateContaminationCh
   file("${sampleNameTumor}_pileupsummaries.table") from mergedPileupFileCh
 
   output:
@@ -1754,17 +1831,21 @@ process CalculateContamination {
 
 // STEP GATK MUTECT2.6 - FILTERING CALLS
 
-process FilterMutect2Calls {
+process filterMutect2Calls {
   label 'gatk'
   label 'medCpu'
   label 'medMem'
 
-  tag {sampleNameTN}
+  tag "${sampleNameTN}"
 
   publishDir "${params.outDir}/VariantCalling/${sampleNameTN}/${"$variantCaller"}", mode: params.publishDirMode
 
   input:
-  set variantCaller, sampleId, sampleNameTN, file(unfiltered), file(unfilteredIndex) from vcfConcatenatedForFilterCh
+  tuple val(variantCaller),
+    val(sampleId),
+    val(sampleNameTN),
+    file(unfiltered),
+    file(unfilteredIndex) from vcfConcatenatedForFilterCh
   file("${sampleNameTN}.vcf.gz.stats") from mergedStatsFileCh
   file("${sampleNameTN}_contamination.table") from contaminationTableCh
   file(dict) from dictCh
@@ -1775,7 +1856,9 @@ process FilterMutect2Calls {
   file(intervals) from intervalsCh
 
   output:
-  set val("Mutect2"), sampleId, sampleNameTN,
+  tuple val("Mutect2"),
+    val(sampleId),
+    val(sampleNameTN),
     file("filtered_${variantCaller}_${sampleNameTN}.vcf.gz"),
     file("filtered_${variantCaller}_${sampleNameTN}.vcf.gz.tbi"),
     file("filtered_${variantCaller}_${sampleNameTN}.vcf.gz.filteringStats.tsv") into filteredMutect2OutputCh
@@ -1804,24 +1887,32 @@ process FilterMutect2Calls {
 
 // STEP MANTA.1 - SINGLE MODE
 
-process MantaSingle {
+process mantaSingle {
   label 'manta'
   label 'highCpu'
   label 'highMem'
 
-  tag {sampleName}
+  tag "${sampleName}"
 
   publishDir "${params.outDir}/VariantCalling/${sampleName}/Manta", mode: params.publishDirMode
 
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamMantaSingleCh
+  tuple val(sampleId),
+    val(sampleName),
+    val(vCType),
+    file(bam),
+    file(bai) from bamMantaSingleCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
   file(targetBED) from targetBedCh
 
   output:
-  set val("Manta"), sampleId, sampleName, file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaSingleCh
-  file 'v_manta.txt' into mantaSingleVersionCh
+  tuple val("Manta"),
+    val(sampleId),
+    val(sampleName),
+    file("*.vcf.gz"),
+    file("*.vcf.gz.tbi") into vcfMantaSingleCh
+  file('v_manta.txt') into mantaSingleVersionCh
 
   when: 'manta' in tools && vCType == 'SV'
 
@@ -1861,24 +1952,37 @@ vcfMantaSingleCh = vcfMantaSingleCh.dump(tag:'Single Manta')
 
 // STEP MANTA.2 - SOMATIC PAIR
 
-process Manta {
+process manta {
   label 'manta'
   label 'highCpu'
   label 'highMem'
 
-  tag {sampleNameTumor + "_vs_" + sampleNameNormal + "_" + vCType}
+  tag "${sampleNameTumor}_vs_${sampleNameNormal}_${vCType}"
 
   publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/Manta", mode: params.publishDirMode
 
   input:
-  set sampleIdNormal, sampleNameNormal, vCType, file(bamNormal), file(baiNormal), sampleIdTumor, sampleNameTumor, vCType, file(bamTumor), file(baiTumor) from pairBamMantaCh
+  tuple val(sampleIdNormal),
+    val(sampleNameNormal),
+    val(vCType),
+    file(bamNormal),
+    file(baiNormal),
+    val(sampleIdTumor),
+    val(sampleNameTumor),
+    val(vCType),
+    file(bamTumor),
+    file(baiTumor) from pairBamMantaCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
   file(targetBED) from targetBedCh
 
   output:
-  set val("Manta"), pairName, val("${sampleNameTumor}_vs_${sampleNameNormal}"), file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaCh
-  file 'v_manta.txt' into mantaVersionCh
+  tuple val("Manta"),
+    val(pairName),
+    val("${sampleNameTumor}_vs_${sampleNameNormal}"),
+    file("*.vcf.gz"),
+    file("*.vcf.gz.tbi") into vcfMantaCh
+  file('v_manta.txt') into mantaVersionCh
 
   when: 'manta' in tools && vCType == 'SV'
 
@@ -1931,21 +2035,27 @@ vcfMantaCh = vcfMantaCh.dump(tag:'Manta')
 
 // Run commands and code from Malin Larsson
 // Based on Jesper Eisfeldt's code
-process AlleleCounter {
+process alleleCounter {
   label 'canceritAllelecount'
   label 'lowMem'
 
-  tag {sampleName}
+  tag "${sampleName}"
 
   input:
-  set sampleId, sampleName, vCType, file(bam), file(bai) from bamAscatCh
+  tuple val(sampleId),
+    val(sampleName),
+    val(vCType),
+    file(bam),
+    file(bai) from bamAscatCh
   file(acLoci) from acLociCh
   file(dict) from dictCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
 
   output:
-  set sampleId, sampleName, file("${sampleName}.alleleCount") into alleleCounterOutCh
+  tuple val(sampleId),
+    val(sampleName),
+    file("${sampleName}.alleleCount") into alleleCounterOutCh
   file("v_allelecount.txt") into alleleCountsVersionCh
 
   when: 'ascat' in tools && vCType == 'SNV'
@@ -1977,19 +2087,30 @@ alleleCounterOutCh = alleleCounterOutCh.map {
 
 // R script from Malin Larssons bitbucket repo:
 // https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
-process ConvertAlleleCounts {
+process convertAlleleCounts {
   label 'ascat'
   label 'lowMem'
 
-  tag {sampleNameTumor + "_vs_" + sampleNameNormal}
+  tag "${sampleNameTumor}_vs_${sampleNameNormal}"
 
   publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/ASCAT", mode: params.publishDirMode
 
   input:
-  set sampleIdNormal, sampleNameNormal, sampleIdTumor, sampleNameTumor, file(alleleCountNormal), file(alleleCountTumor) from alleleCounterOutCh
+  tuple val(sampleIdNormal),
+    val(sampleNameNormal),
+    val(sampleIdTumor),
+    val(sampleNameTumor),
+    file(alleleCountNormal),
+    file(alleleCountTumor) from alleleCounterOutCh
 
   output:
-  set sampleIdNormal, sampleNameNormal, sampleNameTumor, file("${sampleNameNormal}.BAF"), file("${sampleNameNormal}.LogR"), file("${sampleNameTumor}.BAF"), file("${sampleNameTumor}.LogR") into convertAlleleCountsOutCh
+  tuple val(sampleIdNormal),
+    val(sampleNameNormal),
+    val(sampleNameTumor),
+    file("${sampleNameNormal}.BAF"),
+    file("${sampleNameNormal}.LogR"),
+    file("${sampleNameTumor}.BAF"),
+    file("${sampleNameTumor}.LogR") into convertAlleleCountsOutCh
   file("v_ascat.txt") into convertAlleleCountsVersionCh
 
   when: 'ascat' in tools
@@ -2007,20 +2128,30 @@ process ConvertAlleleCounts {
 
 // R scripts from Malin Larssons bitbucket repo:
 // https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
-process Ascat {
+process ascat {
   label 'ascat'
   label 'lowMem'
 
-  tag {sampleNameTumor + "_vs_" + sampleNameNormal}
+  tag "${sampleNameTumor}_vs_${sampleNameNormal}"
 
   publishDir "${params.outDir}/VariantCalling/${sampleNameTumor}_vs_${sampleNameNormal}/ASCAT", mode: params.publishDirMode
 
   input:
-  set sampleIdNormal, sampleNameNormal, sampleNameTumor, file(bafNormal), file(logrNormal), file(bafTumor), file(logrTumor) from convertAlleleCountsOutCh
+  tuple val(sampleIdNormal),
+    val(sampleNameNormal),
+    val(sampleNameTumor),
+    file(bafNormal),
+    file(logrNormal),
+    file(bafTumor),
+    file(logrTumor) from convertAlleleCountsOutCh
   file(acLociGC) from acLociGCCh
 
   output:
-  set val("ASCAT"), sampleIdNormal, sampleNameNormal, sampleNameTumor, file("${sampleNameTumor}.*.{png,txt}") into ascatOutCh
+  tuple val("ASCAT"),
+    val(sampleIdNormal),
+    val(sampleNameNormal),
+    val(sampleNameTumor),
+    file("${sampleNameTumor}.*.{png,txt}") into ascatOutCh
   file("v_ascat.txt") into ascatVersionCh
 
   when: 'ascat' in tools
@@ -2112,9 +2243,10 @@ if (step == 'annotate') {
 
 // STEP SNPEFF
 
-process Snpeff {
-  tag {"${sampleName} - ${variantCaller} - ${vcf}"}
+process snpEff {
   label 'snpeff'
+
+  tag "${sampleName} - ${variantCaller} - ${vcf}"
 
   publishDir params.outDir, mode: params.publishDirMode, saveAs: {
     if (it == "${reducedVCF}_snpEff.ann.vcf") null
@@ -2122,13 +2254,19 @@ process Snpeff {
   }
 
   input:
-  set variantCaller, sampleName, file(vcf) from vcfAnnotationCh
+  tuple val(variantCaller),
+    val(sampleName),
+    file(vcf) from vcfAnnotationCh
   file(dataDir) from snpEffCacheCh
-  val snpeffDb from snpeffDbCh
+  val(snpeffDb) from snpeffDbCh
 
   output:
-  set file("${reducedVCF}_snpEff.txt"), file("${reducedVCF}_snpEff.html"), file("${reducedVCF}_snpEff.csv") into snpeffReportCh
-  set variantCaller, sampleName, file("${reducedVCF}_snpEff.ann.vcf") into snpeffVCFCh
+  tuple file("${reducedVCF}_snpEff.txt"),
+    file("${reducedVCF}_snpEff.html"),
+    file("${reducedVCF}_snpEff.csv") into snpeffReportCh
+  tuple val(variantCaller),
+    val(sampleName),
+    file("${reducedVCF}_snpEff.ann.vcf") into snpeffVCFCh
   file 'v_snpeff.txt' into snpeffVersionCh
 
   when: 'snpeff' in tools
@@ -2157,17 +2295,23 @@ snpeffReportCh = snpeffReportCh.dump(tag:'snpEff report')
 
 // STEP COMPRESS AND INDEX VCF.1 - SNPEFF
 
-process CompressVCFsnpEff {
-  tag {"${sampleName} - ${vcf}"}
+process compressVCFsnpEff {
   label 'tabix'
+
+  tag "${sampleName} - ${vcf}"
 
   publishDir "${params.outDir}/Annotation/${sampleName}/snpEff", mode: params.publishDirMode
 
   input:
-  set variantCaller, sampleName, file(vcf) from snpeffVCFCh
+  tuple val(variantCaller),
+    val(sampleName),
+    file(vcf) from snpeffVCFCh
 
   output:
-  set variantCaller, sampleName, file("*.vcf.gz"), file("*.vcf.gz.tbi") into (compressVCFsnpEffOutCh)
+  tuple val(variantCaller),
+    val(sampleName),
+    file("*.vcf.gz"),
+    file("*.vcf.gz.tbi") into compressVCFsnpEffOutCh
 
   script:
   """
@@ -2227,6 +2371,7 @@ yamlSoftwareVersionCh = yamlSoftwareVersionCh.dump(tag:'SOFTWARE VERSIONS')
 
 process multiQC {
   label 'multiqc'
+
   publishDir "${params.outDir}/Reports/MultiQC", mode: params.publishDirMode
 
   input:
@@ -2273,7 +2418,7 @@ multiQCOutCh.dump(tag:'MultiQC')
 
 workflow.onComplete {
 
-  def reportFields = params + [
+  reportFields = params + [
     workflowName: workflow.manifest.name,
     version : workflow.manifest.version,
     runName: customRunName,
