@@ -1663,6 +1663,8 @@ vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
 
 // STEP GATK MUTECT2.1 - RAW CALLS
 
+ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : ponIndexBuiltCh)
+
 process mutect2 {
   tag "${sampleNameTumor}_vs_${sampleNameNormal}-${intervalBed.baseName}"
   label 'gatk'
