@@ -1205,9 +1205,16 @@ process getWGSmetrics {
 ================================================================================
 */
 
-
 filteredBamCh
-  .filter { it[2] == 'SNV' }
+  .branch { it ->
+    snvCh: it[2] == 'SNV'
+    svCh: it[2] == 'SV'
+    otherCh: true
+  }.set { filteredBamForks }
+// TODO: use filteredSVBamsCh
+(filteredSNVBamsCh, filteredSVBamsCh, filteredOtherBamsCh) = [filteredBamForks.snvCh, filteredBamForks.svCh, filteredBamForks.otherCh]
+
+filteredSNVBamsCh
   .into {bamBaseRecalibratorCh; bamBaseRecalibratorToJoinCh}
 bamBaseRecalibratorCh = bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
 
