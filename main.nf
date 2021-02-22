@@ -129,7 +129,7 @@ summary = [
   'Genome': params.genome,
   'Fasta': params.fasta ?: null,
   'FastaFai': params.fastaFai ?: null,
-  'polyms': params.polyms ?: null,
+  'Polyms': params.polyms ?: null,
   'Dict': params.dict ?: null,
   'BwaIndex': params.bwaIndex ?: null,
   'GermlineResource': params.germlineResource ?: null,
@@ -1200,6 +1200,8 @@ process getPolym {
 
     publishDir "${params.outDir}/Clustering", mode: params.publishDirMode
 
+    when: !(params.skipIdentito)
+
     input:
     file(fasta) from fastaCh
     file(fastaFai) from fastaFaiCh
@@ -1211,7 +1213,6 @@ process getPolym {
 
     script:
     """
-    echo ${fasta} ${fastaFai} ${polyms} ${sampleId}.md.bam ${sampleId}.md.bam.bai
     bcftools mpileup -R ${polyms} -f ${fasta} -x -A -B -q 20 -I -Q 0 -d 1000 --annotate FORMAT/DP,FORMAT/AD         ${sampleId}.md.bam > ${sampleId}_bcftools.vcf
 
     SnpSift extractFields -e "."  -s ";" ${sampleId}_bcftools.vcf CHROM POS REF ALT GEN[*].DP GEN[*].AD > ${sampleId}_bcftools.tsv
@@ -1229,6 +1230,8 @@ process computePolym {
 
     publishDir "${params.outDir}/Clustering", mode: params.publishDirMode
 
+    when: !(params.skipIdentito)
+
     input:
     file(matrix) from clustPolymCh.collect()
 
@@ -1244,7 +1247,7 @@ process computePolym {
     awk 'NR>1{print \$0}' \$in_matrix >> clust_mat.tsv
     done
 
-    compute_clust.R clust_mat.tsv . clustering_plot.png
+    compute_clust.R clust_mat.tsv . clustering_plot
     """
 }
 
@@ -2433,6 +2436,8 @@ process multiQC {
 
   publishDir "${params.outDir}/Reports/MultiQC", mode: params.publishDirMode
 
+  when: !(params.skipMultiqc)
+
   input:
   file splan from Channel.value(file(samplePlanPath))
   file metadata from metadataCh.ifEmpty([])
@@ -2452,6 +2457,7 @@ process multiQC {
   file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
   //file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
   file('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
+  file('Identito/*') from clustPolymResultsCh.collect().ifEmpty([])
 
   output:
   file("*multiqc_report.html") into multiQCOutCh
