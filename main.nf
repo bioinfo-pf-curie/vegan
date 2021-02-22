@@ -1523,7 +1523,11 @@ if (params.design){
   // Manta will be run in Germline mode, or in Tumor mode depending on status
   // HaplotypeCaller will be run for Normal and Tumor samples
 
-  (bamMantaSingleCh, bamAscatCh, bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(4)
+  // SV Bams
+  (filteredSVBamsCh, bamMantaSingleCh) = filteredSVBamsCh.into(2)
+
+  // SNV Bams
+  (bamAscatCh, bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(4)
   bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh)
   //(bamAscatCh, bamRecalAllCh) = bamRecalAllCh.into(2)
 
@@ -1535,21 +1539,32 @@ if (params.design){
     tumorCh: statusMap[it[0]] == 1
   }.set { bamRecalAllForks }
 
+  filteredSVBamsCh.branch{
+    normalCh: statusMap[it[0]] == 0
+    tumorCh: statusMap[it[0]] == 1
+  }.set { filteredSVBamsForks }
+
   (bamRecalNormalCh, bamRecalTumorCh) = [bamRecalAllForks.normalCh, bamRecalAllForks.tumorCh]
+  (bamSVNormalCh, bamSVTumorCh) = [filteredSVBamsForks.normalCh, filteredSVBamsForks.tumorCh]
+
   // Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
   // Remapping channel to remove common key sampleId
 
-  pairBamCh = bamRecalNormalCh.combine(bamRecalTumorCh)
-  pairBamCh = pairBamCh.dump(tag: 'pairBamCh')
+  pairBamsSNVCh = bamRecalNormalCh.combine(bamRecalTumorCh)
+  pairBamsSVCh = bamSVNormalCh.combine(bamSVTumorCh)
+  pairBamsSNVCh = pairBamsSNVCh.dump(tag: 'pairBamsSNVCh')
 
-  pairBamCh = pairBamCh.filter{ pairMap.containsKey([it[0], it[5]]) && it[2] == it[7] }
+  pairBamsSNVCh = pairBamsSNVCh.filter{ pairMap.containsKey([it[0], it[5]]) && it[2] == it[7] }
+  pairBamsSVCh = pairBamsSVCh.filter{ pairMap.containsKey([it[0], it[5]]) && it[2] == it[7] }
 
-  pairBamCh = pairBamCh.dump(tag: 'pairBamFilterCh')
+  pairBamsSNVCh = pairBamsSNVCh.dump(tag: 'pairBamsSNVCh')
+  pairBamsSVCh = pairBamsSVCh.dump(tag: 'pairBamsSVCh')
 
   // Manta,  Mutect2
-  (pairBamMantaCh, pairBamCalculateContaminationCh, pairBamCh) = pairBamCh.into(3)
+  (pairBamCalculateContaminationCh, pairBamsSNVCh) = pairBamsSNVCh.into(3)
+  (pairBamMantaCh, pairBamsSVCh) = pairBamsSVCh.into(3)
 
-  intervalPairBamCh = pairBamCh.combine(bedIntervalsCh)
+  intervalPairBamCh = pairBamsSNVCh.combine(bedIntervalsCh)
 
   // intervals for Mutect2 calls and pileups for Mutect2 filtering
   (pairBamMutect2Ch, pairBamPileupSummariesCh) = intervalPairBamCh.into(2)
