@@ -167,7 +167,17 @@ custom_data:
             scale: 'Set1'
             ylab: 'Cumulative Genes Fraction (%)'
             xlab: 'Mean coverage (X)'
-            xmax: 1000 
+            xmax: 1000
+    identito:
+        file_format: 'csv'
+        section_name: 'Identito Vigilance'
+        description: 'heatmap is create from a defined list of SNPs. Using those SNPs, a matrix of proximity is generated with (1- the Jaccard distance and the Ward linkage function). A heatmap is then created. (vegan - R package).'
+        plot_type: 'heatmap'
+        pconfig:
+            title: 'Identito Vigilance heatmap'
+            namescape: 'identito'
+            id: 'identito'
+
 
 sp:
   my_stats:
@@ -176,6 +186,8 @@ sp:
       fn: '*bwa.mqc'
   genes_cov:
       fn: '*covdensity.mqc'
+  identito:
+      fn: '*_identito.csv'
 
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
@@ -239,7 +251,11 @@ report_section_order:
     order: 800
   picard:
     order: 600
+  mosdepth:
+    order: 500
   genes_cov:
+    order: 200
+  identito:
     order: 100
   software_versions:
     order: -2000
