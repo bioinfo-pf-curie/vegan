@@ -81,6 +81,7 @@ if (params.design){
 params << [
   fasta: params.genome && !('annotate' in step) ? params.genomes[params.genome].fasta ?: null : null,
   gtf: params.genome ? params.genomes[params.genome].gtf ?: null : null,
+  polyms: params.genome && !('annotate' in step) ? params.genomes[params.genome].polyms ?: null : null,
   acLoci: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLoci ?: null : null,
   acLociGC: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLociGC ?: null : null,
   bwaIndex: params.genome && params.genomes[params.genome].fasta && 'mapping' in step ? params.genomes[params.genome].bwaIndex ?: null : null,
@@ -127,6 +128,7 @@ summary = [
   'Genome': params.genome,
   'Fasta': params.fasta ?: null,
   'FastaFai': params.fastaFai ?: null,
+  'Polyms': params.polyms ?: null,
   'Dict': params.dict ?: null,
   'BwaIndex': params.bwaIndex ?: null,
   'GermlineResource': params.germlineResource ?: null,
@@ -164,6 +166,7 @@ dbsnpCh = params.dbsnp && ('mapping' in step || 'haplotypecaller' in tools || 'm
 fastaCh = params.fasta && !('annotate' in step) ? Channel.value(file(params.fasta)) : "null"
 fastaFaiCh = params.fastaFai && !('annotate' in step) ? Channel.value(file(params.fastaFai)) : "null"
 gtfCh = params.gtf ? Channel.value(file(params.gtf)) : "null"
+polymsCh = params.polyms ? Channel.value(file(params.polyms)) : "null"
 germlineResourceCh = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
 intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
 knownIndelsCh = params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
@@ -671,7 +674,7 @@ multipleBamCh = multipleBamCh
 
 /*
  * MERGING BAM FROM MULTIPLE LANES
- */ 
+ */
 
 process mergeBamMapped {
   label 'samtools'
@@ -832,8 +835,8 @@ process markDuplicates {
   tuple val(sampleId),
     val(sampleName),
     file("${sampleId}.md.bam"),
-    file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh
-  file("${sampleId}.md.bam.metrics") into markDuplicatesReportCh
+    file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh,mdBamPolymCh
+  file ("${sampleId}.md.bam.metrics") into markDuplicatesReportCh
 
   script:
   """
@@ -841,7 +844,6 @@ process markDuplicates {
   sambamba flagstat --nthreads ${task.cpus} ${sampleId}.md.bam > ${sampleId}.md.bam.metrics
   """
 }
-
 
 /*
  * BAM on Target
@@ -925,19 +927,19 @@ process bamFiltering {
   script:
 
   dupParams = (vCType == 'SNV' && 'markduplicates' in SNVFilters) | (vCType == 'SV' && 'markduplicates' in SVFilters) ? "-F 0x0400" : ""
-  mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : "" 
+  mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : ""
   // Remove singletons and keep paired reads + Delete secondary and not primary alignment (0x100)
   uniqParams =  (vCType == 'SNV' && 'uniq' in SNVFilters) | (vCType == 'SV' && 'uniq' in SVFilters) ? "-F 0x004 -F 0x0008 -f 0x001 -F 0x100 -F 0x800" :  ""
   uniqFilter = (vCType == 'SNV' && 'uniq' in SNVFilters) | (vCType == 'SV' && 'uniq' in SVFilters) ? "| grep -v -e \\\"XA:Z:\\\" -e \\\"SA:Z:\\\" | samtools view -b -" : "| samtools view -b -"
   """
   samtools view -h -@ ${task.cpus} ${uniqParams} ${dupParams} ${mapqParams} ${bam} ${uniqFilter} > ${sampleId}.filtered.${vCType}.bam
-  ##${uniqFilter} 
+  ##${uniqFilter}
   ##samtools view  -@ ${task.cpus} -b ${dupParams} ${mapqParams} ${bam} > ${sampleId}.filtered.${vCType}.bam
-  samtools index ${sampleId}.filtered.${vCType}.bam 
+  samtools index ${sampleId}.filtered.${vCType}.bam
   samtools flagstat ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.flagstats
   samtools idxstats ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.idxstats
   samtools stats ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.stats
-      
+
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
@@ -1053,7 +1055,7 @@ process getFragmentSize {
   publishDir path: "${params.outDir}/fragSize", mode: "copy"
 
   when:
-  !params.singleEnd 
+  !params.singleEnd
 
   input:
   tuple val(sampleId),
@@ -1088,7 +1090,7 @@ process getSeqDepth {
   tag "${sampleId}"
 
   publishDir path: "${params.outDir}/depth", mode: "copy"
- 
+
   input:
   tuple val(sampleId),
     val(sampleName),
@@ -1168,7 +1170,7 @@ process getWGSmetrics {
   label 'medMem'
 
   publishDir path: "${params.outDir}/WGSmetrics", mode: "copy"
- 
+
   input:
   tuple val(sampleId),
     val(sampleName),
@@ -1196,6 +1198,66 @@ process getWGSmetrics {
        R=${reference} \
        ${bedCmd}
   """
+}
+
+mdBamPolymCh = mdBamPolymCh.dump(tag:'polymCh')
+
+process getPolym {
+    label 'lowCpu'
+    label 'lowMem'
+    label 'polym'
+
+    publishDir "${params.outDir}/Clustering", mode: params.publishDirMode
+
+    when: !(params.skipIdentito)
+
+    input:
+    file(fasta) from fastaCh
+    file(fastaFai) from fastaFaiCh
+    file(polyms) from polymsCh
+    tuple sampleId, sampleName, file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") from mdBamPolymCh
+
+    output:
+    file("${sampleId}_matrix.tsv") into clustPolymCh
+
+    script:
+    """
+    bcftools mpileup -R ${polyms} -f ${fasta} -x -A -B -q 20 -I -Q 0 -d 1000 --annotate FORMAT/DP,FORMAT/AD         ${sampleId}.md.bam > ${sampleId}_bcftools.vcf
+
+    SnpSift extractFields -e "."  -s ";" ${sampleId}_bcftools.vcf CHROM POS REF ALT GEN[*].DP GEN[*].AD > ${sampleId}_bcftools.tsv
+
+    compute_polym.R ${sampleId}_bcftools.tsv ${sampleId}_matrix.tsv ${sampleId} ${polyms}
+    """
+}
+
+clustPolymCh = clustPolymCh.dump(tag:'clustPolymCh')
+
+process computePolym {
+    label 'lowCpu'
+    label 'lowMem'
+    label 'polym'
+
+    publishDir "${params.outDir}/Clustering", mode: params.publishDirMode
+
+    when: !(params.skipIdentito)
+
+    input:
+    file(matrix) from clustPolymCh.collect()
+
+    output:
+    file("*") into clustPolymResultsCh
+
+    script:
+    """
+    cat *matrix.tsv |awk 'NR==1{print \$0}' > clust_mat.tsv
+
+    for in_matrix in ${matrix}
+    do
+    awk 'NR>1{print \$0}' \$in_matrix >> clust_mat.tsv
+    done
+
+    compute_clust.R clust_mat.tsv . clustering_plot
+    """
 }
 
 
@@ -1322,7 +1384,7 @@ process gatherBQSRReports {
   """
 }
 
-// Create TSV files to restart from this step 
+// Create TSV files to restart from this step
 recalTableTSVCh = recalTableTSVCh.mix(recalTableTSVnoIntCh)
 recalTableTSVCh.map { sampleId, sampleName, vCType ->
   bam = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
@@ -1440,7 +1502,7 @@ process mergeAndIndexBamRecal {
 
 /*
  * INDEXING THE MERGED RECALIBRATED BAM FILES
- */ 
+ */
 
 process indexBamRecal {
   label 'samtools'
@@ -2515,6 +2577,8 @@ process multiQC {
 
   publishDir "${params.outDir}/Reports/MultiQC", mode: params.publishDirMode
 
+  when: !(params.skipMultiqc)
+
   input:
   file splan from Channel.value(file(samplePlanPath))
   file metadata from metadataCh.ifEmpty([])
@@ -2534,6 +2598,7 @@ process multiQC {
   file ('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
   //file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
   file('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
+  file('Identito/*') from clustPolymResultsCh.collect().ifEmpty([])
 
   output:
   file("*multiqc_report.html") into multiQCOutCh
