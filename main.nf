@@ -1330,7 +1330,7 @@ recalTableTSVCh.map { sampleId, sampleName, vCType ->
   recalTable = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
   "${sampleId}\t${sampleName}\t${vCType}\t${bam}\t${bai}\t${recalTable}\n"
 }.collectFile(
-  name: 'markdup.samplePlan.tsv', sort: true, storeDir: "${params.outDir}/Preprocessing/TSV"
+  name: 'recal.samplePlan.tsv', sort: true, storeDir: "${params.outDir}/Preprocessing/TSV"
 )
 
 // TODO: find if generated files below are useful or not
