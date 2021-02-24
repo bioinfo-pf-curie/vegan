@@ -508,8 +508,8 @@ if (params.splitFastq){
        splitIndex = reads[0].fileName.toString().minus("split_3.").minus(".gz")
        newIdRun = runId + "_" + splitIndex
        // Giving the files a new nice name
-       newReads1 = file("${sampleName}_${newIdRun}_R1.fastq.gz")
-       newReads2 = file("${sampleName}_${newIdRun}_R2.fastq.gz")
+       newReads1 = file("${sampleId}_${newIdRun}_R1.fastq.gz")
+       newReads2 = file("${sampleId}_${newIdRun}_R2.fastq.gz")
        [sampleId, sampleName, newIdRun, [newReads1, newReads2]]}
 }
 
@@ -1374,7 +1374,7 @@ process gatherBQSRReports {
     file("${prefix}${sampleId}.recal.table") into recalTableCh
   tuple val(sampleId),
     val(sampleName),
-    val(vCType) into recalTableTSVCh
+    val(vCType) into recalTableCSVCh
 
   when: !(params.noIntervals)
 
@@ -1390,14 +1390,15 @@ process gatherBQSRReports {
 }
 
 // Create TSV files to restart from this step
-recalTableTSVCh = recalTableTSVCh.mix(recalTableTSVnoIntCh)
-recalTableTSVCh.map { sampleId, sampleName, vCType ->
-  bam = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
-  bai = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
-  recalTable = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
-  "${sampleId}\t${sampleName}\t${vCType}\t${bam}\t${bai}\t${recalTable}\n"
+recalTableCSVCh = recalTableCSVCh.mix(recalTableTSVnoIntCh)
+recalTableCSVCh = recalTableCSVCh.dump(tag: 'recalTableCSVCh')
+recalTableCSVCh.map { sampleId, sampleName, vCType ->
+  bam = "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked/${sampleId}.md.bam"
+  bai = "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked/${sampleId}.md.bai"
+  recalTable = "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked/${vCType}_${sampleId}.recal.table"
+  "${sampleId},${sampleName},${vCType},${bam},${bai},${recalTable}\n"
 }.collectFile(
-  name: 'recal.samplePlan.tsv', sort: true, storeDir: "${params.outDir}/Preprocessing/TSV"
+  name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/Preprocessing/CSV"
 )
 
 // TODO: find if generated files below are useful or not
