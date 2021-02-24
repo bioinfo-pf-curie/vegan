@@ -174,7 +174,7 @@ abstract class VeganTools extends NFTools {
         Channel.of(inputFile)
                 .splitCsv(sep: sep)
                 .map { row ->
-                    checkNumberOfItem(row, 5)
+                    checkNumberOfItem(row, 6)
                     def sampleID = row[0]
                     def sampleName   = row[1]
                     def vCType = row[2]
