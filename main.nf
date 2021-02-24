@@ -58,9 +58,11 @@ customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
 samplePlanPath = getPath(step, params.samplePlan, params.outDir)
 samplePlanCh = getSamplePlan(samplePlanPath)
+samplePlanCheckCh = Channel.fromPath(samplePlanPath)
+(designCh, designCheckCh) = params.design ? [getDesign(params.design), Channel.fromPath(params.design)] : [Channel.empty(), Channel.empty()]
 
 if (params.design){
-  (genderMap, statusMap, pairMap) = extractInfos(getDesign(params.design))
+  (genderMap, statusMap, pairMap) = extractInfos(designCh)
 } else {
   log.info "=================================================================\n" +
             "  INFO: No design file detected.\n" +
@@ -178,6 +180,8 @@ targetBedCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 // Print summary and genareta summary channel
 workflowSummaryCh = summarize(params, summary, workflow)
 metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
+outputDocsCh = file("$projectDir/docs/output.md", checkIfExists: true)
+outputDocsImagesCh = file("$projectDir/docs/images/", checkIfExists: true)
 
 /*
 ================================================================================
@@ -2615,6 +2619,50 @@ process multiQC {
 }
 
 multiQCOutCh.dump(tag:'MultiQC')
+
+/****************
+ * Sub-routines *
+ ****************/
+
+process checkDesign{
+  label 'python'
+  label 'minCpu'
+  label 'minMem'
+  publishDir "${params.summaryDir}/", mode: 'copy'
+
+  when:
+  params.design
+
+  input:
+  file(design) from designCheckCh
+  file(samplePlan) from samplePlanCheckCh
+
+  script:
+  optSE = params.singleEnd ? "--singleEnd" : ""
+  """
+  apCheckDesign.py -d $design -s $samplePlan ${optSE}
+  """
+}
+
+process outputDocumentation {
+  label 'python'
+  label 'minCpu'
+  label 'minMem'
+
+  publishDir "${params.summaryDir}/", mode: 'copy'
+
+  input:
+  file(outputDocs) from outputDocsCh
+  file(images) from outputDocsImagesCh
+
+  output:
+  file "resultsDescription.html"
+
+  script:
+  """
+  markdownToHtml.py $outputDocs -o resultsDescription.html
+  """
+}
 
 workflow.onComplete {
 
