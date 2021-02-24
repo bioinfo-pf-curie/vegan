@@ -45,7 +45,6 @@ welcome()
 */
 
 // Use lintedParams as default params object
-// params = lintedParams
 paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
 def params = lint(params, paramsWithUsage)
 

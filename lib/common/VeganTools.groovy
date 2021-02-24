@@ -212,7 +212,7 @@ abstract class VeganTools extends NFTools {
      *
      * @return inputSample
      */
-    def getSamplePlan(Object inputPath) {
+    def getSamplePlan(String inputPath) {
         inputSample = Channel.empty()
         def input = inputPath ? Nextflow.file(inputPath) : null
         if (inputPath) {

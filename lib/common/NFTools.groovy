@@ -128,7 +128,7 @@ abstract class NFTools extends BaseScript {
      * @return Boolean
      */
     static boolean checkNumberOfItem(row, number) {
-        if (row.size() != number) Nextflow.exit 1, "Malformed row in input file: ${row}, see --help for more information"
+        if (row.size() != number) Nextflow.exit 1, "Malformed row in input file: ${row}\nShould have ${number} but have ${row.size()} items. see --help for more information"
         return true
     }
 
