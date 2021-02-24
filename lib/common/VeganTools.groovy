@@ -38,7 +38,7 @@ abstract class VeganTools extends NFTools {
         def inputPath = inputParam && ["tsv", "csv", "vcf", "vcf.gz"].collect { hasExtension(inputParam, it) }.any() ?
                 inputParam : null
         if (!inputParam && !['mapping', 'annotate'].contains(step)) {
-            inputPath = step == 'recalibrate' ? "$outDir/Preprocessing/TSV/duplicateMarked.tsv" : "$outDir/Preprocessing/TSV/recalibrated.tsv"
+            inputPath = step == 'recalibrate' ? "$outDir/Preprocessing/CSV/samplePlan.recal.csv" : "$outDir/Preprocessing/TSV/recalibrated.tsv"
         }
         return inputPath
     }
