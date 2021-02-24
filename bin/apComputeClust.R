@@ -2,7 +2,7 @@
 
 args<-commandArgs(trailingOnly = TRUE)
 if (length(args) < 3) {
-    stop("Usage: compute_clust.r <inputTable> <outputDir> <figureName>", call.=FALSE)
+    stop("Usage: apComputeClust.r <inputTable> <outputDir> <figureName>", call.=FALSE)
 }
 
 # Load arguments
