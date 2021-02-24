@@ -1262,7 +1262,7 @@ process computePolym {
     awk 'NR>1{print \$0}' \$in_matrix >> clust_mat.tsv
     done
 
-    compute_clust.R clust_mat.tsv . clustering_plot
+    apComputeClust.R clust_mat.tsv . clustering_plot
     """
 }
 
@@ -2613,7 +2613,7 @@ process multiQC {
   modules_list = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m qualimap -m picard -m mosdepth"
   """
   apStats2MultiQC.sh -s ${splan} ${designOpts} ${isPE}
-  apMqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
+  mqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
   multiqc . -f ${rtitle} ${rfilename} -c multiqc-config-header.yaml -c $multiqcConfig $modules_list
   """
 }

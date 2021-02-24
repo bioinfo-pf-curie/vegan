@@ -2,7 +2,7 @@
 
 args<-commandArgs(trailingOnly = TRUE)
 if (length(args) < 3) {
-    stop("Usage: compute_polym.r <inputList> <output> <sample name><bed polym> <minDP (optional, default=10)>", call.=FALSE)
+    stop("Usage: apComputePolym.r <inputList> <output> <sample name><bed polym> <minDP (optional, default=10)>", call.=FALSE)
 }
 
 inputFiles <- args[1]
