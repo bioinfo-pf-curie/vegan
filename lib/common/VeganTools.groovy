@@ -196,13 +196,9 @@ abstract class VeganTools extends NFTools {
         def separator = (designExt == 'tsv') ? '\t' : (designExt == 'csv') ? ',' : ''
         if (designExt) {
             return Channel.of(designFile)
-                .splitCsv(sep: separator).map{row ->
+                .splitCsv(sep: separator, header: ['germlineId','tumorId','pairId','sex']).map{row ->
                     checkNumberOfItem(row, 4)
-                    def normalSampleID = row[0]
-                    def tumorSampleID  = row[1]
-                    def pairName       = row[2]
-                    def sex            = row[3]
-                    [normalSampleID, tumorSampleID, pairName, sex]
+                    [row.germlineId, row.tumorId, row.pairId, row.sex]
             }
         }
     }
