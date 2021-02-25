@@ -45,6 +45,7 @@ welcome()
 */
 
 // Use lintedParams as default params object
+colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
 paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
 def params = lint(params, paramsWithUsage)
 
@@ -64,11 +65,13 @@ samplePlanCheckCh = Channel.fromPath(samplePlanPath)
 if (params.design){
   (genderMap, statusMap, pairMap) = extractInfos(designCh)
 } else {
-  log.info "=================================================================\n" +
-            "  INFO: No design file detected.\n" +
-            "  Variant detection (SV/SNV) will be skipped.\n" +
-            "  Please set up a design file '--design' to run these steps.\n" +
-            "================================================================"
+  log.info """\
+========================================================================
+  ${colors.greenBold}INFO${colors.reset}: No design file detected
+${tools && (('manta' in tools) || ('haplotypecaller' in tools) || ('mutect2' in tools))? "  ${colors.redBold}WARNING${colors.reset}: You need a design file in order to use VC tools\n" : ''}\
+  ${colors.yellowBold}Variant detection (SV/SNV) will be skipped
+  Please set up a design file '--design' to run these steps${colors.reset}
+========================================================================"""
   tools = []
 }
 /*
