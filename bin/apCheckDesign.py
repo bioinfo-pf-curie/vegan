@@ -146,17 +146,17 @@ if __name__ == '__main__':
     print("ok")
 
     # Checks for design file
-    # print("[DESIGN] Check peak type content ", end='...')
-    # checkColumnContent(dictDesign['PEAKTYPE'], ['sharp', 'broad', 'very-broad'])
-    # print("ok")
+    print("[DESIGN] Check sex type content ", end='...')
+    check_column_content(design['SEX'], ['XX', 'XY'])
+    print("ok")
 
-    # Check that a sample is not a control
-    # print("[DESIGN] Check samples/controls IDs ", end='...')
-    # checkColumnsMatch(dictDesign['SAMPLEID'], dictDesign['CONTROLID'], exclusive=True)
-    # print("ok")
+    # Check that a germline is not a tumor
+    print("[DESIGN] Check germline/tumor IDs ", end='...')
+    check_columns_match(design['GERMLINE_ID'], design['TUMOR_ID'], exclusive=True)
+    print("ok")
 
     # Check that all samples from samplePlan are also in the design file (and the reverse)
-    # print("[DESIGN] Check samples matches between samplePlan and design ", end='...')
-    # checkColumnsMatch(dictSamplePlan['SAMPLEID'], dictDesign['SAMPLEID'] + dictDesign['CONTROLID'])
-    # checkColumnsMatch(dictDesign['SAMPLEID'] + dictDesign['CONTROLID'], dictSamplePlan['SAMPLEID'])
-    # print("ok")
+    print("[DESIGN] Check samples matches between samplePlan and design ", end='...')
+    check_columns_match(sample_plan['SAMPLEID'], design['GERMLINE_ID'] + design['TUMOR_ID'])
+    check_columns_match(design['GERMLINE_ID'] + design['TUMOR_ID'], sample_plan['SAMPLEID'])
+    print("ok")
