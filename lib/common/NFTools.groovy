@@ -20,7 +20,7 @@ import nextflow.Channel
 // CF https://github.com/nf-core/tools/blob/dev/nf_core/pipeline-template/%7B%7Bcookiecutter.name_noslash%7D%7D/nextflow_schema.json
 abstract class NFTools extends BaseScript {
 
-    private static LinkedHashMap generateLogColors(Boolean monochromeLogs) {
+    static LinkedHashMap generateLogColors(Boolean monochromeLogs) {
         Map colors = monochromeLogs ? new MonoChrome().palette() : new PolyChrome().palette()
         return colors as LinkedHashMap
     }
@@ -164,7 +164,7 @@ abstract class NFTools extends BaseScript {
     }
 
     static void checkHostname(params, WorkflowMetadata workflow) {
-        LinkedHashMap colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
+        def colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
         if (params.hostnames) {
             def hostname = "hostname".execute().text.trim()
             params.hostnames.each { prof, hosts ->
@@ -183,7 +183,7 @@ abstract class NFTools extends BaseScript {
 
     static void makeReports(workflow, params, reportFields, multiQCOutCh) {
 
-        LinkedHashMap colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
+        def colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
 
         def engine = new groovy.text.GStringTemplateEngine()
 
@@ -254,7 +254,7 @@ abstract class NFTools extends BaseScript {
 
         nfHeader(sessionParams, sessionWorkflow as WorkflowMetadata)
         if ("${sessionWorkflow.manifest.version}" =~ /dev/ ){
-            File devMessageFile = new File("${workflow.projectDir}/assets/devMessage.txt")
+            def devMessageFile = new File("${workflow.projectDir}/assets/devMessage.txt")
             log.info devMessageFile.text
         }
         if (sessionParams.help) {
