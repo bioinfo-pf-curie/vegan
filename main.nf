@@ -58,7 +58,7 @@ annotateTools = params.annotateTools
 customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
 samplePlanPath = getPath(step, params.samplePlan, params.outDir)
-samplePlanCh = getSamplePlan(samplePlanPath)
+samplePlanCh = getSamplePlan(samplePlanPath, params.singleEnd)
 samplePlanCheckCh = Channel.fromPath(samplePlanPath)
 (designCh, designCheckCh) = params.design ? [getDesign(params.design), Channel.fromPath(params.design)] : [Channel.empty(), Channel.empty()]
 

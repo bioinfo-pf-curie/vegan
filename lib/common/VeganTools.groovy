@@ -141,15 +141,15 @@ abstract class VeganTools extends NFTools {
      * @param inputFile
      * @return
      */
-    static def extractFastqOrBam(inputFile, sep) {
+    static def extractFastqOrBam(inputFile, sep, singleEnd) {
         return Channel.of(inputFile)
-                .splitCsv(sep: sep)
+                .splitCsv(sep: sep, header: false)
                 .map { row ->
                     def sampleID = row[0]
                     def sampleName  = row[1]
                     def inputFile1  = returnFile(row[2])
                     def inputFile2  = "null"
-                    if (hasExtension(inputFile1, "fastq.gz") || hasExtension(inputFile1, "fq.gz")) {
+                    if ((!singleEnd) && (hasExtension(inputFile1, "fastq.gz") || hasExtension(inputFile1, "fq.gz"))) {
                         checkNumberOfItem(row, 4)
                         inputFile2 = returnFile(row[3])
                         if (!hasExtension(inputFile2, "fastq.gz") && !hasExtension(inputFile2, "fq.gz")) {
@@ -208,7 +208,7 @@ abstract class VeganTools extends NFTools {
      *
      * @return inputSample
      */
-    def getSamplePlan(String inputPath) {
+    def getSamplePlan(String inputPath, Boolean singleEnd) {
         inputSample = Channel.empty()
         def input = inputPath ? Nextflow.file(inputPath) : null
         if (inputPath) {
@@ -217,7 +217,7 @@ abstract class VeganTools extends NFTools {
             switch (step) {
                 // idSample,sampleName,pathToFastq1,[pathToFastq2]
                 // idSample,sampleName,pathToBam
-                case 'mapping': return extractFastqOrBam(input, sep); break
+                case 'mapping': return extractFastqOrBam(input, sep, singleEnd); break
                 // idSample,sampleName,pathToBam,pathToBai,pathToRecalTable
                 // [sampleID, sampleName, bamFile, baiFile, recalTable]
                 case 'recalibrate': return extractRecal(input, sep); break
