@@ -70,9 +70,9 @@ def load_design(input_file, headers):
     return dict_design
 
 
-def check_headers(input_design, header_dict):
+def check_headers(input_design, header_ref):
     """
-    Check headers on the design file
+    Check if headers on the design file corresponds to reference
     """
     # Checks for design file
     with open(input_design, 'r') as design_file:
@@ -80,11 +80,10 @@ def check_headers(input_design, header_dict):
         header = next(lines)
         for i in range(0, len(header)):
             try:
-                if not header[i] == [*header_dict][i]:
+                if not header[i] == header_ref[i]:
                     raise ()
-            except:
-                print('\nError: Headers are not valid, should be : {}'
-                      .format([*header_dict]))
+            except Exception:
+                print(f"\nError: Headers are not valid, should be : {[*header_ref]}")
                 sys.exit(1)
 
 
@@ -94,8 +93,7 @@ def check_column_content(column, values):
     """
     for val in column:
         if not val in values:
-            print('\nError: The value \'{}\' is invalid, should be : {}'
-                  .format(val, [*values]))
+            print(f"\nError: The value \'{val}\' is invalid, should be : {[*values]}")
             sys.exit(1)
 
 
