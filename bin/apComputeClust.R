@@ -2,7 +2,7 @@
 
 args<-commandArgs(trailingOnly = TRUE)
 if (length(args) < 3) {
-    stop("Usage: apComputeClust.r <inputTable> <outputDir> <figureName>", call.=FALSE)
+    stop("Usage: compute_clust.r <inputTable> <outputDir> <figureName>", call.=FALSE)
 }
 
 # Load arguments
@@ -14,6 +14,7 @@ figureName<-args[3]
 #outputDir<-"/data/users/tgutman/Documents/Tom/SeqOIA/SeqOIA_KDI/analysis/test_clustering/bam"
 #figureName<-"test_clust"
 
+#inputTable <- "/data/tmp/tgutman/clust_mat.tsv"
 # Handle path & Output Names
 outputFile=paste(outputDir,"/",figureName,sep = "")
 outputPlot=paste(outputDir,"/",figureName,".png",sep = "")
@@ -55,11 +56,17 @@ colnames(clust_mat)=temp_colnames
 rownames(clust_mat)=temp_rownames
 
 # Handle sample full of NA
-for (i in 1:nrow(clust_mat)){
-    if (sum(is.na(clust_mat[i,])) == ncol(clust_mat)){
-        warning('One sample contains only NAs, this sample will be removed')
-        clust_mat=clust_mat[-i,]
-        print(clust_mat)
+for (i in 1:nrow(as.matrix(clust_mat))){
+    if (!is.null(dim(clust_mat))){
+        if (sum(is.na(clust_mat[i,])) == ncol(clust_mat)){
+            warning('One or more samples contain only NAs, those samples will be removed')
+            print(dim(clust_mat))
+            clust_mat=clust_mat[-i,]
+        }
+    }
+    else{
+        print("this matrix has only one sample")
+        quit(save="no", status = 0)
     }
 }
 
@@ -76,21 +83,21 @@ corr_mat= 1-jacdist_mat
 
 # Create heatmap
 clust=pheatmap(corr_mat,
-         method = "Ward.D",
-         show_rownames = TRUE,
-         show_colnames = TRUE,
-         clustering_distance_cols = "correlation",
-         clustering_distance_rows = "correlation",
-         display_numbers = TRUE,
-         legend = TRUE ,
-         fontsize = 20,
-         silent = TRUE)
+               method = "Ward.D",
+               show_rownames = TRUE,
+               show_colnames = TRUE,
+               clustering_distance_cols = "correlation",
+               clustering_distance_rows = "correlation",
+               display_numbers = TRUE,
+               legend = TRUE ,
+               fontsize = 20,
+               silent = TRUE)
 
- clust_order=clust$tree_col$order
+clust_order=clust$tree_col$order
 
- # Save figure:
- save_pheatmap_png(clust, outputPlot)
- write.csv(corr_mat[clust_order,clust_order], outputMatrix, quote=TRUE, row.names=TRUE)
+# Save figure:
+save_pheatmap_png(clust, outputPlot)
+write.csv(corr_mat[clust_order,clust_order], outputMatrix, quote=TRUE, row.names=TRUE)
 
 # End message + Path:
 print("script ended successfully")
