@@ -9,7 +9,6 @@ import utils.ParamsLinter
 import utils.ParamsReader
 import org.slf4j.LoggerFactory
 import org.slf4j.Logger
-import groovy.util.logging.Slf4j
 import nextflow.Nextflow
 import nextflow.Channel
 
@@ -128,7 +127,11 @@ abstract class NFTools extends BaseScript {
      * @return Boolean
      */
     static boolean checkNumberOfItem(row, number) {
-        if (row.size() != number) Nextflow.exit 1, "Malformed row in input file: ${row}\nShould have ${number} but have ${row.size()} items. see --help for more information"
+        if (row.size() != number) {
+            Nextflow.exit(1,
+              "Malformed row in input file: ${row}\nShould have ${number} but have ${row.size()} items. " +
+              "see --help for more information")
+        }
         return true
     }
 
@@ -138,9 +141,13 @@ abstract class NFTools extends BaseScript {
      * @return Nextflow.file Object
      */
     static returnFile(it) {
-        if (it =~ /(http|ftp)/) {return Nextflow.file(it)}
-        else if (!Nextflow.file(it).exists()) Nextflow.exit(1, "Missing file in input file: ${it}, see --help for more information")
-        else return Nextflow.file(it)
+        if (it =~ /(http|ftp)/) {
+            return Nextflow.file(it)
+        } else if (!Nextflow.file(it).exists()) {
+            Nextflow.exit("Missing file in input file: ${it}, see --help for more information");
+        } else {
+            return Nextflow.file(it)
+        }
     }
 
     static summarize(params, summary, workflow) {
@@ -170,11 +177,12 @@ abstract class NFTools extends BaseScript {
             params.hostnames.each { prof, hosts ->
                 hosts.each { host ->
                     if (hostname.contains(host) && !workflow.profile.contains(prof)) {
-                        log.error "====================================================\n" +
-                                "  ${colors.red}WARNING!${colors.reset} You are running with `-profile $workflow.profile`\n" +
-                                "  but your machine hostname is ${colors.white}'$hostname'${colors.reset}\n" +
-                                "  ${colors.yellowBold}It's highly recommended that you use `-profile $prof${colors.reset}`\n" +
-                                "============================================================"
+                        Nextflow.exit(1, """\
+============================================================
+  ${colors.red}WARNING!${colors.reset} You are running with `-profile $workflow.profile`
+  but your machine hostname is ${colors.white}'$hostname'${colors.reset}
+  ${colors.yellowBold}It's highly recommended that you use `-profile $prof${colors.reset}
+============================================================""")
                     }
                 }
             }
@@ -253,11 +261,10 @@ abstract class NFTools extends BaseScript {
         def sessionWorkflow = binding.getVariable('workflow')
 
         nfHeader(sessionParams, sessionWorkflow as WorkflowMetadata)
-        if ("${sessionWorkflow.manifest.version}" =~ /dev/ ){
+        if ("${sessionWorkflow.manifest.version}" =~ /dev/ ) {
             def devMessageFile = new File("${workflow.projectDir}/assets/devMessage.txt")
             log.info devMessageFile.text
-        }
-        if (sessionParams.help) {
+        } else if (sessionParams.help) {
             def paramsWithUsage = readParamsFromJsonSettings("${sessionWorkflow.projectDir}/parameters.settings.json")
             helpMessage(paramsWithUsage, sessionWorkflow)
             Nextflow.exit(1)
