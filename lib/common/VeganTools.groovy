@@ -153,7 +153,7 @@ abstract class VeganTools extends NFTools {
                         checkNumberOfItem(row, 4)
                         inputFile2 = returnFile(row[3])
                         if (!hasExtension(inputFile2, "fastq.gz") && !hasExtension(inputFile2, "fq.gz")) {
-                            Nextflow.exit 1, "File: ${inputFile2} has the wrong extension. See --help for more information"
+                            Nextflow.exit(1, "File: ${inputFile2} has the wrong extension. See --help for more information")
                         }
                     }
                     else if (hasExtension(inputFile1, "bam")) checkNumberOfItem(row, 3)
@@ -225,15 +225,20 @@ abstract class VeganTools extends NFTools {
                 // [sampleID, sampleName, bamFile, baiFile]
                 case 'variantcalling': return extractBam(input, sep); break
                 case 'annotate': break
-                default: Nextflow.exit 1, "Unknown step ${step}"
+                default:
+                    Nextflow.exit(1, "Unknown step ${step}");
             }
         } else if (inputPath && input.isDirectory()) {
-            if (step != 'mapping') Nextflow.exit 1, 'No other step than "mapping" support a dir as an input'
+            if (step != 'mapping') {
+                Nextflow.exit(1, 'No other step than "mapping" support a dir as an input')
+            }
             log.info "Reading $inputPath directory"
             inputSample = extractFastqFromDir(inputPath)
             (inputSample, fastqTMP) = inputSample.into(2)
             fastqTMP.toList().subscribe onNext: {
-                if (it.size() == 0) Nextflow.exit 1, "No FASTQ files found in --input directory '${params.input}'"
+                if (it.size() == 0) {
+                    Nextflow.exit(1, "No FASTQ files found in --input directory '${params.input}'")
+                }
             }
         } else if (inputPath && step == 'annotate') {
             log.info "Annotating ${inputPath}"
@@ -241,7 +246,7 @@ abstract class VeganTools extends NFTools {
         else if (step == 'annotate') {
             log.info "Trying automatic annotation on file in the VariantCalling directory"
         } else {
-            Nextflow.exit 1, 'No sample were defined, see --help'
+            Nextflow.exit(1, 'No sample were defined, see --help');
         }
         return inputSample
     }
