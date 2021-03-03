@@ -208,7 +208,7 @@ abstract class VeganTools extends NFTools {
      *
      * @return inputSample
      */
-    def getSamplePlan(String inputPath, Boolean singleEnd) {
+    def getSamplePlan(String inputPath, Boolean singleEnd, String reads) {
         inputSample = Channel.empty()
         def input = inputPath ? Nextflow.file(inputPath) : null
         if (inputPath) {
@@ -245,6 +245,16 @@ abstract class VeganTools extends NFTools {
         }
         else if (step == 'annotate') {
             log.info "Trying automatic annotation on file in the VariantCalling directory"
+        } else if (reads) {
+            return Channel
+              .fromFilePairs(reads, size: singleEnd ? 1 : 2 )
+              .ifEmpty {
+                  Nextflow.exit(1, """\
+Cannot find any reads matching: ${reads}
+NB: Path needs to be enclosed in quotes!
+NB: Path requires at least one * wildcard!
+If this is single-end data, please specify --singleEnd on the command line.""");
+              }.map { row -> [row[0], row[0], row[1][0], singleEnd ? "null" : row[1][1]].flatten()  }
         } else {
             Nextflow.exit(1, 'No sample were defined, see --help');
         }
