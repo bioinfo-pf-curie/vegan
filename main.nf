@@ -545,7 +545,7 @@ process fastQC {
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/Reports/${sampleId}/FastQC/${runId}", mode: params.publishDirMode, overwrite: true
+  publishDir "${params.outDir}/fastqc", mode: params.publishDirMode, overwrite: true
 
   input:
   tuple val(sampleId),
@@ -565,35 +565,6 @@ process fastQC {
   fastqc --version > v_fastqc.txt
   """
 }
-
-// TODO: remove FastQCBAM ?
-//process FastQCBAM {
-//  label 'fastqc'
-//  label 'cpus2'
-//
-//  tag {sampleId + "-" + runId}
-//
-//  publishDir "${params.outDir}/Reports/${sampleName}/FastQC/${sampleName}_${runId}", mode: params.publishDirMode
-//
-//  input:
-//  set sampleId, sampleName, runId, file("${sampleName}_${runId}.bam") from inputBamFastQCCh
-//
-//  output:
-//  file("*.{html,zip}") into fastQCBAMReportCh
-//  file("v_fastqc.txt") into fastqcBamVersionCh
-//
-//  when: !('fastqc' in skipQC)
-//
-//  script:
-//  """
-//  fastqc -t 2 -q ${sampleName}_${runId}.bam
-//  fastqc --version > v_fastqc.txt
-//  """
-//}
-//
-//fastQCReportCh = fastQCFQReportCh.mix(fastQCBAMReportCh)
-//fastQCReportCh = fastQCReportCh.dump(tag:'FastQC')
-
 
 /*
 ================================================================================
@@ -615,6 +586,9 @@ process mapReads {
   label 'extraMem'
 
   tag "${sampleId}"
+
+  publishDir "${params.outDir}/mapping", mode: params.publishDirMode,
+               saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
 
   input:
   tuple val(sampleId),
@@ -689,6 +663,9 @@ process mergeBamMapped {
 
   tag "${sampleId}"
 
+  publishDir "${params.outDir}/mapping", mode: params.publishDirMode,
+               saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
+
   input:
   tuple val(sampleId),
     val(sampleName),
@@ -721,6 +698,9 @@ process indexBamFile {
 
   tag "${sampleId}"
 
+  publishDir "${params.outDir}/mapping", mode: params.publishDirMode,
+               saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
+
   input:
   tuple val(sampleId),
     val(sampleName),
@@ -751,7 +731,7 @@ process bamStats {
 
   tag {sampleId}
 
-  publishDir "${params.outDir}/Reports/${sampleId}/Mapping", mode: params.publishDirMode
+  publishDir "${params.outDir}/mapping/logs", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -782,11 +762,13 @@ process bamStats {
  */
 
 process preseq {
-  tag "${sampleID}"
   label 'preseq'
   label 'lowCpu'
   label 'medMem'
-  publishDir "${params.outDir}/preseq", mode: 'copy'
+
+  tag "${sampleID}"
+
+  publishDir "${params.outDir}/preseq", mode: params.publishDirMode
 
   when:
   !params.skipPreseq
@@ -827,11 +809,8 @@ process markDuplicates {
 
   tag "${sampleId}"
 
-  publishDir params.outDir, mode: params.publishDirMode,
-    saveAs: {
-      if (it == "${sampleId}.md.bam.metrics") "Reports/${sampleId}/MarkDuplicates/${it}"
-      else "Preprocessing/${sampleId}/DuplicateMarked/${it}"
-    }
+  publishDir "${params.outDir}/markDuplicates", mode: params.publishDirMode,
+              saveAs: {saveAs: {filename -> if (params.saveAlignedIntermediates) filename}
 
   input:
   tuple val(sampleId),
@@ -865,6 +844,9 @@ process bamOnTarget {
 
   tag {sampleId}
 
+  publishDir "${params.outDir}/onTarget", mode: params.publishDirMode
+               saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
+
   when:
   params.targetBED
 
@@ -896,7 +878,6 @@ procBamsCh = params.targetBED ? onTargetBamsCh : duplicateMarkedBamsCh
  * FILTER ALIGNED BAM FILE FOR SNV/SV
  */
 
-// TODO: use SVFilters & SNFFilters or remove them ?
 if (('manta' in tools) && ('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
   // Duplicates the channel for SV and SNV filtering
   procBamsCh = procBamsCh.flatMap { it -> [it + 'SV', it + 'SNV']}
@@ -914,7 +895,7 @@ process bamFiltering {
   label 'medCpu'
   tag "${sampleId}-${vCType}"
 
-  publishDir "${params.outDir}/Reports/${sampleId}/Filtering", mode: params.publishDirMode
+  publishDir "${params.outDir}/bamFiltering", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -933,7 +914,6 @@ process bamFiltering {
   file('v_samtools.txt') into samtoolsBamFilterVersionCh
 
   script:
-
   dupParams = (vCType == 'SNV' && 'markduplicates' in SNVFilters) | (vCType == 'SV' && 'markduplicates' in SVFilters) ? "-F 0x0400" : ""
   mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : ""
   // Remove singletons and keep paired reads + Delete secondary and not primary alignment (0x100)
@@ -941,8 +921,6 @@ process bamFiltering {
   uniqFilter = (vCType == 'SNV' && 'uniq' in SNVFilters) | (vCType == 'SV' && 'uniq' in SVFilters) ? "| grep -v -e \\\"XA:Z:\\\" -e \\\"SA:Z:\\\" | samtools view -b -" : "| samtools view -b -"
   """
   samtools view -h -@ ${task.cpus} ${uniqParams} ${dupParams} ${mapqParams} ${bam} ${uniqFilter} > ${sampleId}.filtered.${vCType}.bam
-  ##${uniqFilter}
-  ##samtools view  -@ ${task.cpus} -b ${dupParams} ${mapqParams} ${bam} > ${sampleId}.filtered.${vCType}.bam
   samtools index ${sampleId}.filtered.${vCType}.bam
   samtools flagstat ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.flagstats
   samtools idxstats ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.idxstats
@@ -973,82 +951,6 @@ if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || '
     .into {bamQualimapCh; bamInsertSizeCh; bamMosdepthCh; bamGeneCovCh; bamWGSmetricsCh }
 }
 
-//(bamMDCh, bamMDToJoinCh, bamSamtoolsStatsCh, bamQualimapCh, bamInsertSizeCh, bamMosdepthCh) = filteredBamCh.into(6) // duplicateMarked + Filtered
-//bamMDCh = bamMDCh.dump(tag:'fbams')
-//
-// TODO: remove samtoolsstats ?
-//process SamtoolsStats {
-//  label 'samtools'
-//  label 'cpus2'
-//  tag {sampleId + "-" + sampleName}
-//  publishDir "${params.outDir}/Reports/${sampleName}/SamToolsStats", mode: params.publishDirMode
-//
-//  input:
-//  set sampleId, sampleName, vCType, file(bam), file(bai) from bamSamtoolsStatsCh
-//
-//  output:
-//  file ("${bam}.samtools.stats.out") into samtoolsStatsReportCh
-//  file 'v_samtools.txt' into samtoolsStatsVersionCh
-//
-//  when: !('samtoolsStats' in skipQC)
-//
-//  script:
-//  """
-//  samtools stats ${bam} > ${bam}.samtools.stats.out
-//  samtools --version &> v_samtools.txt 2>&1 || true
-//  """
-//}
-//
-//samtoolsStatsReportCh = samtoolsStatsReportCh.dump(tag:'SAMTools')
-//bamMappedBamQCCh = bamMappedBamQCCh.dump(tag: 'bamMappedBamQCCh')
-//bamBamQCCh = bamMappedBamQCCh.map{ it -> it.plus(2, '')}.mix(bamRecalBamQCCh) // Mapreads + MapQ + MarkDuplicates + ApplyBQSR
-
-
-/*
- * QUALIMAP
- */
-
-// TODO: remove qualimap ?
-//process qualimap {
-//  label 'qualimap'
-//  label 'medMem'
-//  label 'medCpu'
-//
-//  tag {sampleId + "-" + sampleName}
-//
-//  publishDir "${params.outDir}/Reports/${sampleName}/bamQC", mode: params.publishDirMode
-//
-//  input:
-//  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamQualimapCh
-//  file(targetBED) from targetBedCh
-//
-//  output:
-//  file("${bam.baseName}") into bamQCReportCh
-//  file('v_qualimap.txt') into qualimapVersionCh
-//
-//  when: !('bamqc' in skipQC)
-//
-//  script:
-//  new_bed_command = params.targetBED ? "awk 'BEGIN{OFS=\"\\t\"}{print \$1,\$2,\$3,\$4,0,\".\"}' ${targetBED} > new.bed" : ''
-//  use_bed = params.targetBED ? "-gff new.bed" : ''
-//  """
-//  $new_bed_command
-//  qualimap --java-mem-size=${task.memory.toGiga()}G \
-//    bamqc \
-//    -bam ${bam} \
-//    --paint-chromosome-limits \
-//    --genome-gc-distr HUMAN \
-//    $use_bed \
-//    -nt ${task.cpus} \
-//    -skip-duplicated \
-//    --skip-dup-mode 0 \
-//    -outdir ${bam.baseName} \
-//    -outformat HTML
-//  qualimap --version &> v_qualimap.txt 2>&1 || true
-//  """
-//}
-
-
 /*
  * INSERT SIZE
  */
@@ -1060,7 +962,7 @@ process getFragmentSize {
 
   tag "${sampleId}"
 
-  publishDir path: "${params.outDir}/fragSize", mode: "copy"
+  publishDir path: "${params.outDir}/fragSize", mode: params.publishDirMode
 
   when:
   !params.singleEnd
@@ -1096,7 +998,7 @@ process getSeqDepth {
 
   tag "${sampleId}"
 
-  publishDir path: "${params.outDir}/depth", mode: "copy"
+  publishDir path: "${params.outDir}/depth", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -1144,7 +1046,7 @@ process genesCoverage {
   label 'mosdepth'
   label 'medCpu'
   label 'medMem'
-  publishDir path: "${params.outDir}/depth", mode: "copy"
+  publishDir path: "${params.outDir}/depth", mode: params.publishDirMode
 
   tag "${sampleId}"
 
@@ -1177,7 +1079,7 @@ process getWGSmetrics {
   label 'medCpu'
   label 'medMem'
 
-  publishDir path: "${params.outDir}/WGSmetrics", mode: "copy"
+  publishDir path: "${params.outDir}/WGSmetrics", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -1208,65 +1110,69 @@ process getWGSmetrics {
   """
 }
 
+/*
+ * Identito monitoring
+ */
+
 mdBamPolymCh = mdBamPolymCh.dump(tag:'polymCh')
 
 process getPolym {
-    label 'lowCpu'
-    label 'lowMem'
-    label 'polym'
+  label 'lowCpu'
+  label 'lowMem'
+  label 'polym'
 
-    publishDir "${params.outDir}/Clustering", mode: params.publishDirMode
+  publishDir "${params.outDir}/identito", mode: params.publishDirMode
 
-    when: !(params.skipIdentito)
+  when: !(params.skipIdentito)
 
-    input:
-    file(fasta) from fastaCh
-    file(fastaFai) from fastaFaiCh
-    file(polyms) from polymsCh
-    tuple val(sampleId),
-      val(sampleName),
-      file("${sampleId}.md.bam"),
-      file("${sampleId}.md.bam.bai") from mdBamPolymCh
+  input:
+  file(fasta) from fastaCh
+  file(fastaFai) from fastaFaiCh
+  file(polyms) from polymsCh
+  tuple val(sampleId),
+    val(sampleName),
+    file("${sampleId}.md.bam"),
+    file("${sampleId}.md.bam.bai") from mdBamPolymCh
 
-    output:
-    file("${sampleId}_matrix.tsv") into clustPolymCh
+  output:
+  file("${sampleId}_matrix.tsv") into clustPolymCh
 
-    script:
-    """
-    bcftools mpileup -R ${polyms} -f ${fasta} -x -A -B -q 20 -I -Q 0 -d 1000 --annotate FORMAT/DP,FORMAT/AD ${sampleId}.md.bam > ${sampleId}_bcftools.vcf
-    SnpSift extractFields -e "."  -s ";" ${sampleId}_bcftools.vcf CHROM POS REF ALT GEN[*].DP GEN[*].AD > ${sampleId}_bcftools.tsv
-    apComputePolym.R ${sampleId}_bcftools.tsv ${sampleId}_matrix.tsv ${sampleId} ${polyms}
-    """
+  script:
+  """
+  bcftools mpileup -R ${polyms} -f ${fasta} -x -A -B -q 20 -I -Q 0 -d 1000 --annotate FORMAT/DP,FORMAT/AD ${sampleId}.md.bam > ${sampleId}_bcftools.vcf
+  SnpSift extractFields -e "."  -s ";" ${sampleId}_bcftools.vcf CHROM POS REF ALT GEN[*].DP GEN[*].AD > ${sampleId}_bcftools.tsv
+  apComputePolym.R ${sampleId}_bcftools.tsv ${sampleId}_matrix.tsv ${sampleId} ${polyms}
+  """
 }
 
 clustPolymCh = clustPolymCh.dump(tag:'clustPolymCh')
 
 process computePolym {
-    label 'lowCpu'
-    label 'lowMem'
-    label 'polym'
+  label 'lowCpu'
+  label 'lowMem'
+  label 'polym'
 
-    publishDir "${params.outDir}/Clustering", mode: params.publishDirMode
+  publishDir "${params.outDir}/identito", mode: params.publishDirMode
 
-    when: !(params.skipIdentito)
+  when: !(params.skipIdentito)
 
-    input:
-    file(matrix) from clustPolymCh.collect()
+  input:
+  file(matrix) from clustPolymCh.collect()
 
-    output:
-    file("*") into clustPolymResultsCh
+  output:
+  file("*") into clustPolymResultsCh
 
-    script:
-    """
-    cat *matrix.tsv |awk 'NR==1{print \$0}' > clust_mat.tsv
+  script:
+  """
+  cat *matrix.tsv |awk 'NR==1{print \$0}' > clust_mat.tsv
 
-    for in_matrix in ${matrix}
-    do
-    awk 'NR>1{print \$0}' \$in_matrix >> clust_mat.tsv
-    done
+  for in_matrix in ${matrix}
+  do
+  awk 'NR>1{print \$0}' \$in_matrix >> clust_mat.tsv
+  done
 
-    apComputeClust.R clust_mat.tsv . clustering_plot
-    """
+  apComputeClust.R clust_mat.tsv . clustering_plot
+  """
 }
 
 
