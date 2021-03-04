@@ -24,10 +24,11 @@ It comes with conda / singularity containers making installation easier and resu
 7. Calculate insert size distribution ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
 8. Calculate genes and genome coverage ([`mosdepth`](https://github.com/brentp/mosdepth))
 9. Identity monitoring and samples similarity ([`bcftools`](http://samtools.github.io/bcftools/bcftools.html) / [`R`](https://www.r-project.org/))
-10. Variant Calling
-11. CNV analysis
-12. SV detection
-13. Present all QC results in a final report ([`MultiQC`](http://multiqc.info/))
+10. Variants calling ([`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) / [`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller))
+11. Variants annotation ([`snpeff`](https://pcingola.github.io/SnpEff/))
+12. Copy-number analysis ([`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software))
+13. Structural variants analysis ([`MANTA`](https://github.com/Illumina/manta))
+14. Present all QC results in a final report ([`MultiQC`](http://multiqc.info/))
 
 ### Quick help
 
