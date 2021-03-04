@@ -1,4 +1,5 @@
-# VEGAN - **V**ariant calling pipeline for whole **E**xome and whole **G**enome sequencing c**AN**cer data
+# VEGAN  
+**V**ariant calling pipeline for whole **E**xome and whole **G**enome sequencing c**AN**cer data
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A519.10.0-brightgreen.svg)](https://www.nextflow.io/)
 [![Install with](https://anaconda.org/anaconda/conda-build/badges/installer/conda.svg)](https://conda.anaconda.org/anaconda)
