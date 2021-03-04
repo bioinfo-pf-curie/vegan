@@ -1,4 +1,4 @@
-# Analysis pipeline
+# VEGAN
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A519.10.0-brightgreen.svg)](https://www.nextflow.io/)
 [![Install with](https://anaconda.org/anaconda/conda-build/badges/installer/conda.svg)](https://conda.anaconda.org/anaconda)
@@ -7,17 +7,26 @@
 
 ### Introduction
 
+This pipeline was built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis.  
+
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner.
 It comes with conda / singularity containers making installation easier and results highly reproducible. The current workflow was inspired from the [nf-core Sarek pipeline](https://github.com/nf-core/sarek). See the nf-core project from details on [guidelines](https://nf-co.re/).
 
 ### Pipeline summary
 
-The Pipeline is divided in 3 major steps and the user can specify from wich step to start.
-
-1. Step 1 does the mapping using BWA-mem mapper.
-2. Step 2 does variant calling. For this step several tools are available and can be selected: Haplotypecaller, Mutect2, Manta or Ascat.
-3. Step 3 does the annotation of the vcf generated or provided using SnpEff tool
-4. Create MultiQC reports and generates results
+1. Run quality control of raw sequencing reads ([`fastqc`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
+2. Align reads on reference genome ([`BWA`](http://bio-bwa.sourceforge.net/))
+3. Report mapping metrics ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
+4. Mark duplicates ([`sambamba`](https://lomereiter.github.io/sambamba/))
+5. Library complexity analysis ([`Preseq`](http://smithlabresearch.org/software/preseq/))
+6. Filtering aligned BAM files ([`SAMTools`](http://www.htslib.org/))
+7. Calculate insert size distribution ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
+8. Calculate genes and genome coverage ([`mosdepth`](https://github.com/brentp/mosdepth))
+9. Identity monitoring and samples similarity ([`bcftools`](http://samtools.github.io/bcftools/bcftools.html) / [`R`](https://www.r-project.org/))
+10. Variant Calling
+11. CNV analysis
+12. SV detection
+13. Present all QC results in a final report ([`MultiQC`](http://multiqc.info/))
 
 ### Quick help
 
@@ -192,7 +201,7 @@ A complÃ©ter/ modifier
 
 #### Credits
 
-This pipeline has been written by the Institut Curie bioinformatics platform.
+This pipeline has been written by the Institut Curie bioinformatics platform (F. Allain, T. Gutman, P. La Rosa, P. Hupé, N. Servant).
 
 #### Contacts
 
