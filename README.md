@@ -32,9 +32,6 @@ It comes with conda / singularity containers making installation easier and resu
 
 ### Quick help
 
-nextflow run main.nf -resume -profile singularity,cluster --input /mnt/beegfs/data/dataset/EUCANCan/dream/tsv/dream-fastqs-set3_spit.tsv --tools manta,mutect2,haplotypecaller,ascat,snpeff --genome hg19_base
-
-
 ```bash
 nextflow run main.nf --help
 N E X T F L O W  ~  version 20.01.0
