@@ -479,7 +479,6 @@ if (params.noIntervals && step != 'annotate') {file("${params.outDir}/noInterval
 //(inputBamCh, inputPairReadsCh) = step == 'mapping' ? forkMappingSamplePlan(samplePlanCh) : [Channel.empty(), Channel.empty()]
 if (step == "mapping") {
   runIds = [:]
-
   samplePlanCh.map {
     // Sample Plan
     // platformID - biologicalName - fastq1 - fastq2
@@ -551,7 +550,7 @@ process fastQC {
   tuple val(sampleId),
     val(sampleName),
     val(runId),
-    file(reads) from inputPairReadsFastQC.mix(inputBamFastQCCh)
+    file(reads) from inputPairReadsFastQC.mix(inputBamFastQCCh).dump(tag: 'inputFastQC')
 
   output:
   file("*.{html,zip}") into fastqcReportCh
@@ -650,7 +649,7 @@ singleBamCh = singleBamCh.dump(tag:'sbams')
 multipleBamCh = multipleBamCh
   .map{it -> [it[0], it[1], it[3][0]]}
   .groupTuple()
-  .dump(tag:'mbams')
+  .dump(tag:'multipleBamCh')
 
 
 /*
@@ -684,7 +683,7 @@ process mergeBamMapped {
   """
 }
 
-mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'bams')
+mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'mergedBamCh')
 (mergedBamCh, mergedBamPreseqCh, mergedBamToStatsCh, mergedBamToIndexCh) = mergedBamCh.into(4)
 
 
