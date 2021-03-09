@@ -171,7 +171,7 @@ custom_data:
     identito:
         file_format: 'csv'
         section_name: 'Identito Vigilance'
-        description: 'heatmap is create from a defined list of SNPs. Using those SNPs, a matrix of proximity is generated with (1- the Jaccard distance and the Ward linkage function). A heatmap is then created. (vegan - R package).'
+        description: 'heatmap is created from a defined list of SNPs. Using those SNPs, the similarity metric is calculated as 1- the Jaccard distance between all pairs of samples. Samples from the same patient are expected to have a high similarity score.'
         plot_type: 'heatmap'
         pconfig:
             title: 'Identito Vigilance heatmap'
@@ -254,6 +254,8 @@ report_section_order:
   mosdepth:
     order: 500
   genes_cov:
+    order: 300
+  preseq:
     order: 200
   identito:
     order: 100

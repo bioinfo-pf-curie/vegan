@@ -810,7 +810,7 @@ process markDuplicates {
   tag "${sampleId}"
 
   publishDir "${params.outDir}/markDuplicates", mode: params.publishDirMode,
-              saveAs: {saveAs: {filename -> if (params.saveAlignedIntermediates) filename}
+              saveAs: {filename -> if (params.saveAlignedIntermediates) filename}
 
   input:
   tuple val(sampleId),
@@ -844,7 +844,7 @@ process bamOnTarget {
 
   tag {sampleId}
 
-  publishDir "${params.outDir}/onTarget", mode: params.publishDirMode
+  publishDir "${params.outDir}/onTarget", mode: params.publishDirMode,
                saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
 
   when:
@@ -895,7 +895,7 @@ process bamFiltering {
   label 'medCpu'
   tag "${sampleId}-${vCType}"
 
-  publishDir "${params.outDir}/bamFiltering", mode: params.publishDirMode
+  publishDir "${params.outDir}/mapping/filtering", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -2449,7 +2449,7 @@ compressVCFsnpEffOutCh = compressVCFsnpEffOutCh.dump(tag:'VCF')
 process getSoftwareVersions {
   label 'python'
 
-  publishDir path:"${params.outDir}/PipelineInfo", mode: params.publishDirMode
+  publishDir path:"${params.outDir}/softwareVersions", mode: params.publishDirMode
 
   input:
   file('v_ascat.txt') from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty('')
@@ -2483,7 +2483,7 @@ yamlSoftwareVersionCh = yamlSoftwareVersionCh.dump(tag:'SOFTWARE VERSIONS')
 process multiQC {
   label 'multiqc'
 
-  publishDir "${params.outDir}/Reports/MultiQC", mode: params.publishDirMode
+  publishDir "${params.outDir}/MultiQC", mode: params.publishDirMode
 
   when: !(params.skipMultiqc)
 
