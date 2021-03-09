@@ -107,6 +107,58 @@
       "group": "Main options"
     },
     {
+      "name": "skipBQSR",
+      "label": "Skip BQSR",
+      "usage": "Disable BQSR",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Main options"
+    },
+    {
+      "name": "skipIdentito",
+      "label": "Skip Identito",
+      "usage": "Disable Identito",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Main options"
+    },
+    {
+      "name": "skipMultiqc",
+      "label": "Skip MultiQC",
+      "usage": "Disable MultiQC",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Main options"
+    },
+    {
+      "name": "skipPreseq",
+      "label": "Skip Preseq",
+      "usage": "Disable Preseq",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Main options"
+    },
+    {
       "name": "step",
       "label": "Starting step",
       "usage": "Specify starting step",
