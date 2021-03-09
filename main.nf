@@ -1189,9 +1189,8 @@ filteredBamCh
   }.set { filteredBamForks }
 (filteredSNVBamsCh, filteredSVBamsCh, filteredOtherBamsCh) = [filteredBamForks.snvCh, filteredBamForks.svCh, filteredBamForks.otherCh]
 
-filteredSNVBamsCh
-  .into {bamBaseRecalibratorCh; bamBaseRecalibratorToJoinCh}
-bamBaseRecalibratorCh = bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
+(bamBaseRecalibratorCh, bamBaseRecalibratorToJoinCh) = params.skipBQSR ? [Channel.empty(), Channel.empty()] : filteredSNVBamsCh.into(2)
+bamBaseRecalibratorCh = params.skipBQSR ? bamBaseRecalibratorCh : bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
 
 
 /*
@@ -1492,7 +1491,7 @@ bamRecalTSVCh.map { sampleId, sampleName, vCType ->
 
 if (params.design){
   // When starting with variant calling, Channel bamRecalCh is samplePlanCh
-  bamRecalCh = step in 'variantcalling' ? samplePlanCh : bamRecalCh
+  bamRecalCh = step in 'variantcalling' ? samplePlanCh : params.skipBQSR ? filteredSNVBamsCh : bamRecalCh
 
   // Here we have a recalibrated bam set
   // The TSV file is formatted like: "sampleId status sampleName vCType bamFile baiFile"
