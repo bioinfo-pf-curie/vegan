@@ -205,7 +205,7 @@ abstract class NFTools extends BaseScript {
         def htmlReport = htmlTemplate.toString()
 
         // Write summary e-mail HTML to a file
-        def outDir = new File("${params.outDir}/PipelineInfo/")
+        def outDir = new File("${params.summaryDir}")
         if (!outDir.exists()) outDir.mkdirs()
         def output_hf = new File(outDir, "pipelineReport.html")
         output_hf.withWriter { w -> w << htmlReport }

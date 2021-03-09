@@ -4,21 +4,18 @@ import re
 import os
 
 regexes = {
+    'Pipeline': ['v_pipeline.txt', r"(\S+)"],
+    'Nextflow': ['v_nextflow.txt', r"(\S+)"],
+    'FastQC': ['v_fastqc.txt', r"FastQC v(\S+)"],
+    'BWA': ['v_bwa.txt', r"Version: (\S+)"],
+    'samtools': ['v_samtools.txt', r"samtools (\S+)"],
+    'preseq': ['v_preseq.txt', r"Version: (\S+)"], 
+    'bcftools': ['v_bcftools.txt', r"bcftools (\S+)"],
+    'GATK': ['v_gatk.txt', r"Version:(\S+)"],
     'AlleleCount': ['v_allelecount.txt', r"(\S+)"],
     'ASCAT': ['v_ascat.txt', r"Version:       (\S+)"],
-    'bcftools': ['v_bcftools.txt', r"bcftools (\S+)"],
-    'BWA': ['v_bwa.txt', r"Version: (\S+)"],
-    'FastQC': ['v_fastqc.txt', r"FastQC v(\S+)"],
-    'FreeBayes': ['v_freebayes.txt', r"version:  v(\d\.\d\.\d+)"],
-    'GATK': ['v_gatk.txt', r"Version:(\S+)"],
-    'htslib': ['v_samtools.txt', r"htslib (\S+)"],
     'Manta': ['v_manta.txt', r"([0-9.]+)"],
-    'MultiQC': ['v_multiqc.txt', r"multiqc, version (\S+)"],
-    'Nextflow': ['v_nextflow.txt', r"(\S+)"],
-    'pipeline': ['v_pipeline.txt', r"(\S+)"],
-    'Qualimap': ['v_qualimap.txt', r"QualiMap v.(\S+)"],
     'R': ['v_r.txt', r"R version (\S+)"],
-    'samtools': ['v_samtools.txt', r"samtools (\S+)"],
     'SnpEff': ['v_snpeff.txt', r"version SnpEff (\S+)"],
     'TIDDIT': ['v_tiddit.txt', r"TIDDIT-(\S+)"],
 }
@@ -44,7 +41,7 @@ for k in results:
 yaml_output = '''
 id: 'software_versions'
 section_name: 'Software versions'
-section_href: 'https://github.com/nf-core/sarek'
+section_href: 'https://gitlab.com/data-analysis/vegan'
 plot_type: 'html'
 description: 'are collected at run time from the software output.'
 data: |
