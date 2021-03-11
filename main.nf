@@ -1439,7 +1439,7 @@ process indexBamRecal {
 
   tag "${sampleId}-${sampleName}-${vCType}"
 
-  publishDir "${params.outDir}/Preprocessing/${sampleId}/Recalibrated", mode: params.publishDirMode
+  publishDir "${params.outDir}/mapping/bqsr/", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -1578,7 +1578,7 @@ if (params.design){
 
 
 /*
- * HaplotypeCaller
+ * HAPLOTYPECALLER
  */
 
 process haplotypeCaller {
@@ -1672,9 +1672,11 @@ process genotypeGVCFs {
 }
 vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
 
+
 /*
- * Mutect2
+ * MUTECT2
  */
+
 
 // STEP GATK MUTECT2.1 - RAW CALLS
 ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : ponIndexBuiltCh)
@@ -1749,7 +1751,7 @@ process mergeMutect2Stats {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
-  publishDir "${params.outDir}/VariantCalling/${sampleIdTumor}_vs_${sampleIdNormal}/Mutect2", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/Mutect2/stats/", mode: params.publishDirMode
 
   input:
   tuple val(caller),
@@ -1796,7 +1798,7 @@ process concatVCF {
 
   tag "${variantCaller}-${sampleId}"
 
-  publishDir "${params.outDir}/VariantCalling/${sampleId}/${variantCaller}", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/${variantCaller}", mode: params.publishDirMode
 
   input:
   tuple val(variantCaller),
@@ -1819,9 +1821,9 @@ process concatVCF {
 
   script:
   if (variantCaller == 'HaplotypeCallerGVCF')
-    outputFile = "HaplotypeCaller_${sampleId}.g.vcf"
+    outputFile = "${sampleId}_HaplotypeCaller.g.vcf"
   else if (variantCaller == "Mutect2")
-    outputFile = "unfiltered_${variantCaller}_${sampleId}.vcf"
+    outputFile = "${sampleID}_${variantCaller}_unfiltered.vcf"
   else
     outputFile = "${variantCaller}_${sampleId}.vcf"
   options = params.targetBED ? "-t ${targetBED}" : ""
@@ -1898,7 +1900,7 @@ process mergePileupSummaries {
 
   tag "${pairName}_${sampleIdTumor}"
 
-  publishDir "${params.outDir}/VariantCalling/${sampleIdTumor}/Mutect2", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/Mutect2/contamination", mode: params.publishDirMode
 
   input:
   tuple val(pairName),
@@ -1930,7 +1932,7 @@ process calculateContamination {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
-  publishDir "${params.outDir}/VariantCalling/${sampleIdTumor}/Mutect2", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/Mutect2/contamination", mode: params.publishDirMode
 
   input:
   tuple val(sampleIdNormal),
@@ -1969,7 +1971,7 @@ process filterMutect2Calls {
 
   tag "${sampleIdTN}"
 
-  publishDir "${params.outDir}/VariantCalling/${sampleNameTN}/${"$variantCaller"}", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/Mutect2/", mode: params.publishDirMode
 
   input:
   tuple val(variantCaller),
@@ -2005,7 +2007,7 @@ process filterMutect2Calls {
     --contamination-table ${sampleIdTN}_contamination.table \
     --stats ${sampleIdTN}.vcf.gz.stats \
     -R ${fasta} \
-    -O filtered_${variantCaller}_${sampleIdTN}.vcf.gz
+    -O ${sampleIdTN}_${variantCaller}_filtered.vcf.gz
   """
 }
 
@@ -2025,7 +2027,7 @@ process mantaSingle {
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/VariantCalling/${sampleId}/Manta", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/Manta", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -2090,7 +2092,7 @@ process manta {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}_${vCType}"
 
-  publishDir "${params.outDir}/VariantCalling/${sampleIdTumor}_vs_${sampleIdNormal}/Manta", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/Manta", mode: params.publishDirMode
 
   input:
   tuple val(sampleIdNormal),
@@ -2224,7 +2226,7 @@ process convertAlleleCounts {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
-  publishDir "${params.outDir}/VariantCalling/${sampleIdTumor}_vs_${sampleIdNormal}/ASCAT", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/ASCAT", mode: params.publishDirMode
 
   input:
   tuple val(sampleIdNormal),
@@ -2262,7 +2264,7 @@ process ascat {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
-  publishDir "${params.outDir}/VariantCalling/${sampleIdTumor}_vs_${sampleIdNormal}/ASCAT", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/ASCAT", mode: params.publishDirMode
 
   input:
   tuple val(sampleIdNormal),
@@ -2341,7 +2343,7 @@ if (step == 'annotate') {
   if (samplePlanPath == []) {
     // By default, annotates all available vcfs that it can find in the VariantCalling directory
     // Excluding vcfs from and g.vcf from HaplotypeCaller
-    // Basically it's: results/VariantCalling/*/{HaplotypeCaller,Manta,Mutect2}/*.vcf.gz
+    // Basically it's: results/variantCalling/{HaplotypeCaller,Manta,Mutect2}/*.vcf.gz
     // Without *SmallIndels.vcf.gz from Manta
     // The small snippet `vcf.minus(vcf.fileName)[-2]` catches sampleId
     // This field is used to output final annotated VCFs in the correct directory
@@ -2376,7 +2378,7 @@ process snpEff {
 
   publishDir params.outDir, mode: params.publishDirMode, saveAs: {
     if (it == "${reducedVCF}_snpEff.ann.vcf") null
-    else "Reports/${sampleId}/snpEff/${it}"
+    else "snpEff/reports/${it}"
   }
 
   input:
@@ -2426,7 +2428,7 @@ process compressVCFsnpEff {
 
   tag "${sampleId} - ${vcf}"
 
-  publishDir "${params.outDir}/Annotation/${sampleId}/snpEff", mode: params.publishDirMode
+  publishDir "${params.outDir}/snpEff", mode: params.publishDirMode
 
   input:
   tuple val(variantCaller),
@@ -2447,7 +2449,6 @@ process compressVCFsnpEff {
 }
 
 compressVCFsnpEffOutCh = compressVCFsnpEffOutCh.dump(tag:'VCF')
-
 
 /*
 ================================================================================
