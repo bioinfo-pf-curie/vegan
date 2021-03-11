@@ -218,7 +218,22 @@ process buildBWAindexes {
   """
 }
 
-bwaIndexCh = params.bwaIndex ? Channel.value(file(params.bwaIndex)) : bwaIndexesCh
+//bwaIndexCh = params.bwaIndex ? Channel.value(file(params.bwaIndex)) : bwaIndexesCh
+if (params.bwaIndex){
+  lastPath = params.bwaIndex.lastIndexOf(File.separator)
+  bwaDir =  params.bwaIndex.substring(0,lastPath+1)
+  bwaBase = params.bwaIndex.substring(lastPath+1)
+  Channel
+    .fromPath(bwaDir, checkIfExists: true)
+    .ifEmpty {exit 1, "BWA index file not found: ${params.bwaIndex}"}
+    .combine( [ bwaBase ] )
+    .dump(tag :'bwaindexch')
+    .set { bwaIndexCh }
+} else {
+  exit 1, "BWA index file not found: ${params.bwaIndex}"
+}
+
+
 
 process buildDict {
   label 'gatk'
@@ -580,24 +595,23 @@ process fastQC {
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
 inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT MAP READS')
 
-process mapReads {
+process bwaMem {
   label 'gatkBwaSamtools'
   label 'highCpu'
   label 'extraMem'
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/mapping", mode: params.publishDirMode,
+  publishDir "${params.outDir}/mapping/bwa", mode: params.publishDirMode,
                saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
 
   input:
   tuple val(sampleId),
     val(sampleName),
     val(runId),
-    file(inputFile) from inputPairReadsCh
-  file(bwaIndex) from bwaIndexCh
-  file(fasta) from fastaCh
-  file(fastaFai) from fastaFaiCh
+    file(inputFile), file(index), val(genomeBase) from inputPairReadsCh.combine(bwaIndexCh)
+  //file(fasta) from fastaCh
+  //file(fastaFai) from fastaFaiCh
 
   output:
   tuple val(sampleId),
@@ -624,7 +638,7 @@ process mapReads {
   input = hasExtension(inputFile[0], "bam") ? "-p /dev/stdin - 2> >(tee ${inputFile[0]}.bwa.stderr.log >&2)" : "${inputFile[0]} ${inputFile[1]}"
   """
   ${convertToFastq}
-  bwa mem ${params.bwaOptions} -R \"${readGroup}\" -t ${task.cpus} ${fasta} \
+  bwa mem ${params.bwaOptions} -R \"${readGroup}\" -t ${task.cpus} ${index}/${genomeBase} \
   ${input} | \
   samtools sort --threads ${task.cpus} - > ${sampleId}.bam
   samtools --version &> v_samtools.txt 2>&1 || true
@@ -844,8 +858,7 @@ process bamOnTarget {
 
   tag {sampleId}
 
-  publishDir "${params.outDir}/onTarget", mode: params.publishDirMode,
-               saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
+  publishDir "${params.outDir}/mapping/onTarget", mode: params.publishDirMode
 
   when:
   params.targetBED
@@ -1205,6 +1218,9 @@ process baseRecalibrator {
 
   tag "${sampleId}"
 
+  publishDir "${params.outDir}/mapping/bqsr/", mode: params.publishDirMode,
+             saveAs: {filename ->  if (params.noIntervals) filename}
+
   input:
   tuple val(sampleId),
     val(sampleName),
@@ -1268,7 +1284,7 @@ process gatherBQSRReports {
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
+  publishDir "${params.outDir}/mapping/bqsr/", mode: params.publishDirMode, overwrite: false
 
   input:
   tuple val(sampleId),
@@ -1385,7 +1401,7 @@ process mergeAndIndexBamRecal {
 
   tag "${sampleId}-${sampleName}-${vCType}"
 
-  publishDir "${params.outDir}/Preprocessing/${sampleId}/Recalibrated", mode: params.publishDirMode
+  publishDir "${params.outDir}/mapping/bqsr/", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -1454,10 +1470,7 @@ process indexBamRecal {
 }
 
 bamRecalCh = bamRecalCh.mix(bamRecalNoIntCh)
-//bamRecalQCCh = bamRecalQCCh.mix(bamRecalQCnoIntCh)
 bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
-
-//(bamRecalQualimapCh, bamRecalSamToolsStatsCh, bamRecalMosdepthCh, bamRecalInsertSizeCh) = bamRecalCh.into(4)
 (bamRecalTSVCh, bamRecalSampleTSVCh) = bamRecalTSVCh.into(2)
 
 // Creating a TSV file to restart from this step
@@ -1566,7 +1579,10 @@ if (params.design){
 // Do variant calling by this intervals, and re-merge the VCFs
 
 
-// STEP GATK HAPLOTYPECALLER.1
+/*
+ * HaplotypeCaller
+ */
+
 process haplotypeCaller {
   label 'gatk'
   label 'medMemSq'
@@ -1616,8 +1632,6 @@ process haplotypeCaller {
 
 gvcfHaplotypeCallerCh = params.noGVCF ? gvcfHaplotypeCallerCh.close() :  gvcfHaplotypeCallerCh.groupTuple(by:[0, 1, 2]).dump(tag:'GVCF HaplotypeCaller')
 
-// STEP GATK HAPLOTYPECALLER.2
-
 process genotypeGVCFs {
   label 'gatk'
   tag "${sampleId}-${sampleName}-${intervalBed.baseName}"
@@ -1660,8 +1674,11 @@ process genotypeGVCFs {
 }
 vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
 
-// STEP GATK MUTECT2.1 - RAW CALLS
+/*
+ * Mutect2
+ */
 
+// STEP GATK MUTECT2.1 - RAW CALLS
 ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : ponIndexBuiltCh)
 
 process mutect2 {
