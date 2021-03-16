@@ -35,9 +35,9 @@ polym_table <- merge(bed, var_tsv, by=c("chr","pos"), all=TRUE)
 VAF=NULL
 
 for (i in 1:nrow(polym_table)){
-    polym_indice=match(polym_table$alt_polym[i], c(polym_table[i,"ref"],unlist(strsplit(polym_table$alt[i],","))))
+    polym_indice=match(polym_table$alt_polym[i], c(polym_table[i,"ref"],unlist(strsplit(as.character(polym_table$alt[i]),","))))
     #print(polym_table[i,c(3,8,9,10,11)])
-    polym_AD=as.numeric(unlist(strsplit(polym_table[i,11],","))[polym_indice])
+    polym_AD=as.numeric(unlist(strsplit(as.character(polym_table[i,11]),","))[polym_indice])
     if (is.na(polym_AD)) {
         compute_vaf="NEC"
         VAF=c(VAF,compute_vaf)
