@@ -50,7 +50,6 @@ paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.
 def params = lint(params, paramsWithUsage)
 
 tools = params.tools
-skipQC = params.skipQC
 SVFilters = params.SVFilters
 SNVFilters = params.SNVFilters
 annotateTools = params.annotateTools
@@ -116,7 +115,7 @@ summary = [
   'Target BED': params.targetBED ?: null,
   'Step': step ?: null,
   'Tools': params.tools ? params.tools instanceof Collection ? params.tools.join(', ') : params.tools: null,
-  'QC tools skip': params.skipQC ? params.skipQC instanceof Collection  ? params.skipQC.join(', ') : skipQC : null,
+  'QC tools skip': params.skipQC ? 'Yes' : 'No',
   'SV filters': params.SVFilters ? params.SVFilters instanceof Collection  ? params.SVFilters.join(', ') : params.SVFilters : null,
   'SNV filters': params.SNVFilters ? params.SNVFilters instanceof Collection  ? params.SNVFilters.join(', ') : params.SNVFilters : null,
   'Intervals': params.noIntervals && step != 'annotate' ? 'Do not use' : null,
@@ -555,11 +554,12 @@ inputPairReadsCh = inputPairReadsCh.dump(tag:'inputPairReadsCh')
 
 process fastQC {
   label 'fastqc'
-  label 'lowCpu'
+  label 'medCpu'
+  label 'lowMem'
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/fastqc", mode: params.publishDirMode, overwrite: true
+  publishDir "${params.outDir}/preprocessing/metrics/fastqc", mode: params.publishDirMode, overwrite: true
 
   input:
   tuple val(sampleId),
@@ -571,7 +571,8 @@ process fastQC {
   file("*.{html,zip}") into fastqcReportCh
   file("v_fastqc.txt") into fastqcVersionCh
 
-  when: !('fastqc' in skipQC)
+  when: 
+  !params.skipQC
 
   script:
   """
@@ -601,7 +602,7 @@ process bwaMem {
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/mapping/bwa", mode: params.publishDirMode,
+  publishDir "${params.outDir}/preprocessing/bams/bwa", mode: params.publishDirMode,
                saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
 
   input:
@@ -673,10 +674,11 @@ multipleBamCh = multipleBamCh
 process mergeBamMapped {
   label 'samtools'
   label 'highCpu'
+  label 'lowMem'
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/mapping", mode: params.publishDirMode,
+  publishDir "${params.outDir}/preprocessing/bams/bwa/", mode: params.publishDirMode,
                saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
 
   input:
@@ -708,10 +710,11 @@ mergedBamCh = mergedBamCh.mix(singleBamCh).dump(tag:'mergedBamCh')
 process indexBamFile {
   label 'samtools'
   label 'minCpu'
+  label 'minMem'
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/mapping", mode: params.publishDirMode,
+  publishDir "${params.outDir}/preprocessing/bams/bwa", mode: params.publishDirMode,
                saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
 
   input:
@@ -741,10 +744,11 @@ process indexBamFile {
 process bamStats {
   label 'samtools'
   label 'lowCpu'
+  label 'minMem'
 
   tag {sampleId}
 
-  publishDir "${params.outDir}/mapping/logs", mode: params.publishDirMode
+  publishDir "${params.outDir}/preprocessing/bams/bwa/logs", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -781,10 +785,10 @@ process preseq {
 
   tag "${sampleID}"
 
-  publishDir "${params.outDir}/preseq", mode: params.publishDirMode
+  publishDir "${params.outDir}/preprocessing/metrics/preseq", mode: params.publishDirMode
 
   when:
-  !params.skipPreseq
+  !params.skipPreseq && !params.skipQC
 
   input:
   tuple val(sampleID),
@@ -799,7 +803,7 @@ process preseq {
   defectMode = params.preseqDefect ? '-D' : ''
   """
   preseq &> v_preseq.txt
-  preseq lc_extrap -v $defectMode -output ${bam.baseName}.ccurve.txt -bam ${bam}
+  preseq lc_extrap -v $defectMode -output ${bam.baseName}.ccurve.txt -bam ${bam} -e 500e+06
   """
 }
 
@@ -822,7 +826,7 @@ process markDuplicates {
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/markDuplicates", mode: params.publishDirMode,
+  publishDir "${params.outDir}/preprocessing/bams/markDuplicates", mode: params.publishDirMode,
               saveAs: {filename -> if (params.saveAlignedIntermediates) filename}
 
   input:
@@ -853,11 +857,13 @@ bamsToTargetCh = params.targetBED ? duplicateMarkedBamsCh : Channel.empty()
 process bamOnTarget {
   label 'bedtools'
   label 'minCpu'
-  label 'medMem'
+  label 'lowMem'
 
   tag {sampleId}
 
-  publishDir "${params.outDir}/mapping/onTarget", mode: params.publishDirMode
+  publishDir "${params.outDir}/preprocessing/bams/onTarget", mode: params.publishDirMode,
+             saveAs: {filename -> if ( filename.endsWith("metrics") && params.saveAlignedIntermediates ) "stats/$filename"
+	                          else if (params.saveAlignedIntermediates) "$filename"}
 
   when:
   params.targetBED
@@ -905,9 +911,10 @@ procBamsCh = procBamsCh.dump(tag:'procBamsCh')
 process bamFiltering {
   label 'samtools'
   label 'medCpu'
+  label 'minMem'
   tag "${sampleId}-${vCType}"
 
-  publishDir "${params.outDir}/mapping/filtering", mode: params.publishDirMode
+  publishDir "${params.outDir}/preprocessing/bams/filtering", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -969,15 +976,15 @@ if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || '
 
 process getFragmentSize {
   label 'picard'
-  label 'medCpu'
+  label 'minCpu'
   label 'medMem'
 
   tag "${sampleId}"
 
-  publishDir path: "${params.outDir}/fragSize", mode: params.publishDirMode
+  publishDir path: "${params.outDir}/preprocessing/metrics/fragSize", mode: params.publishDirMode
 
   when:
-  !params.singleEnd
+  !params.singleEnd && !params.skipQC
 
   input:
   tuple val(sampleId),
@@ -1010,7 +1017,10 @@ process getSeqDepth {
 
   tag "${sampleId}"
 
-  publishDir path: "${params.outDir}/depth", mode: params.publishDirMode
+  publishDir path: "${params.outDir}/preprocessing/metrics/depth", mode: params.publishDirMode
+
+  when:
+  !params.skipQC
 
   input:
   tuple val(sampleId),
@@ -1037,8 +1047,11 @@ process getSeqDepth {
 
 process prepareExonInfo {
   label 'bedtools'
-  label 'medCpu'
-  label 'medMem'
+  label 'minCpu'
+  label 'minMem'
+
+  when:
+  !params.skipQC
 
   input:
   file(gtf) from gtfCh
@@ -1056,11 +1069,14 @@ process prepareExonInfo {
 
 process genesCoverage {
   label 'mosdepth'
-  label 'medCpu'
-  label 'medMem'
-  publishDir path: "${params.outDir}/depth", mode: params.publishDirMode
+  label 'minCpu'
+  label 'lowMem'
+  publishDir path: "${params.outDir}/preprocessing/metrics/depth", mode: params.publishDirMode
 
   tag "${sampleId}"
+
+  when:
+  !params.skipQC
 
   input:
   tuple val(sampleId),
@@ -1088,10 +1104,13 @@ process genesCoverage {
 process getWGSmetrics {
   tag "${sampleId}"
   label 'picard'
-  label 'medCpu'
-  label 'medMem'
+  label 'minCpu'
+  label 'lowMem'
 
-  publishDir path: "${params.outDir}/WGSmetrics", mode: params.publishDirMode
+  publishDir path: "${params.outDir}/preprocessing/metrics/WGSmetrics", mode: params.publishDirMode
+
+  when:
+  params.skipQC
 
   input:
   tuple val(sampleId),
@@ -1130,12 +1149,13 @@ mdBamPolymCh = mdBamPolymCh.dump(tag:'polymCh')
 
 process getPolym {
   label 'lowCpu'
-  label 'lowMem'
+  label 'midMem'
   label 'polym'
 
-  publishDir "${params.outDir}/identito", mode: params.publishDirMode
+  publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
 
-  when: !(params.skipIdentito)
+  when: 
+  !params.skipIdentito && !params.skipQC
 
   input:
   file(fasta) from fastaCh
@@ -1164,9 +1184,10 @@ process computePolym {
   label 'lowMem'
   label 'polym'
 
-  publishDir "${params.outDir}/identito", mode: params.publishDirMode
+  publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
 
-  when: !(params.skipIdentito)
+  when: 
+  !params.skipIdentito && !params.skipQC
 
   input:
   file(matrix) from clustPolymCh.collect()
@@ -1213,10 +1234,11 @@ bamBaseRecalibratorCh = params.skipBQSR ? bamBaseRecalibratorCh : bamBaseRecalib
 process baseRecalibrator {
   label 'gatk'
   label 'minCpu'
+  label 'medMem'
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/mapping/bqsr/", mode: params.publishDirMode,
+  publishDir "${params.outDir}/preprocessing/bams/bqsr/", mode: params.publishDirMode,
              saveAs: {filename ->  if (params.noIntervals) filename}
 
   input:
@@ -1225,7 +1247,7 @@ process baseRecalibrator {
     val(vCType),
     file(bam),
     file(bai),
-    file(intervalBed) from bamBaseRecalibratorCh.dump(tag:'bamBaseRecalibratorCh')
+    file(intervalBed) from bamBaseRecalibratorCh.dump(tag:'bqsr')
   file(dbsnp) from dbsnpCh
   file(dbsnpIndex) from dbsnpIndexCh
   file(fasta) from fastaCh
@@ -1238,7 +1260,7 @@ process baseRecalibrator {
   tuple val(sampleId),
     val(sampleName),
     val(vCType),
-    file("${prefix}${sampleId}.recal.table") into tableGatherBQSRReportsCh
+    file("${prefix}.recal.table") into tableGatherBQSRReportsCh
   tuple val(sampleId),
     val(sampleName),
     val(vCType) into recalTableTSVnoIntCh
@@ -1248,15 +1270,14 @@ process baseRecalibrator {
   script:
   dbsnpOptions = params.dbsnp ? "--known-sites ${dbsnp}" : ""
   knownOptions = params.knownIndels ? knownIndels.collect{"--known-sites ${it}"}.join(' ') : ""
-  prefix = params.noIntervals ? "${vCType}_" : "${intervalBed.baseName}_${vCType}"
+  prefix = params.noIntervals ? "${sampleId}_${vCType}" : "${sampleId}_${intervalBed.baseName}_${vCType}"
   intervalsOptions = params.noIntervals ? "" : "-L ${intervalBed}"
-  // TODO: --use-original-qualities ???
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       BaseRecalibrator \
       -I ${bam} \
-      -O ${prefix}${sampleId}.recal.table \
-      --tmp-dir ${params.baseRecalibratorOpts} \
+      -O ${prefix}.recal.table \
+      --tmp-dir ${params.baseRecalibratorTmpDir} \
       -R ${fasta} \
       ${intervalsOptions} \
       ${dbsnpOptions} \
@@ -1282,7 +1303,7 @@ process gatherBQSRReports {
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/mapping/bqsr/", mode: params.publishDirMode, overwrite: false
+  publishDir "${params.outDir}/preprocessing/bams/bqsr/", mode: params.publishDirMode, overwrite: false
 
   input:
   tuple val(sampleId),
@@ -1396,10 +1417,11 @@ bamMergeBamRecalCh = bamMergeBamRecalCh.groupTuple(by:[0, 1, 2])
 process mergeAndIndexBamRecal {
   label 'samtools'
   label 'medCpu'
+  label 'medMem'
 
   tag "${sampleId}-${sampleName}-${vCType}"
 
-  publishDir "${params.outDir}/mapping/bqsr/", mode: params.publishDirMode
+  publishDir "${params.outDir}/preprocessing/bams/bqsr/", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -1435,11 +1457,12 @@ process mergeAndIndexBamRecal {
 
 process indexBamRecal {
   label 'samtools'
-  label 'lowCpu'
+  label 'minCpu'
+  label 'minMem'
 
   tag "${sampleId}-${sampleName}-${vCType}"
 
-  publishDir "${params.outDir}/mapping/bqsr/", mode: params.publishDirMode
+  publishDir "${params.outDir}/preprocessing/bams/bqsr/", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -1685,6 +1708,7 @@ process mutect2 {
   tag "${sampleIdNormal}_vs_${sampleIdTumor}-${intervalBed.baseName}"
   label 'gatk'
   label 'minCpu'
+  label 'medMem'
 
   input:
   tuple val(sampleIdNormal),
@@ -1748,6 +1772,8 @@ mutect2StatsCh = mutect2StatsCh.groupTuple(by:[0,1,2])
 
 process mergeMutect2Stats {
   label 'gatk'
+  label 'minCpu'
+  label 'medMem'
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
@@ -1795,6 +1821,7 @@ vcfConcatenateVCFsCh = vcfConcatenateVCFsCh.dump(tag:'VCF to merge')
 process concatVCF {
   label 'bcftools'
   label 'higCpu'
+  label 'medMem'
 
   tag "${variantCaller}-${sampleId}"
 
@@ -1823,7 +1850,7 @@ process concatVCF {
   if (variantCaller == 'HaplotypeCallerGVCF')
     outputFile = "${sampleId}_HaplotypeCaller.g.vcf"
   else if (variantCaller == "Mutect2")
-    outputFile = "${sampleID}_${variantCaller}_unfiltered.vcf"
+    outputFile = "${sampleId}_${variantCaller}_unfiltered.vcf"
   else
     outputFile = "${variantCaller}_${sampleId}.vcf"
   options = params.targetBED ? "-t ${targetBED}" : ""
@@ -1848,6 +1875,7 @@ vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
 process pileupSummariesForMutect2 {
   label 'gatk'
   label 'minCpu'
+  label 'extraMem'
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}_${intervalBed.baseName}"
 
@@ -1897,6 +1925,7 @@ pileupSummariesCh = pileupSummariesCh.groupTuple(by:[0,1])
 process mergePileupSummaries {
   label 'gatk'
   label 'minCpu'
+  label 'medMem'
 
   tag "${pairName}_${sampleIdTumor}"
 
@@ -1929,6 +1958,7 @@ process mergePileupSummaries {
 process calculateContamination {
   label 'gatk'
   label 'minCpu'
+  label 'lowMem'
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
@@ -1992,9 +2022,10 @@ process filterMutect2Calls {
   tuple val("Mutect2"),
     val(sampleId),
     val(sampleIdTN),
-    file("filtered_${variantCaller}_${sampleIdTN}.vcf.gz"),
-    file("filtered_${variantCaller}_${sampleIdTN}.vcf.gz.tbi"),
-    file("filtered_${variantCaller}_${sampleIdTN}.vcf.gz.filteringStats.tsv") into filteredMutect2OutputCh
+    file("*_filtered.vcf.gz"),
+    file("*_filtered.vcf.gz.tbi"),
+    file("*filteringStats.tsv") into filteredMutect2OutputCh
+  file("*.mqc") into mutect2CallingMetricsMqcCh
 
   when: 'mutect2' in tools
 
@@ -2008,6 +2039,11 @@ process filterMutect2Calls {
     --stats ${sampleIdTN}.vcf.gz.stats \
     -R ${fasta} \
     -O ${sampleIdTN}_${variantCaller}_filtered.vcf.gz
+  
+  getCallingMetrics.sh -i ${unfiltered} \
+                       -f ${sampleIdTN}_${variantCaller}_filtered.vcf.gz \
+                       -c ${sampleIdTN}_contamination.table \
+                       -n ${sampleIdTN} > ${sampleIdTN}_Mutect2_callingMetrics.mqc
   """
 }
 
@@ -2376,10 +2412,9 @@ process snpEff {
 
   tag "${sampleId} - ${variantCaller} - ${vcf}"
 
-  publishDir params.outDir, mode: params.publishDirMode, saveAs: {
-    if (it == "${reducedVCF}_snpEff.ann.vcf") null
-    else "snpEff/reports/${it}"
-  }
+  publishDir "${params.outDir}/snpEff", mode: params.publishDirMode, 
+             saveAs: { if (it == "${reducedVCF}_snpEff.ann.vcf") null
+                       else "reports/${it}" }
 
   input:
   tuple val(variantCaller),
@@ -2483,8 +2518,6 @@ process getSoftwareVersions {
   output:
   file('software_versions_mqc.yaml') into yamlSoftwareVersionCh
 
-  when: !('versions' in skipQC)
-
   script:
   """
   echo "${workflow.manifest.version}" &> v_pipeline.txt 2>&1 || true
@@ -2523,12 +2556,11 @@ process multiQC {
   //file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
   file('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
   file('Identito/*') from clustPolymResultsCh.collect().ifEmpty([])
+  file('mutect2/*') from mutect2CallingMetricsMqcCh.collect().ifEmpty([])
 
   output:
   file("*multiqc_report.html") into multiQCOutCh
   file("*_data")
-
-  when: !('multiqc' in skipQC)
 
   script:
   rtitle = customRunName ? "--title \"$customRunName\"" : ''
@@ -2539,7 +2571,8 @@ process multiQC {
   modules_list = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m qualimap -m picard -m mosdepth"
   """
   apStats2MultiQC.sh -s ${splan} ${designOpts} ${isPE}
-  mqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} > multiqc-config-header.yaml
+  medianReadNb="\$(sort -t, -k3,3n mqc.stats | awk -F, '{a[i++]=\$3;} END{x=int((i+1)/2); if (x<(i+1)/2) printf "%.0f", (a[x-1]+a[x])/2; else printf "%.0f",a[x-1];}')"
+  mqcHeader.py --splan ${splan} --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} --nbreads \${medianReadNb} > multiqc-config-header.yaml
   multiqc . -f ${rtitle} ${rfilename} -c multiqc-config-header.yaml -c $multiqcConfig $modules_list
   """
 }
