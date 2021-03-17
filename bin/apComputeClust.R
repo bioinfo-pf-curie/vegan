@@ -10,8 +10,8 @@ inputTable <- args[1]
 outputDir<-args[2]
 figureName<-args[3]
 
-#inputTable <- "/bioinfo/users/tgutman/Documents/Tom/SeqOIA/SeqOIA_KDI/analysis/test_clustering/bam/clust_matrix.tsv"
-#outputDir<-"/data/users/tgutman/Documents/Tom/SeqOIA/SeqOIA_KDI/analysis/test_clustering/bam"
+#inputTable <- "/data/tmp/tgutman/EUCANCAN/test_transition/work/d5/39e58da012d1e3b0efcddb2d2833bd/clust_mat.tsv"
+#outputDir<-"/data/tmp/tgutman/EUCANCAN/test_transition/work/d5/39e58da012d1e3b0efcddb2d2833bd"
 #figureName<-"test_clust"
 
 #inputTable <- "/data/tmp/tgutman/clust_mat.tsv"
@@ -57,18 +57,24 @@ rownames(clust_mat)=temp_rownames
 
 # Handle sample full of NA
 for (i in 1:nrow(as.matrix(clust_mat))){
-    if (!is.null(dim(clust_mat))){
-        if (sum(is.na(clust_mat[i,])) == ncol(clust_mat)){
-            warning('One or more samples contain only NAs, those samples will be removed')
-            print(dim(clust_mat))
-            clust_mat=clust_mat[-i,]
+    print(dim(clust_mat))
+    if (sum(is.na(clust_mat[i,])) == ncol(clust_mat)){
+        warning('One or more samples contain only NAs, those samples will be removed')
+        #print(dim(clust_mat))
+        clust_mat=clust_mat[-i,]
+        if(is.null(dim(clust_mat))){
+            print("this matrix has only one sample")
+            file.create(outputMatrix)
+            df <- data.frame()
+            #write.table(df, file="my.csv", sep=",", row.names=FALSE, append=TRUE)
+            write.csv(df, outputMatrix)
+            quit(save="no", status = 0)
         }
     }
-    else{
-        print("this matrix has only one sample")
-        quit(save="no", status = 0)
-    }
 }
+
+print(clust_mat)
+print(dim(clust_mat))
 
 # Compute distance
 jacdist <- vegdist(clust_mat,method="jaccard",na.rm=TRUE)
