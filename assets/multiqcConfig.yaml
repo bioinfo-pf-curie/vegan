@@ -136,14 +136,23 @@ custom_data:
               format: '{:,.1f}'
               suffix: '%'
               placement: 14000
-            80X_cov:
-              title: '80X Coverage (%)'
+            50X_cov:
+              title: '50X Coverage (%)'
               min: 0
               max: 100
               scale: 'RdYlGn'
               format: '{:,.1f}'
               suffix: '%'
+              hidden: true
               placement: 15000
+            100X_cov:
+              title: '100X Coverage (%)'
+              min: 0
+              max: 100
+              scale: 'RdYlGn'
+              format: '{:,.1f}'
+              suffix: '%'
+              placement: 16000
 
     bwa_logs:
         file_format: 'tsv'
@@ -177,7 +186,44 @@ custom_data:
             title: 'Identito Vigilance heatmap'
             namescape: 'identito'
             id: 'identito'
-
+    mutect2:
+        file_format: 'csv'
+        section_name: 'Mutect2'
+        description: ' variant calling. Total number of variants detected by the Mutect2 workflow before and after filtering with the FilterMutectCalls function. The cross-contamination values have been calculated with the GATK CalculateContamination software.'
+        plot_type: 'table'
+        pconfig:
+            title: 'Mutect2 Variant Calling'
+            id: 'mutect2'
+            scale: 'RdYlBu'
+            format: '{:,.0f}'
+            save_file: true
+            col1_header: 'Sample_ID'                                                                                                                                                                        
+        headers:
+            Sample_name:
+              title: 'Sample Name'
+              scale: false
+              format: '{:.0f}'
+              placement: 1000
+            conta:
+              title: 'Cross-contamination (%)'
+              scale: false
+              format: '{:,.2f}'
+              placement: 2000
+            nb_var:
+              title: 'Total Variants'
+              scale: false
+              format: '{:,.0f}'
+              placement: 3000
+            nb_var_filt:
+              title: 'Variants After Filtering'
+              scale: false
+              format: '{:,.0f}'
+              placement: 4000
+            perc_var_filt:
+              title: 'Filtered Variants (%)'
+              scale: false
+              format: '{:,.2f}'
+              placement: 5000
 
 sp:
   my_stats:
@@ -188,6 +234,8 @@ sp:
       fn: '*covdensity.mqc'
   identito:
       fn: '*_identito.csv'
+  mutect2:
+      fn: '*_Mutect2_callingMetrics.mqc'
 
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
@@ -198,6 +246,8 @@ table_cond_formatting_rules:
         fail:
           - lt: 50
     Percent_of_overlap:
+        pass:
+          - lt: 20
         warn:
           - gt: 20
     Percent_of_duplicates:
@@ -237,7 +287,8 @@ module_order:
      name: 'Fragment Size'
   - mosdepth:
      name: 'Genome Coverage'
-  - qualimap
+  - preseq:
+     name: 'Sequencing Complexity'
   - gatk
   - bcftools
   - snpeff
@@ -259,6 +310,8 @@ report_section_order:
     order: 200
   identito:
     order: 100
+  mutect2:
+    order: 50
   software_versions:
     order: -2000
   summary:
