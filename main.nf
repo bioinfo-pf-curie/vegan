@@ -119,7 +119,7 @@ summary = [
   'SV filters': params.SVFilters ? params.SVFilters instanceof Collection  ? params.SVFilters.join(', ') : params.SVFilters : null,
   'SNV filters': params.SNVFilters ? params.SNVFilters instanceof Collection  ? params.SNVFilters.join(', ') : params.SNVFilters : null,
   'Intervals': params.noIntervals && step != 'annotate' ? 'Do not use' : null,
-  'GVCF': 'haplotypecaller' in tools ? params.noGVCF ? 'No' : 'Yes' : null,
+  'GVCF': 'haplotypecaller' in tools ? params.saveGVCF ? 'Yes' : 'No' : null,
   'Sequenced by': params.sequencingCenter ? params.sequencingCenter: null,
   'Panel of normals': params.pon && 'mutect2' in tools ? params.pon: null,
   'Save Genome Index': params.saveGenomeIndex ? 'Yes' : 'No',
@@ -1599,7 +1599,6 @@ if (params.design){
 // To speed Variant Callers up we are chopping the reference into smaller pieces
 // Do variant calling by this intervals, and re-merge the VCFs
 
-
 /*
  * HAPLOTYPECALLER
  */
@@ -1651,7 +1650,7 @@ process haplotypeCaller {
   """
 }
 
-gvcfHaplotypeCallerCh = params.noGVCF ? gvcfHaplotypeCallerCh.close() :  gvcfHaplotypeCallerCh.groupTuple(by:[0, 1, 2]).dump(tag:'GVCF HaplotypeCaller')
+gvcfHaplotypeCallerCh = !params.saveGVCF ? gvcfHaplotypeCallerCh.close() :  gvcfHaplotypeCallerCh.groupTuple(by:[0, 1, 2]).dump(tag:'GVCF')
 
 process genotypeGVCFs {
   label 'gatk'
@@ -1677,7 +1676,6 @@ process genotypeGVCFs {
   when: 'haplotypecaller' in tools
 
   script:
-  // Using -L is important for speed and we have to index the interval files also
   intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
   dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
   """
@@ -1825,7 +1823,9 @@ process concatVCF {
 
   tag "${variantCaller}-${sampleId}"
 
-  publishDir "${params.outDir}/variantCalling/${variantCaller}", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/", mode: params.publishDirMode,
+             saveAs: { filename -> if ("${variantCaller}"=="Mutect2") "Mutect2/$filename"
+                       else "HaplotypeCaller/$filename" }
 
   input:
   tuple val(variantCaller),
@@ -1849,10 +1849,11 @@ process concatVCF {
   script:
   if (variantCaller == 'HaplotypeCallerGVCF')
     outputFile = "${sampleId}_HaplotypeCaller.g.vcf"
-  else if (variantCaller == "Mutect2")
-    outputFile = "${sampleId}_${variantCaller}_unfiltered.vcf"
+  else if (variantCaller == 'Mutect2')
+    outputFile = "${sampleIdTN}_Mutect2_unfiltered.vcf"
   else
-    outputFile = "${variantCaller}_${sampleId}.vcf"
+    outputFile = "${sampleId}_${variantCaller}.vcf"
+  
   options = params.targetBED ? "-t ${targetBED}" : ""
   intervalsOptions = params.noIntervals ? "-n" : ""
   """
@@ -1861,12 +1862,15 @@ process concatVCF {
   """
 }
 
+// Seperate Mutect2 vs HC
+// And remove GVCF
 vcfConcatenatedCh
   .branch {
-    vcfConcatForFilterCh: it[0] == "Mutect2"
-    otherCh: true
+    vcfMutect2: it[0] == "Mutect2"
+    gvcf: it[0] == "HaplotypeCallerGVCF"
+    other: true
   }.set { vcfConcatenatedForks }
-(vcfConcatenatedForFilterCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfConcatForFilterCh, vcfConcatenatedForks.otherCh]
+(vcfConcatenatedForMutect2FilterCh, vcfConcatenatedHaplotypeCallerGVCFCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfMutect2, vcfConcatenatedForks.gvcf, vcfConcatenatedForks.other]
 
 vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
 
@@ -2001,14 +2005,16 @@ process filterMutect2Calls {
 
   tag "${sampleIdTN}"
 
-  publishDir "${params.outDir}/variantCalling/Mutect2/", mode: params.publishDirMode
+  publishDir "${params.outDir}/variantCalling/Mutect2/", mode: params.publishDirMode,
+              saveAs: {filename -> if ( filename.endsWith("callingMetrics.mqc") || filename.endsWith("filteringStats.tsv")) "stats/$filename"
+                                   else "$filename"}
 
   input:
   tuple val(variantCaller),
     val(sampleId),
     val(sampleIdTN),
     file(unfiltered),
-    file(unfilteredIndex) from vcfConcatenatedForFilterCh
+    file(unfilteredIndex) from vcfConcatenatedForMutect2FilterCh
   file("${sampleIdTN}.vcf.gz.stats") from mergedStatsFileCh
   file("${sampleIdTN}_contamination.table") from contaminationTableCh
   file(dict) from dictCh
@@ -2358,19 +2364,20 @@ vcfAnnotationCh = Channel.empty().mix(
   vcfConcatenatedCh.map{
     variantcaller, sampleId, sampleName, vcf, tbi ->
       [variantcaller, sampleId, vcf]
-  },
-  vcfMantaSingleCh.map {
-    variantcaller, sampleId, sampleName, vcf, tbi ->
-      [variantcaller, sampleId, vcf[2]]
-  },
-  vcfMantaDiploidSVCh.map {
-    variantcaller, sampleId, sampleName, vcf, tbi ->
-      [variantcaller, sampleId, vcf[2]]
-  },
-  vcfMantaSomaticSVCh.map {
-    variantcaller, sampleId, sampleName, vcf, tbi ->
-      [variantcaller, sampleId, vcf[3]]
-  })
+  }
+//  vcfMantaSingleCh.map {
+//    variantcaller, sampleId, sampleName, vcf, tbi ->
+//      [variantcaller, sampleId, vcf[2]]
+//  },
+//  vcfMantaDiploidSVCh.map {
+//    variantcaller, sampleId, sampleName, vcf, tbi ->
+//      [variantcaller, sampleId, vcf[2]]
+//  },
+//  vcfMantaSomaticSVCh.map {
+//    variantcaller, sampleId, sampleName, vcf, tbi ->
+//      [variantcaller, sampleId, vcf[3]]
+//  }
+)
 
 if (step == 'annotate') {
   vcfToAnnotateCh = Channel.create()
@@ -2405,14 +2412,18 @@ if (step == 'annotate') {
 }
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
-// STEP SNPEFF
+
+
+/*
+ * SNPEFF
+ */
 
 process snpEff {
   label 'snpeff'
 
   tag "${sampleId} - ${variantCaller} - ${vcf}"
 
-  publishDir "${params.outDir}/snpEff", mode: params.publishDirMode, 
+  publishDir "${params.outDir}/${variantCaller}/snpEff/", mode: params.publishDirMode, 
              saveAs: { if (it == "${reducedVCF}_snpEff.ann.vcf") null
                        else "reports/${it}" }
 
