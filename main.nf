@@ -572,7 +572,7 @@ process fastQC {
   file("*.{html,zip}") into fastqcReportCh
   file("v_fastqc.txt") into fastqcVersionCh
 
-  when: 
+  when:
   !params.skipQC
 
   script:
@@ -1153,7 +1153,7 @@ process getPolym {
 
   publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
 
-  when: 
+  when:
   !params.skipIdentito && !params.skipQC
 
   input:
@@ -1185,7 +1185,7 @@ process computePolym {
 
   publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
 
-  when: 
+  when:
   !params.skipIdentito && !params.skipQC
 
   input:
@@ -1868,6 +1868,47 @@ vcfConcatenatedCh
 (vcfConcatenatedForMutect2FilterCh, vcfConcatenatedHaplotypeCallerGVCFCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfMutect2, vcfConcatenatedForks.gvcf, vcfConcatenatedForks.other]
 vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
 
+(vcfConcatenatedForFilterCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfConcatForFilterCh, vcfConcatenatedForks.otherCh]
+
+(transitionCh, vcfConcatenatedCh) = vcfConcatenatedCh.into(2)
+
+
+transitionCh = transitionCh.filter{it[0] == "HaplotypeCaller" }.view()
+transitionCh = transitionCh.dump(tag: "HC")
+
+process computeTransition {
+    label 'lowCpu'
+    label 'lowMem'
+    label 'cyvcf2'
+
+    publishDir "${params.outDir}/transition", mode: params.publishDirMode
+
+    input:
+    file(vcf) from transitionCh.collect()
+
+    output:
+    file("transiTable.tsv") into transitionOutputCh
+
+    when: 'haplotypecaller' in tools
+
+    script:
+    """
+    for vcf in *.vcf.gz;do
+    echo \$vcf
+    apParseTransition.py -i \$vcf -o `basename \$vcf .vcf.gz`".transi.tsv"
+    done
+
+    awk 'NR==1{print \$0}' `ls *.transi.tsv |head -n1` > transi.tsv
+
+    for file in *.transi.tsv;do
+    echo \$file
+    awk 'NR>1{print \$0}' \$file >> transi.tsv
+    done
+
+    apTransition.R
+    """
+}
+
 // STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
 
 process pileupSummariesForMutect2 {
@@ -2039,7 +2080,7 @@ process filterMutect2Calls {
     --stats ${sampleIdTN}.vcf.gz.stats \
     -R ${fasta} \
     -O ${sampleIdTN}_${variantCaller}_filtered.vcf.gz
-  
+
   getCallingMetrics.sh -i ${unfiltered} \
                        -f ${sampleIdTN}_${variantCaller}_filtered.vcf.gz \
                        -c ${sampleIdTN}_contamination.table \
@@ -2416,7 +2457,11 @@ process snpEff {
 
   tag "${sampleId} - ${variantCaller} - ${vcf}"
 
+<<<<<<< Updated upstream
   publishDir "${params.outDir}/${variantCaller}/snpEff/", mode: params.publishDirMode, 
+=======
+  publishDir "${params.outDir}/snpEff", mode: params.publishDirMode,
+>>>>>>> Stashed changes
              saveAs: { if (it == "${reducedVCF}_snpEff.ann.vcf") null
                        else "reports/${it}" }
 
