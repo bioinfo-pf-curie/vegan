@@ -2457,11 +2457,7 @@ process snpEff {
 
   tag "${sampleId} - ${variantCaller} - ${vcf}"
 
-<<<<<<< Updated upstream
   publishDir "${params.outDir}/${variantCaller}/snpEff/", mode: params.publishDirMode, 
-=======
-  publishDir "${params.outDir}/snpEff", mode: params.publishDirMode,
->>>>>>> Stashed changes
              saveAs: { if (it == "${reducedVCF}_snpEff.ann.vcf") null
                        else "reports/${it}" }
 
