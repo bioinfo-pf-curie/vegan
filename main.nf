@@ -98,6 +98,7 @@ params << [
   knownIndels: params.genome && 'mapping' in step ? params.genomes[params.genome].knownIndels ?: null : null,
   knownIndelsIndex: params.genome && params.genomes[params.genome].knownIndels ? params.genomes[params.genome].knownIndelsIndex ?: null : null,
   snpeffDb: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffDb ?: null : null,
+  snpeffCache: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffCache ?: null : nul
 ]
 
 /*
@@ -119,7 +120,7 @@ summary = [
   'SV filters': params.SVFilters ? params.SVFilters instanceof Collection  ? params.SVFilters.join(', ') : params.SVFilters : null,
   'SNV filters': params.SNVFilters ? params.SNVFilters instanceof Collection  ? params.SNVFilters.join(', ') : params.SNVFilters : null,
   'Intervals': params.noIntervals && step != 'annotate' ? 'Do not use' : null,
-  'GVCF': 'haplotypecaller' in tools ? params.saveGVCF ? 'Yes' : 'No' : null,
+  'Save GVCF': 'haplotypecaller' in tools ? params.saveGVCF ? 'Yes' : 'No' : null,
   'Sequenced by': params.sequencingCenter ? params.sequencingCenter: null,
   'Panel of normals': params.pon && 'mutect2' in tools ? params.pon: null,
   'Save Genome Index': params.saveGenomeIndex ? 'Yes' : 'No',
@@ -143,7 +144,7 @@ summary = [
   'knownIndels': params.knownIndels ?: null,
   'knownIndelsIndex': params.knownIndelsIndex ?: null,
   'snpeffDb': params.snpeffDb ?: null,
-  'snpEffCache': params.snpEffCache ?: null,
+  'snpeffCache': params.snpeffCache ?: null,
   'Config Profile': workflow.profile,
   'Config Description': params.configProfileDescription ?: null,
   'Config Contact': params.configProfileContact ?: null,
@@ -173,7 +174,7 @@ polymsCh = params.polyms ? Channel.value(file(params.polyms)) : "null"
 germlineResourceCh = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
 intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
 knownIndelsCh = params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
-snpEffCacheCh = params.snpEffCache ? Channel.value(file(params.snpEffCache)) : "null"
+snpeffCacheCh = params.snpeffCache ? Channel.value(file(params.snpeffCache)) : "null"
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
@@ -610,8 +611,6 @@ process bwaMem {
     val(sampleName),
     val(runId),
     file(inputFile), file(index), val(genomeBase) from inputPairReadsCh.combine(bwaIndexCh)
-  //file(fasta) from fastaCh
-  //file(fastaFai) from fastaFaiCh
 
   output:
   tuple val(sampleId),
@@ -1222,10 +1221,8 @@ filteredBamCh
     otherCh: true
   }.set { filteredBamForks }
 (filteredSNVBamsCh, filteredSVBamsCh, filteredOtherBamsCh) = [filteredBamForks.snvCh, filteredBamForks.svCh, filteredBamForks.otherCh]
-
 (bamBaseRecalibratorCh, bamBaseRecalibratorToJoinCh) = params.skipBQSR ? [Channel.empty(), Channel.empty()] : filteredSNVBamsCh.into(2)
 bamBaseRecalibratorCh = params.skipBQSR ? bamBaseRecalibratorCh : bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
-
 
 /*
  * CREATING RECALIBRATION TABLES
@@ -1808,10 +1805,10 @@ process mergeMutect2Stats {
   """
 }
 
+// STEP MERGING VCF - GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED) 
+
 // we are merging the VCFs that are called separatelly for different intervals
 // so we can have a single sorted VCF containing all the calls for a given caller
-
-// STEP MERGING VCF - GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED)
 
 vcfConcatenateVCFsCh = mutect2OutputCh.mix(vcfGenotypeGVCFsCh, gvcfHaplotypeCallerCh)
 vcfConcatenateVCFsCh = vcfConcatenateVCFsCh.dump(tag:'VCF to merge')
@@ -1836,7 +1833,6 @@ process concatVCF {
   file(targetBED) from targetBedCh
 
   output:
-  // we have this funny *_* pattern to avoid copying the raw calls to publishdir
   tuple val(variantCaller),
     val(sampleId),
     val(sampleIdTN),
@@ -1862,8 +1858,7 @@ process concatVCF {
   """
 }
 
-// Seperate Mutect2 vs HC
-// And remove GVCF
+// Seperate Mutect2 vs HC and remove GVCF from annotation
 vcfConcatenatedCh
   .branch {
     vcfMutect2: it[0] == "Mutect2"
@@ -1871,7 +1866,6 @@ vcfConcatenatedCh
     other: true
   }.set { vcfConcatenatedForks }
 (vcfConcatenatedForMutect2FilterCh, vcfConcatenatedHaplotypeCallerGVCFCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfMutect2, vcfConcatenatedForks.gvcf, vcfConcatenatedForks.other]
-
 vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
 
 // STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
@@ -2413,7 +2407,6 @@ if (step == 'annotate') {
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
 
-
 /*
  * SNPEFF
  */
@@ -2431,7 +2424,7 @@ process snpEff {
   tuple val(variantCaller),
     val(sampleId),
     file(vcf) from vcfAnnotationCh
-  file(dataDir) from snpEffCacheCh
+  file(dataDir) from snpeffCacheCh
   val(snpeffDb) from snpeffDbCh
 
   output:
@@ -2447,7 +2440,7 @@ process snpEff {
 
   script:
   reducedVCF = reduceVCF(vcf.fileName)
-  cache = params.snpEffCache ? "-dataDir \${PWD}/${dataDir}" : ""
+  cache = params.snpeffCache ? "-dataDir ${dataDir}" : ""
   """
   snpEff -Xmx${task.memory.toGiga()}g \
     ${snpeffDb} \
@@ -2464,8 +2457,6 @@ process snpEff {
   snpEff -version &> v_snpeff.txt 2>&1 || true
   """
 }
-
-snpeffReportCh = snpeffReportCh.dump(tag:'snpEff report')
 
 // STEP COMPRESS AND INDEX VCF.1 - SNPEFF
 
@@ -2493,8 +2484,6 @@ process compressVCFsnpEff {
   tabix ${vcf}.gz
   """
 }
-
-compressVCFsnpEffOutCh = compressVCFsnpEffOutCh.dump(tag:'VCF')
 
 /*
 ================================================================================
@@ -2588,7 +2577,7 @@ process multiQC {
   """
 }
 
-multiQCOutCh.dump(tag:'MultiQC')
+
 
 /****************
  * Sub-routines *
