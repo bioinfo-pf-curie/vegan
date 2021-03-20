@@ -88,14 +88,14 @@ params << [
   acLoci: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLoci ?: null : null,
   acLociGC: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLociGC ?: null : null,
   bwaIndex: params.genome && params.genomes[params.genome].fasta && 'mapping' in step ? params.genomes[params.genome].bwaIndex ?: null : null,
-  dbsnp: params.genome && ('mapping' in step || 'haplotypecaller' in tools || 'mutect2' in tools) ? params.genomes[params.genome].dbsnp ?: null : null,
+  dbsnp: params.genome ? params.genomes[params.genome].dbsnp ?: null : null,
   dbsnpIndex: params.genome && params.genomes[params.genome].dbsnp ? params.genomes[params.genome].dbsnpIndex ?: null : null,
   dict: params.genome && params.genomes[params.genome].fasta ? params.genomes[params.genome].dict ?: null : null,
   fastaFai: params.genome && params.genomes[params.genome].fasta ? params.genomes[params.genome].fastaFai ?: null : null,
   germlineResource: params.genome && 'mutect2' in tools ? params.genomes[params.genome].germlineResource ?: null : null,
   germlineResourceIndex: params.genome && params.genomes[params.genome].germlineResource ? params.genomes[params.genome].germlineResourceIndex ?: null : null,
   intervals: params.genome && !('annotate' in step) ? params.genomes[params.genome].intervals ?: null : null,
-  knownIndels: params.genome && 'mapping' in step ? params.genomes[params.genome].knownIndels ?: null : null,
+  knownIndels: params.genome ? params.genomes[params.genome].knownIndels ?: null : null,
   knownIndelsIndex: params.genome && params.genomes[params.genome].knownIndels ? params.genomes[params.genome].knownIndelsIndex ?: null : null,
   snpeffDb: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffDb ?: null : null,
   snpeffCache: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffCache ?: null : nul
@@ -149,7 +149,6 @@ summary = [
   'Config Description': params.configProfileDescription ?: null,
   'Config Contact': params.configProfileContact ?: null,
   'Config URL': params.configProfileUrl ?: null,
-  'E-mail Address': params.email ?: null,
   'MultiQC maxsize': params.email ? params.maxMultiqcEmailFileSize: null,
 ].findAll{ it.value != null }
 
@@ -164,61 +163,37 @@ checkHostname(params, workflow)
 */
 
 // Initialize channels based on params
+fastaCh = params.fasta && !('annotate' in step) ? Channel.value(file(params.fasta)) : "null"
+fastaFaiCh = params.fastaFai ? Channel.value(file(params.fastaFai)) : fastaFaiBuiltCh
+dictCh = params.dict ? Channel.value(file(params.dict)) : dictBuiltCh
+polymsCh = params.polyms ? Channel.value(file(params.polyms)) : "null"
+gtfCh = params.gtf ? Channel.value(file(params.gtf)) : "null"
+
+// databases
 acLociCh = params.acLoci && 'ascat' in tools ? Channel.value(file(params.acLoci)) : "null"
 acLociGCCh = params.acLociGC && 'ascat' in tools ? Channel.value(file(params.acLociGC)) : "null"
 dbsnpCh = params.dbsnp && ('mapping' in step || 'haplotypecaller' in tools || 'mutect2' in tools) ? Channel.value(file(params.dbsnp)) : "null"
-fastaCh = params.fasta && !('annotate' in step) ? Channel.value(file(params.fasta)) : "null"
-fastaFaiCh = params.fastaFai && !('annotate' in step) ? Channel.value(file(params.fastaFai)) : "null"
-gtfCh = params.gtf ? Channel.value(file(params.gtf)) : "null"
-polymsCh = params.polyms ? Channel.value(file(params.polyms)) : "null"
+dbsnpIndexCh = params.dbsnp ? params.dbsnpIndex ? Channel.value(file(params.dbsnpIndex)) : "null" : "null"
 germlineResourceCh = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
-intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
+germlineResourceIndexCh = params.germlineResource ? params.germlineResourceIndex ? Channel.value(file(params.germlineResourceIndex)) : "null" : "null"
 knownIndelsCh = params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
+knownIndelsIndexCh = params.knownIndels ? params.knownIndelsIndex ? Channel.value(file(params.knownIndelsIndex)) : "null" : "null"
 snpeffCacheCh = params.snpeffCache ? Channel.value(file(params.snpeffCache)) : "null"
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
+intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
 ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
 targetBedCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
+ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : "null")
+
 // Print summary and genareta summary channel
 workflowSummaryCh = summarize(params, summary, workflow)
 metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
 outputDocsCh = file("$projectDir/docs/output.md", checkIfExists: true)
 outputDocsImagesCh = file("$projectDir/docs/images/", checkIfExists: true)
 
-/*
-================================================================================
-                                BUILDING INDEXES
-================================================================================
-*/
-
-// And then initialize channels based on params or indexes that were just built
-
-process buildBWAindexes {
-  label 'bwa'
-
-  tag "${fasta}"
-
-  publishDir params.outDir, mode: params.publishDirMode,
-    saveAs: {params.saveGenomeIndex ? "reference_genome/BWAIndex/${it}" : null }
-
-  input:
-  file(fasta) from fastaCh
-
-  output:
-  file("${fasta}.*") into bwaIndexesCh
-  file("v_bwa.txt") into bwaVersionCh
-
-  when: !(params.bwaIndex) && params.fasta && 'mapping' in step
-
-  script:
-  """
-  bwa index ${fasta}
-  bwa &> v_bwa.txt 2>&1 || true
-  """
-}
-
-//bwaIndexCh = params.bwaIndex ? Channel.value(file(params.bwaIndex)) : bwaIndexesCh
+// Bwa Indexes
 if (params.bwaIndex){
   lastPath = params.bwaIndex.lastIndexOf(File.separator)
   bwaDir =  params.bwaIndex.substring(0,lastPath+1)
@@ -232,178 +207,6 @@ if (params.bwaIndex){
 } else {
   exit 1, "BWA index file not found: ${params.bwaIndex}"
 }
-
-
-
-process buildDict {
-  label 'gatk'
-
-  tag "${fasta}"
-
-  publishDir params.outDir, mode: params.publishDirMode,
-    saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
-
-  input:
-  file(fasta) from fastaCh
-
-  output:
-  file("${fasta.baseName}.dict") into dictBuiltCh
-
-  when: !(params.dict) && params.fasta && !('annotate' in step)
-
-  script:
-  """
-  gatk --java-options "-Xmx${task.memory.toGiga()}g" \
-      CreateSequenceDictionary \
-      --REFERENCE ${fasta} \
-      --OUTPUT ${fasta.baseName}.dict
-  """
-}
-
-dictCh = params.dict ? Channel.value(file(params.dict)) : dictBuiltCh
-
-process buildFastaFai {
-  label 'samtools'
-
-  tag "${fasta}"
-
-  publishDir params.outDir, mode: params.publishDirMode,
-    saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
-
-  input:
-  file(fasta) from fastaCh
-
-  output:
-  file("${fasta}.fai") into fastaFaiBuiltCh
-
-  when: !(params.fastaFai) && params.fasta && !('annotate' in step)
-
-  script:
-  """
-  samtools faidx ${fasta}
-  """
-}
-
-fastaFaiCh = params.fastaFai ? Channel.value(file(params.fastaFai)) : fastaFaiBuiltCh
-
-process buildDbsnpIndex {
-  label 'tabix'
-
-  tag "${dbsnp}"
-
-  publishDir params.outDir, mode: params.publishDirMode,
-    saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
-
-  input:
-  file(dbsnp) from dbsnpCh
-
-  output:
-  file("${dbsnp}.tbi") into dbsnpIndexBuiltCh
-
-  when: !(params.dbsnpIndex) && params.dbsnp && ('mapping' in step || 'haplotypecaller' in tools || 'mutect2' in tools)
-
-  script:
-  """
-  tabix -p vcf ${dbsnp}
-  """
-}
-
-dbsnpIndexCh = params.dbsnp ? params.dbsnpIndex ? Channel.value(file(params.dbsnpIndex)) : dbsnpIndexBuiltCh : "null"
-
-process buildGermlineResourceIndex {
-  label 'tabix'
-
-  tag "${germlineResource}"
-
-  publishDir params.outDir, mode: params.publishDirMode,
-    saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
-
-  input:
-  file(germlineResource) from germlineResourceCh
-
-  output:
-  file("${germlineResource}.tbi") into germlineResourceIndexBuiltCh
-
-  when: !(params.germlineResourceIndex) && params.germlineResource && 'mutect2' in tools
-
-  script:
-  """
-  tabix -p vcf ${germlineResource}
-  """
-}
-
-germlineResourceIndexCh = params.germlineResource ? params.germlineResourceIndex ? Channel.value(file(params.germlineResourceIndex)) : germlineResourceIndexBuiltCh : "null"
-
-process buildKnownIndelsIndex {
-  label 'tabix'
-
-  tag "${knownIndels}"
-
-  publishDir params.outDir, mode: params.publishDirMode,
-    saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
-
-  input:
-  file(knownIndels) from knownIndelsCh
-
-  output:
-  file("${knownIndels}.tbi") into knownIndelsIndexBuiltCh
-
-  when: !(params.knownIndelsIndex) && params.knownIndels && 'mapping' in step
-
-  script:
-  """
-  tabix -p vcf ${knownIndels}
-  """
-}
-
-knownIndelsIndexCh = params.knownIndels ? params.knownIndelsIndex ? Channel.value(file(params.knownIndelsIndex)) : knownIndelsIndexBuiltCh.collect() : "null"
-
-process buildPonIndex {
-  label 'tabix'
-
-  tag "${pon}"
-
-  publishDir params.outDir, mode: params.publishDirMode,
-    saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
-
-  input:
-  file(pon) from ponCh
-
-  output:
-  file("${pon}.tbi") into ponIndexBuiltCh
-
-  when: !(params.ponIndex) && params.pon && 'mutect2' in tools
-
-  script:
-  """
-  tabix -p vcf ${pon}
-  """
-}
-
-process buildIntervals {
-  label 'onlyLinux'
-
-  tag "${fastaFai}"
-
-  publishDir params.outDir, mode: params.publishDirMode,
-    saveAs: {params.saveGenomeIndex ? "reference_genome/${it}" : null }
-
-  input:
-  file(fastaFai) from fastaFaiCh
-
-  output:
-  file("${fastaFai.baseName}.bed") into intervalBuiltCh
-
-  when: !(params.intervals) && !('annotate' in step) && !(params.noIntervals)
-
-  script:
-  """
-  awk -v FS='\t' -v OFS='\t' '{ print \$1, \"0\", \$2 }' ${fastaFai} > ${fastaFai.baseName}.bed
-  """
-}
-
-intervalsCh = params.noIntervals ? "null" : params.intervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : intervalBuiltCh
-
 
 /*
 ================================================================================
@@ -621,6 +424,7 @@ process bwaMem {
     val("${sampleId}_${runId}"),
     file("${sampleId}.bam") into bamMappedBamQCCh
   file('v_samtools.txt') into samtoolsMapReadsVersionCh
+  file("v_bwa.txt") into bwaVersionCh
 
   script:
   // -K is an hidden option, used to fix the number of reads processed by bwa mem
@@ -641,6 +445,7 @@ process bwaMem {
   ${input} | \
   samtools sort --threads ${task.cpus} - > ${sampleId}.bam
   samtools --version &> v_samtools.txt 2>&1 || true
+  bwa &> v_bwa.txt 2>&1 || true
   """
 }
 
@@ -1109,7 +914,7 @@ process getWGSmetrics {
   publishDir path: "${params.outDir}/preprocessing/metrics/WGSmetrics", mode: params.publishDirMode
 
   when:
-  params.skipQC
+  !params.skipQC
 
   input:
   tuple val(sampleId),
@@ -1697,7 +1502,6 @@ vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
 
 
 // STEP GATK MUTECT2.1 - RAW CALLS
-ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : ponIndexBuiltCh)
 
 process mutect2 {
   tag "${sampleIdNormal}_vs_${sampleIdTumor}-${intervalBed.baseName}"
@@ -1772,7 +1576,7 @@ process mergeMutect2Stats {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
-  publishDir "${params.outDir}/variantCalling/Mutect2/stats/", mode: params.publishDirMode
+  publishDir "${params.outDir}/Mutect2/stats/", mode: params.publishDirMode
 
   input:
   tuple val(caller),
@@ -1820,7 +1624,7 @@ process concatVCF {
 
   tag "${variantCaller}-${sampleId}"
 
-  publishDir "${params.outDir}/variantCalling/", mode: params.publishDirMode,
+  publishDir "${params.outDir}/", mode: params.publishDirMode,
              saveAs: { filename -> if ("${variantCaller}"=="Mutect2") "Mutect2/$filename"
                        else "HaplotypeCaller/$filename" }
 
@@ -1927,7 +1731,7 @@ process mergePileupSummaries {
 
   tag "${pairName}_${sampleIdTumor}"
 
-  publishDir "${params.outDir}/variantCalling/Mutect2/contamination", mode: params.publishDirMode
+  publishDir "${params.outDir}/Mutect2/contamination", mode: params.publishDirMode
 
   input:
   tuple val(pairName),
@@ -1960,7 +1764,7 @@ process calculateContamination {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
-  publishDir "${params.outDir}/variantCalling/Mutect2/contamination", mode: params.publishDirMode
+  publishDir "${params.outDir}/Mutect2/contamination", mode: params.publishDirMode
 
   input:
   tuple val(sampleIdNormal),
@@ -1999,7 +1803,7 @@ process filterMutect2Calls {
 
   tag "${sampleIdTN}"
 
-  publishDir "${params.outDir}/variantCalling/Mutect2/", mode: params.publishDirMode,
+  publishDir "${params.outDir}/Mutect2/", mode: params.publishDirMode,
               saveAs: {filename -> if ( filename.endsWith("callingMetrics.mqc") || filename.endsWith("filteringStats.tsv")) "stats/$filename"
                                    else "$filename"}
 
@@ -2063,7 +1867,7 @@ process mantaSingle {
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/variantCalling/Manta", mode: params.publishDirMode
+  publishDir "${params.outDir}/Manta", mode: params.publishDirMode
 
   input:
   tuple val(sampleId),
@@ -2128,7 +1932,7 @@ process manta {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}_${vCType}"
 
-  publishDir "${params.outDir}/variantCalling/Manta", mode: params.publishDirMode
+  publishDir "${params.outDir}/Manta", mode: params.publishDirMode
 
   input:
   tuple val(sampleIdNormal),
@@ -2262,7 +2066,7 @@ process convertAlleleCounts {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
-  publishDir "${params.outDir}/variantCalling/ASCAT", mode: params.publishDirMode
+  publishDir "${params.outDir}/ASCAT", mode: params.publishDirMode
 
   input:
   tuple val(sampleIdNormal),
@@ -2300,7 +2104,7 @@ process ascat {
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
-  publishDir "${params.outDir}/variantCalling/ASCAT", mode: params.publishDirMode
+  publishDir "${params.outDir}/ASCAT", mode: params.publishDirMode
 
   input:
   tuple val(sampleIdNormal),
@@ -2380,7 +2184,7 @@ if (step == 'annotate') {
   if (samplePlanPath == []) {
     // By default, annotates all available vcfs that it can find in the VariantCalling directory
     // Excluding vcfs from and g.vcf from HaplotypeCaller
-    // Basically it's: results/variantCalling/{HaplotypeCaller,Manta,Mutect2}/*.vcf.gz
+    // Basically it's: results/{HaplotypeCaller,Manta,Mutect2}/*.vcf.gz
     // Without *SmallIndels.vcf.gz from Manta
     // The small snippet `vcf.minus(vcf.fileName)[-2]` catches sampleId
     // This field is used to output final annotated VCFs in the correct directory
@@ -2440,7 +2244,7 @@ process snpEff {
 
   script:
   reducedVCF = reduceVCF(vcf.fileName)
-  cache = params.snpeffCache ? "-dataDir ${dataDir}" : ""
+  cache = params.snpeffCache ? "-dataDir \${PWD}/${dataDir}" : ""
   """
   snpEff -Xmx${task.memory.toGiga()}g \
     ${snpeffDb} \
