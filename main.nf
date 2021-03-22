@@ -98,7 +98,7 @@ params << [
   knownIndels: params.genome ? params.genomes[params.genome].knownIndels ?: null : null,
   knownIndelsIndex: params.genome && params.genomes[params.genome].knownIndels ? params.genomes[params.genome].knownIndelsIndex ?: null : null,
   snpeffDb: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffDb ?: null : null,
-  snpeffCache: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffCache ?: null : nul
+  snpeffCache: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffCache ?: null : null
 ]
 
 /*
@@ -1139,23 +1139,23 @@ process gatherBQSRReports {
 recalTableCSVCh = recalTableCSVCh.mix(recalTableTSVnoIntCh)
 recalTableCSVCh = recalTableCSVCh.dump(tag: 'recalTableCSVCh')
 recalTableCSVCh.map { sampleId, sampleName, vCType ->
-  bam = "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked/${sampleId}.md.bam"
-  bai = "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked/${sampleId}.md.bai"
-  recalTable = "${params.outDir}/Preprocessing/${sampleId}/DuplicateMarked/${vCType}_${sampleId}.recal.table"
+  bam = "${params.outDir}/resume/${sampleId}/DuplicateMarked/${sampleId}.md.bam"
+  bai = "${params.outDir}/resume/${sampleId}/DuplicateMarked/${sampleId}.md.bai"
+  recalTable = "${params.outDir}/resume/${sampleId}/DuplicateMarked/${vCType}_${sampleId}.recal.table"
   "${sampleId},${sampleName},${vCType},${bam},${bai},${recalTable}\n"
 }.collectFile(
-  name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/Preprocessing/CSV"
+  name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/resume/CSV"
 )
 
 // TODO: find if generated files below are useful or not
 //recalTableSampleTSVCh
-//    .collectFile(storeDir: "${params.outDir}/Preprocessing/TSV/") {
+//    .collectFile(storeDir: "${params.outDir}/resume/TSV/") {
 //        sampleId, sampleName, vCType ->
 //        status = statusMap[sampleId]
 //        gender = genderMap[sampleId]
-//        bam = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
-//        bai = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
-//        recalTable = "${params.outDir}/Preprocessing/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
+//        bam = "${params.outDir}/resume/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
+//        bai = "${params.outDir}/resume/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
+//        recalTable = "${params.outDir}/resume/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
 //        ["duplicateMarked_${sampleName}.tsv", "${sampleId}\t${vCType}\t${sampleName}\t${bam}\t${bai}\t${recalTable}\n"]
 //}
 
@@ -1298,21 +1298,21 @@ bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
 
 // Creating a TSV file to restart from this step
 bamRecalTSVCh.map { sampleId, sampleName, vCType ->
-  bam = "${params.outDir}/Preprocessing/${sampleId}/Recalibrated/${sampleId}.recal.bam"
-  bai = "${params.outDir}/Preprocessing/${sampleId}/Recalibrated/${sampleId}.recal.bam.bai"
+  bam = "${params.outDir}/resume/${sampleId}/Recalibrated/${sampleId}.recal.bam"
+  bai = "${params.outDir}/resume/${sampleId}/Recalibrated/${sampleId}.recal.bam.bai"
   "${sampleId}\t${sampleName}\t${vCType}\t${bam}\t${bai}\n"
 }.collectFile(
-  name: 'recal.samplePlan.tsv', sort: true, storeDir: "${params.outDir}/Preprocessing/TSV"
+  name: 'recal.samplePlan.tsv', sort: true, storeDir: "${params.outDir}/resume/TSV"
 )
 
 // TODO: find if generated files below are useful or not
 //bamRecalSampleTSVCh
-//    .collectFile(storeDir: "${params.outDir}/Preprocessing/TSV") {
+//    .collectFile(storeDir: "${params.outDir}/resume/TSV") {
 //        sampleId, sampleName ->
 //        status = statusMap[sampleId]
 //        gender = genderMap[sampleId]
-//        bam = "${params.outDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam"
-//        bai = "${params.outDir}/Preprocessing/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
+//        bam = "${params.outDir}/resume/${sampleName}/Recalibrated/${sampleName}.recal.bam"
+//        bai = "${params.outDir}/resume/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
 //        ["recalibrated_${sampleName}.tsv", "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\n"]
 //}
 
@@ -1491,6 +1491,7 @@ process genotypeGVCFs {
     ${dbsnpOpts} \
     -V ${gvcf} \
     -O ${intervalBed.baseName}_${sampleId}.vcf
+
   """
 }
 vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
@@ -1670,15 +1671,34 @@ vcfConcatenatedCh
     other: true
   }.set { vcfConcatenatedForks }
 (vcfConcatenatedForMutect2FilterCh, vcfConcatenatedHaplotypeCallerGVCFCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfMutect2, vcfConcatenatedForks.gvcf, vcfConcatenatedForks.other]
-vcfConcatenatedCh = vcfConcatenatedCh.dump(tag:'VCF')
-
-(vcfConcatenatedForFilterCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfConcatForFilterCh, vcfConcatenatedForks.otherCh]
-
-(transitionCh, vcfConcatenatedCh) = vcfConcatenatedCh.into(2)
+(transitionCh, vcfForMqcStatsCh, vcfForAnnotationCh) = vcfConcatenatedCh.into(3)
 
 
-transitionCh = transitionCh.filter{it[0] == "HaplotypeCaller" }.view()
-transitionCh = transitionCh.dump(tag: "HC")
+// VCF STATS BEFORE VARIANTS FILTERING
+
+process collectVCFmetrics {
+  label 'minCpu'
+  label 'minMem'
+  label 'onlyLinux'
+
+  input:
+  tuple val(variantCaller), 
+        val(sampleId), 
+        val(sampleName), 
+        file(vcf), 
+        file(tbi) from vcfForMqcStatsCh
+
+  output:
+  file("*.mqc") into callingMetricsMqcCh
+
+  """
+  getCallingMetrics.sh -i ${vcf} \
+                       -n ${sampleId} > ${sampleId}_${variantCaller}_callingMetrics.mqc
+  """
+
+}
+
+// TRANSITION/TRANSVERSION RATIO
 
 process computeTransition {
     label 'lowCpu'
@@ -1688,7 +1708,7 @@ process computeTransition {
     publishDir "${params.outDir}/transition", mode: params.publishDirMode
 
     input:
-    file(vcf) from transitionCh.collect()
+    file(vcf) from transitionCh.filter{it[0] == "HaplotypeCaller" }.map{it[3]}.collect()
 
     output:
     file("transiTable.tsv") into transitionOutputCh
@@ -2200,7 +2220,7 @@ vcfAnnotationCh = Channel.empty().mix(
     variantcaller, sampleId, sampleName, vcf, tbi, tsv ->
       [variantcaller, sampleId, vcf]
   },
-  vcfConcatenatedCh.map{
+  vcfForAnnotationCh.map{
     variantcaller, sampleId, sampleName, vcf, tbi ->
       [variantcaller, sampleId, vcf]
   }
@@ -2401,7 +2421,8 @@ process multiQC {
   //file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
   file('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
   file('Identito/*') from clustPolymResultsCh.collect().ifEmpty([])
-  file('mutect2/*') from mutect2CallingMetricsMqcCh.collect().ifEmpty([])
+  file('vcfMetrics/*') from mutect2CallingMetricsMqcCh.collect().ifEmpty([])
+  file('vcfMetrics/*') from callingMetricsMqcCh.collect().ifEmpty([])
 
   output:
   file("*multiqc_report.html") into multiQCOutCh
@@ -2413,7 +2434,7 @@ process multiQC {
   metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
   designOpts= params.design ? "-d ${params.design}" : ""
   isPE = params.singleEnd ? "" : "-p"
-  modules_list = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m qualimap -m picard -m mosdepth"
+  modules_list = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m picard -m mosdepth"
   """
   apStats2MultiQC.sh -s ${splan} ${designOpts} ${isPE}
   medianReadNb="\$(sort -t, -k3,3n mqc.stats | awk -F, '{a[i++]=\$3;} END{x=int((i+1)/2); if (x<(i+1)/2) printf "%.0f", (a[x-1]+a[x])/2; else printf "%.0f",a[x-1];}')"
