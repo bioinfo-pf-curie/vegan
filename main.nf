@@ -88,8 +88,8 @@ params << [
   acLoci: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLoci ?: null : null,
   acLociGC: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLociGC ?: null : null,
   bwaIndex: params.genome && params.genomes[params.genome].fasta && 'mapping' in step ? params.genomes[params.genome].bwaIndex ?: null : null,
-  dbsnp: params.genome ? params.genomes[params.genome].dbsnp ?: null : null,
-  dbsnpIndex: params.genome && params.genomes[params.genome].dbsnp ? params.genomes[params.genome].dbsnpIndex ?: null : null,
+  dbsnp: params.genome ? params.genomes[params.genome].dbsnp ?: false : false,
+  dbsnpIndex: params.genome && params.genomes[params.genome].dbsnp ? params.genomes[params.genome].dbsnpIndex ?: false : false,
   dict: params.genome && params.genomes[params.genome].fasta ? params.genomes[params.genome].dict ?: null : null,
   fastaFai: params.genome && params.genomes[params.genome].fasta ? params.genomes[params.genome].fastaFai ?: null : null,
   germlineResource: params.genome && 'mutect2' in tools ? params.genomes[params.genome].germlineResource ?: null : null,
@@ -98,7 +98,7 @@ params << [
   knownIndels: params.genome ? params.genomes[params.genome].knownIndels ?: null : null,
   knownIndelsIndex: params.genome && params.genomes[params.genome].knownIndels ? params.genomes[params.genome].knownIndelsIndex ?: null : null,
   snpeffDb: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffDb ?: null : null,
-  snpeffCache: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffCache ?: null : null
+  snpeffCache: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffCache ?: false : false
 ]
 
 /*
@@ -1701,37 +1701,49 @@ process collectVCFmetrics {
 // TRANSITION/TRANSVERSION RATIO
 
 process computeTransition {
-    label 'lowCpu'
-    label 'lowMem'
-    label 'cyvcf2'
+  label 'minCpu'
+  label 'lowMem'
+  label 'cyvcf2'
 
-    publishDir "${params.outDir}/transition", mode: params.publishDirMode
+  publishDir "${params.outDir}/${variantCaller}/transition", mode: params.publishDirMode
 
-    input:
-    file(vcf) from transitionCh.filter{it[0] == "HaplotypeCaller" }.map{it[3]}.collect()
+  input:
+  tuple val(variantCaller),
+        val(sampleId),
+        val(sampleName),
+        file(vcf),
+        file(tbi) from transitionCh.filter{it[0] == "HaplotypeCaller"}
 
-    output:
-    file("transiTable.tsv") into transitionOutputCh
+  output:
+  tuple val(variantCaller), 
+        file("transi.tsv") into transitionPerSampleCh
 
-    when: 'haplotypecaller' in tools
+  when: 'haplotypecaller' in tools
 
-    script:
-    """
-    for vcf in *.vcf.gz;do
-    echo \$vcf
-    apParseTransition.py -i \$vcf -o `basename \$vcf .vcf.gz`".transi.tsv"
-    done
-
-    awk 'NR==1{print \$0}' `ls *.transi.tsv |head -n1` > transi.tsv
-
-    for file in *.transi.tsv;do
-    echo \$file
-    awk 'NR>1{print \$0}' \$file >> transi.tsv
-    done
-
-    apTransition.R
-    """
+  script:
+  """
+  apParseTransition.py -i $vcf -o ${vcf.baseName}.transi.tsv
+  """
 }
+
+/*
+process mergeTransition {
+  label 'minCpu'
+  label 'lowMem'
+  label 'r'
+
+  input:
+  tuple val(variantCaller), 
+        file(transi) from transitionPerSampleCh.collect()
+  
+  output:
+
+
+  """
+  apTransition.R
+  """
+}
+*/
 
 // STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
 
