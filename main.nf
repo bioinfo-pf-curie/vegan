@@ -162,11 +162,11 @@ polymsCh = params.polyms ? Channel.value(file(params.polyms)) : "null"
 gtfCh = params.gtf ? Channel.value(file(params.gtf)) : "null"
 
 // databases
-acLociCh = params.acLoci && 'ascat' in tools ? Channel.value(file(params.acLoci)) : "null"
-acLociGCCh = params.acLociGC && 'ascat' in tools ? Channel.value(file(params.acLociGC)) : "null"
-dbsnpCh = params.dbsnp && ('mapping' in step || 'haplotypecaller' in tools || 'mutect2' in tools) ? Channel.value(file(params.dbsnp)) : "null"
+acLociCh = params.acLoci ? Channel.value(file(params.acLoci)) : "null"
+acLociGCCh = params.acLociGC ? Channel.value(file(params.acLociGC)) : "null"
+dbsnpCh = params.dbsnp ? Channel.value(file(params.dbsnp)) : "null"
 dbsnpIndexCh = params.dbsnp ? params.dbsnpIndex ? Channel.value(file(params.dbsnpIndex)) : "null" : "null"
-germlineResourceCh = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
+germlineResourceCh = params.germlineResource ? Channel.value(file(params.germlineResource)) : "null"
 germlineResourceIndexCh = params.germlineResource ? params.germlineResourceIndex ? Channel.value(file(params.germlineResourceIndex)) : "null" : "null"
 knownIndelsCh = params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
 knownIndelsIndexCh = params.knownIndels ? params.knownIndelsIndex ? Channel.value(file(params.knownIndelsIndex)) : "null" : "null"
@@ -1775,7 +1775,7 @@ process pileupSummariesForMutect2 {
     val(sampleIdTumor),
     file("${intervalBed.baseName}_${sampleIdTumor}_pileupsummaries.table") into pileupSummariesCh
 
-  when: 'mutect2' in tools && vCType == 'SNV'
+  when: 'mutect2' in tools && vCType == 'SNV' && !params.skipMutectContamination
 
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
@@ -1812,7 +1812,7 @@ process mergePileupSummaries {
   output:
   file("${sampleIdTumor}_pileupsummaries.table.tsv") into mergedPileupFileCh
 
-  when: 'mutect2' in tools
+  when: 'mutect2' in tools  && !params.skipMutectContamination
 
   script:
   allPileups = pileupSums.collect{ "-I ${it} " }.join(' ')
@@ -1852,7 +1852,7 @@ process calculateContamination {
   output:
   file("${sampleIdTumor}_contamination.table") into contaminationTableCh
 
-  when: 'mutect2' in tools && vCType == 'SNV'
+  when: 'mutect2' in tools && vCType == 'SNV'  && !params.skipMutectContamination
 
   script:
   """
@@ -1865,6 +1865,10 @@ process calculateContamination {
 }
 
 // STEP GATK MUTECT2.6 - FILTERING CALLS
+if (params.skipMutectContamination){
+  contaminationTableCh=file('NO_FILE')
+}
+
 
 process filterMutect2Calls {
   label 'gatk'
@@ -1884,7 +1888,7 @@ process filterMutect2Calls {
     file(unfiltered),
     file(unfilteredIndex) from vcfConcatenatedForMutect2FilterCh
   file("${sampleIdTN}.vcf.gz.stats") from mergedStatsFileCh
-  file("${sampleIdTN}_contamination.table") from contaminationTableCh
+  file(contaminationTable) from contaminationTableCh
   file(dict) from dictCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
@@ -1904,19 +1908,21 @@ process filterMutect2Calls {
   when: 'mutect2' in tools
 
   script:
+  contaOpts = contaminationTable.name != 'NO_FILE' ? "--contamination-table ${contaminationTable}" : ""
+  contaMetricsOpts = contaminationTable.name != 'NO_FILE' ? "-c ${contaminationTable}" : ""
   """
   # do the actual filtering
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     FilterMutectCalls \
     -V ${unfiltered} \
-    --contamination-table ${sampleIdTN}_contamination.table \
+    ${contaOpts} \
     --stats ${sampleIdTN}.vcf.gz.stats \
     -R ${fasta} \
     -O ${sampleIdTN}_${variantCaller}_filtered.vcf.gz
 
   getCallingMetrics.sh -i ${unfiltered} \
                        -f ${sampleIdTN}_${variantCaller}_filtered.vcf.gz \
-                       -c ${sampleIdTN}_contamination.table \
+                       ${contaMetricsOpts} \
                        -n ${sampleIdTN} > ${sampleIdTN}_Mutect2_callingMetrics.mqc
   """
 }

@@ -44,20 +44,23 @@ nbVar=$(zcat ${vcf} | grep -v "^#" | wc -l)
 ## Mutect2
 if [ ! -z ${fvcf} ]; then
     nbFilt=$(zcat ${fvcf} | grep -v "^#" | grep PASS | wc -l)
-    pFilt=$(echo "${nbVar} ${nbFilt}" | awk ' { printf "%.*f",2,($1-$2)/$1*100 } ')
+    if [[ $nbFilt -gt 0 ]]; then
+	pFilt=$(echo "${nbVar} ${nbFilt}" | awk ' { printf "%.*f",2,($1-$2)/$1*100 } ')
+    else
+	pFilt=0
+    fi
+else
+    nbFilt='NA'
+    pFilt='NA'
 fi
 
 if [ ! -z ${conta} ]; then
     conta=$(awk 'NR==2{printf "%.*f",2,$2*100}' $conta)
+else
+    conta='NA'
 fi
 
-## HaplotypeCaller
-if [[ ! -z ${fvcf} && ! -z ${conta} ]];
-then
-    echo "sample_ID,conta,nb_var,nb_var_filt,perc_var_filt"
-    echo $sname,$conta,$nbVar,$nbFilt,$pFilt
-else
-    echo "sample_ID,nb_var"
-    echo $sname,$nbVar
-fi
+echo "sample_ID,conta,nb_var,nb_var_filt,perc_var_filt"
+echo $sname,$conta,$nbVar,$nbFilt,$pFilt
+
 
