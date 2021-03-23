@@ -224,6 +224,29 @@ custom_data:
               scale: false
               format: '{:,.2f}'
               placement: 5000
+    hccaller:
+        file_format: 'csv'
+        section_name: 'HaplotypeCaller'
+        description: ' variant calling. Total number of variants detected by the HaplotypeCaller workflow (GATK4).'
+        plot_type: 'table'
+        pconfig:
+            title: 'HaplotypeCaller Variant Calling'
+            id: 'hccaller'
+            scale: 'RdYlBu'
+            format: '{:,.0f}'
+            save_file: true
+            col1_header: 'Sample_ID'                                                                                                                                                                        
+        headers:
+            Sample_name:
+              title: 'Sample Name'
+              scale: false
+              format: '{:.0f}'
+              placement: 1000
+            nb_var:
+              title: 'Total Variants'
+              scale: false
+              format: '{:,.0f}'
+              placement: 3000
 
 sp:
   my_stats:
@@ -236,6 +259,8 @@ sp:
       fn: '*_identito.csv'
   mutect2:
       fn: '*_Mutect2_callingMetrics.mqc'
+  hccaller:
+      fn: '*_HaplotypeCaller_callingMetrics.mqc'
 
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
