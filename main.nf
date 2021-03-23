@@ -219,20 +219,22 @@ if (params.bwaIndex){
 process createIntervalBeds {
   label 'onlyLinux'
 
-  tag "${intervals.fileName}"
-
   input:
   file(intervals) from intervalsCh
 
   output:
   file('*.bed') into bedIntervalsCh mode flatten
 
-  when: (!params.noIntervals) && step != 'annotate'
+  //when: (!params.noIntervals) && step != 'annotate'
 
   script:
   // If the interval file is BED format, the fifth column is interpreted to
   // contain runtime estimates, which is then used to combine short-running jobs
-  if (hasExtension(intervals, "bed"))
+  if (params.noIntervals)
+    """
+    echo "noIntervals\n" > noIntervals.bed
+    """
+  else if (hasExtension(intervals, "bed"))
     """
     awk -v FS="\t" '{
       t = \$5  # runtime estimate
@@ -268,27 +270,27 @@ process createIntervalBeds {
     """
 }
 
-bedIntervalsCh = bedIntervalsCh
-  .map { intervalFile ->
-    duration = 0.0
-    for (line in intervalFile.readLines()) {
-      final fields = line.split('\t')
-      if (fields.size() >= 5) duration += fields[4].toFloat()
-      else {
-        start = fields[1].toInteger()
-        end = fields[2].toInteger()
-        duration += (end - start) / params.nucleotidesPerSecond
+if (!params.noIntervals){
+  bedIntervalsCh = bedIntervalsCh
+    .map { intervalFile ->
+      duration = 0.0
+      for (line in intervalFile.readLines()) {
+        final fields = line.split('\t')
+        if (fields.size() >= 5) duration += fields[4].toFloat()
+        else {
+          start = fields[1].toInteger()
+          end = fields[2].toInteger()
+          duration += (end - start) / params.nucleotidesPerSecond
+        }
       }
-    }
-    [duration, intervalFile]
-  }.toSortedList({ a, b -> b[0] <=> a[0] })
-  .flatten().collate(2)
-  .map{duration, intervalFile -> intervalFile}
+      [duration, intervalFile]
+    }.toSortedList({ a, b -> b[0] <=> a[0] })
+    .flatten().collate(2)
+    .map{duration, intervalFile -> intervalFile}
+  bedIntervalsCh = bedIntervalsCh.dump(tag:'bedintervals')
+}
 
-bedIntervalsCh = bedIntervalsCh.dump(tag:'bedintervals')
-
-if (params.noIntervals && step != 'annotate') {file("${params.outDir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outDir}/noIntervals.bed"))}
-
+//if (params.noIntervals && step != 'annotate') {file("${params.outDir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outDir}/noIntervals.bed"))}
 (intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(5)
 
 // PREPARING CHANNELS FOR PREPROCESSING AND QC
@@ -1033,6 +1035,8 @@ bamBaseRecalibratorCh = params.skipBQSR ? bamBaseRecalibratorCh : bamBaseRecalib
  * CREATING RECALIBRATION TABLES
  */
 
+//debugCh = bamBaseRecalibratorCh.map{row -> [row[0], row[1], row[2], row[3], row[4]]}
+
 process baseRecalibrator {
   label 'gatk'
   label 'minCpu'
@@ -1049,7 +1053,7 @@ process baseRecalibrator {
     val(vCType),
     file(bam),
     file(bai),
-    file(intervalBed) from bamBaseRecalibratorCh.dump(tag:'bqsr')
+    file(intervalBed) from bamBaseRecalibratorCh
   file(dbsnp) from dbsnpCh
   file(dbsnpIndex) from dbsnpIndexCh
   file(fasta) from fastaCh
@@ -1070,8 +1074,10 @@ process baseRecalibrator {
   when: 'haplotypecaller' in tools || 'mutect2' in tools
 
   script:
-  dbsnpOptions = params.dbsnp ? "--known-sites ${dbsnp}" : ""
-  knownOptions = params.knownIndels ? knownIndels.collect{"--known-sites ${it}"}.join(' ') : ""
+  //dbsnpOptions = params.dbsnp ? "--known-sites ${dbsnp}" : ""
+  //knownOptions = params.knownIndels ? knownIndels.collect{"--known-sites ${it}"}.join(' ') : ""
+  dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
+  knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
   prefix = params.noIntervals ? "${sampleId}_${vCType}" : "${sampleId}_${intervalBed.baseName}_${vCType}"
   intervalsOptions = params.noIntervals ? "" : "-L ${intervalBed}"
   """
