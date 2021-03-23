@@ -82,23 +82,23 @@ ${tools && (('manta' in tools) || ('haplotypecaller' in tools) || ('mutect2' in 
 // Initialize each reference with default values in params.genomes, catch the genome defined on the command line first
 // if it was defined
 params << [
-  fasta: params.genome && !('annotate' in step) ? params.genomes[params.genome].fasta ?: null : null,
-  gtf: params.genome ? params.genomes[params.genome].gtf ?: null : null,
-  polyms: params.genome && !('annotate' in step) ? params.genomes[params.genome].polyms ?: null : null,
-  acLoci: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLoci ?: null : null,
-  acLociGC: params.genome && 'ascat' in tools ? params.genomes[params.genome].acLociGC ?: null : null,
-  bwaIndex: params.genome && params.genomes[params.genome].fasta && 'mapping' in step ? params.genomes[params.genome].bwaIndex ?: null : null,
+  fasta: params.genome ? params.genomes[params.genome].fasta ?: false : false,
+  gtf: params.genome ? params.genomes[params.genome].gtf ?: false : false,
+  polyms: params.genome ? params.genomes[params.genome].polyms ?: false : false,
+  acLoci: params.genome ? params.genomes[params.genome].acLoci ?: false : false,
+  acLociGC: params.genome ? params.genomes[params.genome].acLociGC ?: false : false,
+  bwaIndex: params.genome ? params.genomes[params.genome].bwaIndex ?: false : false,
   dbsnp: params.genome ? params.genomes[params.genome].dbsnp ?: false : false,
   dbsnpIndex: params.genome && params.genomes[params.genome].dbsnp ? params.genomes[params.genome].dbsnpIndex ?: false : false,
-  dict: params.genome && params.genomes[params.genome].fasta ? params.genomes[params.genome].dict ?: null : null,
-  fastaFai: params.genome && params.genomes[params.genome].fasta ? params.genomes[params.genome].fastaFai ?: null : null,
-  germlineResource: params.genome && 'mutect2' in tools ? params.genomes[params.genome].germlineResource ?: null : null,
-  germlineResourceIndex: params.genome && params.genomes[params.genome].germlineResource ? params.genomes[params.genome].germlineResourceIndex ?: null : null,
-  intervals: params.genome && !('annotate' in step) ? params.genomes[params.genome].intervals ?: null : null,
-  knownIndels: params.genome ? params.genomes[params.genome].knownIndels ?: null : null,
-  knownIndelsIndex: params.genome && params.genomes[params.genome].knownIndels ? params.genomes[params.genome].knownIndelsIndex ?: null : null,
-  snpeffDb: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffDb ?: null : null,
-  snpeffCache: params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffCache ?: false : false
+  dict: params.genome && params.genomes[params.genome].fasta ? params.genomes[params.genome].dict ?: false : false,
+  fastaFai: params.genome && params.genomes[params.genome].fasta ? params.genomes[params.genome].fastaFai ?: false : false,
+  germlineResource: params.genome ? params.genomes[params.genome].germlineResource ?: false : false,
+  germlineResourceIndex: params.genome && params.genomes[params.genome].germlineResource ? params.genomes[params.genome].germlineResourceIndex ?: false : false,
+  intervals: params.genome ? params.genomes[params.genome].intervals ?: false : false,
+  knownIndels: params.genome ? params.genomes[params.genome].knownIndels ?: false : false,
+  knownIndelsIndex: params.genome && params.genomes[params.genome].knownIndels ? params.genomes[params.genome].knownIndelsIndex ?: false : false,
+  snpeffDb: params.genome ? params.genomes[params.genome].snpeffDb ?: false : false,
+  snpeffCache: params.genome ? params.genomes[params.genome].snpeffCache ?: false : false
 ]
 
 /*
@@ -113,13 +113,23 @@ summary = [
   'Run Name': customRunName,
   'Max Resources': "${params.maxMemory} memory, ${params.maxCpus} cpus, ${params.maxTime} time per job",
   'Container': workflow.containerEngine && workflow.container ? "${workflow.containerEngine} - ${workflow.container}" : null,
+  'Genome': params.genome,
+  'Fasta': params.fasta ?: null,
   'Target BED': params.targetBED ?: null,
+  'Intervals': params.noIntervals && step != 'annotate' ? 'Do not use' : null,
   'Step': step ?: null,
   'Tools': params.tools ? params.tools instanceof Collection ? params.tools.join(', ') : params.tools: null,
   'QC tools skip': params.skipQC ? 'Yes' : 'No',
   'SV filters': params.SVFilters ? params.SVFilters instanceof Collection  ? params.SVFilters.join(', ') : params.SVFilters : null,
   'SNV filters': params.SNVFilters ? params.SNVFilters instanceof Collection  ? params.SNVFilters.join(', ') : params.SNVFilters : null,
-  'Intervals': params.noIntervals && step != 'annotate' ? 'Do not use' : null,
+  'Polyms': params.polyms ?: null,
+  'BwaIndex': params.bwaIndex ?: null,
+  'GermlineResource': params.germlineResource ?: null,
+  'acLoci': params.acLoci ?: null,
+  'acLociGC': params.acLociGC ?: null,
+  'dbsnp': params.dbsnp ?: null,
+  'snpeffDb': params.snpeffDb ?: null,
+  'snpeffCache': params.snpeffCache ?: null,
   'Save GVCF': 'haplotypecaller' in tools ? params.saveGVCF ? 'Yes' : 'No' : null,
   'Sequenced by': params.sequencingCenter ? params.sequencingCenter: null,
   'Panel of normals': params.pon && 'mutect2' in tools ? params.pon: null,
@@ -129,32 +139,14 @@ summary = [
   'Working dir': workflow.workDir,
   'Script dir': workflow.projectDir,
   'User': workflow.userName,
-  'Genome': params.genome,
-  'Fasta': params.fasta ?: null,
-  'FastaFai': params.fastaFai ?: null,
-  'Polyms': params.polyms ?: null,
-  'Dict': params.dict ?: null,
-  'BwaIndex': params.bwaIndex ?: null,
-  'GermlineResource': params.germlineResource ?: null,
-  'GermlineResourceIndex': params.germlineResourceIndex ?: null,
-  'acLoci': params.acLoci ?: null,
-  'acLociGC': params.acLociGC ?: null,
-  'dbsnp': params.dbsnp ?: null,
-  'dbsnpIndex': params.dbsnpIndex ?: null,
-  'knownIndels': params.knownIndels ?: null,
-  'knownIndelsIndex': params.knownIndelsIndex ?: null,
-  'snpeffDb': params.snpeffDb ?: null,
-  'snpeffCache': params.snpeffCache ?: null,
   'Config Profile': workflow.profile,
   'Config Description': params.configProfileDescription ?: null,
   'Config Contact': params.configProfileContact ?: null,
   'Config URL': params.configProfileUrl ?: null,
-  'MultiQC maxsize': params.email ? params.maxMultiqcEmailFileSize: null,
 ].findAll{ it.value != null }
 
 // Check the hostnames against configured profiles
 checkHostname(params, workflow)
-
 
 /*
 ================================================================================
@@ -210,7 +202,7 @@ if (params.bwaIndex){
 
 /*
 ================================================================================
-                                  PREPROCESSING
+                                  INTERVALS
 ================================================================================
 */
 
@@ -344,14 +336,13 @@ if (params.splitFastq){
 
 
 // Removing inputFile2 wich is null in case of uBAM
-// TODO - should be the same for singleEnd data
+// TODO - should be the same for singleEnd
 inputBamCh = inputBamCh.map {
     sampleId, sampleName, runID, inputFiles ->
     [sampleId, sampleName, runID, inputFiles[0]]
 }
 (inputBamCh, inputBamFastQCCh) = inputBamCh.into(2)
 (inputPairReadsCh, inputPairReadsFastQC) = inputPairReadsCh.into(2)
-
 inputPairReadsCh = inputPairReadsCh.dump(tag:'inputPairReadsCh')
 
 /*
@@ -1722,7 +1713,7 @@ process computeTransition {
 
   output:
   tuple val(variantCaller), 
-        file("transi.tsv") into transitionPerSampleCh
+        file("*transi.tsv") into transitionPerSampleCh
 
   when: 'haplotypecaller' in tools
 
