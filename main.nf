@@ -2345,7 +2345,7 @@ process compressVCFsnpEff {
 
   tag "${sampleId} - ${vcf}"
 
-  publishDir "${params.outDir}/snpEff", mode: params.publishDirMode
+  publishDir "${params.outDir}/${variantCaller}/snpEff", mode: params.publishDirMode
 
   input:
   tuple val(variantCaller),

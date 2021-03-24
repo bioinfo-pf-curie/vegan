@@ -109,7 +109,7 @@ do
     else
 	cov30='NA'
 	cov50='NA'
-	cov80='NA'
+	cov100='NA'
     fi
 
     if [[ -e BamQC/${sample}.filtered.SNV_insert_size_metrics.txt ]]; then
