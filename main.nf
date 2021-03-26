@@ -946,7 +946,7 @@ mdBamPolymCh = mdBamPolymCh.dump(tag:'polymCh')
 
 process getPolym {
   label 'lowCpu'
-  label 'medMem'
+  label 'midMem'
   label 'polym'
 
   publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
@@ -975,6 +975,8 @@ process getPolym {
 }
 
 clustPolymCh = clustPolymCh.dump(tag:'clustPolymCh')
+polymHeaderCh = Channel.fromPath("$baseDir/assets/polym_header.txt")
+
 
 process computePolym {
   label 'lowCpu'
@@ -988,6 +990,7 @@ process computePolym {
 
   input:
   file(matrix) from clustPolymCh.collect()
+  file(header) from polymHeaderCh
 
   output:
   file("*") into clustPolymResultsCh
@@ -1002,6 +1005,11 @@ process computePolym {
   done
 
   apComputeClust.R clust_mat.tsv . clustering_plot
+
+  #touch temp_clust_mat.csv
+  #cat polym_header.txt >> temp_clust_mat.csv
+  #cat clustering_plot_identito.csv >> temp_clust_mat.csv
+  #mv temp_clust_mat.csv clustering_plot_identito.csv
   """
 }
 
@@ -1607,7 +1615,7 @@ process mergeMutect2Stats {
   """
 }
 
-// STEP MERGING VCF - GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED) 
+// STEP MERGING VCF - GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED)
 
 // we are merging the VCFs that are called separatelly for different intervals
 // so we can have a single sorted VCF containing all the calls for a given caller
@@ -1617,7 +1625,7 @@ vcfConcatenateVCFsCh = vcfConcatenateVCFsCh.dump(tag:'VCF to merge')
 
 process concatVCF {
   label 'bcftools'
-  label 'highCpu'
+  label 'higCpu'
   label 'medMem'
 
   tag "${variantCaller}-${sampleId}"
@@ -1651,7 +1659,7 @@ process concatVCF {
     outputFile = "${sampleIdTN}_Mutect2_unfiltered.vcf"
   else
     outputFile = "${sampleId}_${variantCaller}.vcf"
-  
+
   options = params.targetBED ? "-t ${targetBED}" : ""
   intervalsOptions = params.noIntervals ? "-n" : ""
   """
@@ -1679,10 +1687,10 @@ process collectVCFmetrics {
   label 'onlyLinux'
 
   input:
-  tuple val(variantCaller), 
-        val(sampleId), 
-        val(sampleName), 
-        file(vcf), 
+  tuple val(variantCaller),
+        val(sampleId),
+        val(sampleName),
+        file(vcf),
         file(tbi) from vcfForMqcStatsCh
 
   output:
@@ -1700,7 +1708,7 @@ process collectVCFmetrics {
 process computeTransition {
   label 'minCpu'
   label 'lowMem'
-  label 'python'
+  label 'transition'
 
   publishDir "${params.outDir}/${variantCaller}/transition", mode: params.publishDirMode
 
@@ -1712,14 +1720,15 @@ process computeTransition {
         file(tbi) from transitionCh.filter{it[0] == "HaplotypeCaller"}
 
   output:
-  tuple val(variantCaller), 
-        file("*transi.tsv") into transitionPerSampleCh
+  //tuple val(variantCaller),
+  file("*table.tsv") into transitionPerSampleCh
 
   when: 'haplotypecaller' in tools
 
   script:
   """
   apParseTransition.py -i $vcf -o ${vcf.baseName}.transi.tsv
+  apTransition.R ${vcf.baseName}.transi.tsv ${vcf.baseName}.table.tsv
   """
 }
 
@@ -1730,9 +1739,9 @@ process mergeTransition {
   label 'r'
 
   input:
-  tuple val(variantCaller), 
+  tuple val(variantCaller),
         file(transi) from transitionPerSampleCh.collect()
-  
+
   output:
 
 
@@ -2085,9 +2094,8 @@ vcfMantaCh = vcfMantaCh.dump(tag:'Manta')
 // Run commands and code from Malin Larsson
 // Based on Jesper Eisfeldt's code
 process alleleCounter {
-  label 'ascat'
+  label 'canceritAllelecount'
   label 'lowMem'
-  label 'minCpu'
 
   tag "${sampleId}"
 
@@ -2297,7 +2305,7 @@ process snpEff {
 
   tag "${sampleId} - ${variantCaller} - ${vcf}"
 
-  publishDir "${params.outDir}/${variantCaller}/snpEff/", mode: params.publishDirMode, 
+  publishDir "${params.outDir}/${variantCaller}/snpEff/", mode: params.publishDirMode,
              saveAs: { if (it == "${reducedVCF}_snpEff.ann.vcf") null
                        else "reports/${it}" }
 
@@ -2439,6 +2447,7 @@ process multiQC {
   file('Identito/*') from clustPolymResultsCh.collect().ifEmpty([])
   file('vcfMetrics/*') from mutect2CallingMetricsMqcCh.collect().ifEmpty([])
   file('vcfMetrics/*') from callingMetricsMqcCh.collect().ifEmpty([])
+  file('Transition/*') from transitionPerSampleCh.collect().ifEmpty([])
 
   output:
   file("*multiqc_report.html") into multiQCOutCh

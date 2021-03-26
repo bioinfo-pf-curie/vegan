@@ -4,5 +4,5 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  bioconda::tabix=0.2.6=ha92aebf_0
+  - bioconda::tabix=0.2.6=ha92aebf_0
 
