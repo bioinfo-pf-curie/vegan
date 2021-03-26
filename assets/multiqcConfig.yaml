@@ -197,7 +197,7 @@ custom_data:
             scale: 'RdYlBu'
             format: '{:,.0f}'
             save_file: true
-            col1_header: 'Sample_ID'                                                                                                                                                                        
+            col1_header: 'Sample_ID'
         headers:
             Sample_name:
               title: 'Sample Name'
@@ -235,7 +235,7 @@ custom_data:
             scale: 'RdYlBu'
             format: '{:,.0f}'
             save_file: true
-            col1_header: 'Sample_ID'                                                                                                                                                                        
+            col1_header: 'Sample_ID'
         headers:
             Sample_name:
               title: 'Sample Name'
@@ -247,6 +247,16 @@ custom_data:
               scale: false
               format: '{:,.0f}'
               placement: 3000
+    transition:
+        file_format: 'tsv'
+        section_name: 'Transition & Indels'
+        description: 'table was created from HaplotypeCaller vcf files. The number of each transition/transversion and indels was extracted for each sample and represented here as a bar graph.'
+        plot_type: 'bargraph'
+        pconfig:
+            namespace: 'transition'
+            title: '# transitions & indels'
+            id: 'transition'
+            scale: 'Set1'
 
 sp:
   my_stats:
@@ -261,6 +271,8 @@ sp:
       fn: '*_Mutect2_callingMetrics.mqc'
   hccaller:
       fn: '*_HaplotypeCaller_callingMetrics.mqc'
+  transition:
+      fn: '*.table.tsv'
 
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
@@ -337,6 +349,8 @@ report_section_order:
     order: 100
   mutect2:
     order: 50
+  transition:
+    order: 250
   software_versions:
     order: -2000
   summary:
