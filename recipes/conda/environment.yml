@@ -1,0 +1,49 @@
+name: vegan
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - conda-forge::python=3.7.9
+  - conda-forge::pymdown-extensions=8.1.1
+  - bioconda::cyvcf2=0.30.6
+  - conda-forge::pandas=1.2.3
+
+  - bioconda::bwa=0.7.17  
+  - bioconda::fastqc=0.11.8
+  - bioconda::preseq=2.0.3
+  - bioconda::samtools=1.10
+  - bioconda::bcftools=1.10.2
+  - bioconda::picard=2.19.0=0
+  - bioconda::sambamba=0.7.1
+  - bioconda::tabix=0.2.6
+  - bioconda::multiqc=1.9
+  - bioconda::bedtools=2.29.2
+  - bioconda::mosdepth=0.2.9
+  - bioconda::gatk4=4.1.6.0
+  - bioconda::vcftools=0.1.16
+  - bioconda::snpeff=4.3.1t
+  - bioconda::snpsift=4.3
+
+  - conda-forge::r-base=3.6.3
+  - conda-forge::r-data.table=1.13.6
+  - conda-forge::r-optparse=1.6.6
+  - conda-forge::r-ggplot2=3.3.2
+  - conda-forge::r-matrix=1.3_2 
+  - conda-forge::r-mgcv=1.8_34 
+  - conda-forge::r-vegan 
+  - conda-forge::r-pheatmap 
+  - conda-forge::r-rcolorbrewer
+  - bioconda::ascat=2.5.2
+  - bioconda::cancerit-allelecount=4.2.1
+
+#
+# Conflicts with MANTA which still require python2
+#  - bioconda::manta=1.6.0
+
+                                                                                                                                                                                   
+
+
+
+
+
