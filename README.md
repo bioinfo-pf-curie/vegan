@@ -25,9 +25,15 @@ It comes with conda / singularity containers making installation easier and resu
 8. Calculate genes and genome coverage ([`mosdepth`](https://github.com/brentp/mosdepth))
 9. Identity monitoring and samples similarity ([`bcftools`](http://samtools.github.io/bcftools/bcftools.html) / [`R`](https://www.r-project.org/))
 10. Germline Variants calling ([`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller))
-  - HaplotypeCaller -> GenotypeGVCFs
+  - HaplotypeCaller
+  - GenotypeGVCFs
 11. Somatic Variants calling ([`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2))
-  - Mutect2 -> MergeMutectStats -> GetPileupSummaries -> GatherPileupSummaries -> CalculateContamination -> FilterMutectCalls
+  - Mutect2
+  - MergeMutectStats 
+  - GetPileupSummaries 
+  - GatherPileupSummaries 
+  - CalculateContamination 
+  - FilterMutectCalls
 11. Variants annotation ([`snpeff`](https://pcingola.github.io/SnpEff/))
 12. Copy-number analysis ([`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software))
 13. Structural variants analysis ([`MANTA`](https://github.com/Illumina/manta))
@@ -193,8 +199,6 @@ If the design file is not specified, the pipeline will run until the alignment. 
 
 ### Full Documentation
 
-A compléter/ modifier
-
 1. [Installation](docs/installation.md)
 2. [Reference genomes](docs/reference_genomes.md)
 3. [Running the pipeline](docs/usage.md)
@@ -203,7 +207,7 @@ A compléter/ modifier
 
 #### Credits
 
-This pipeline has been written by the Institut Curie bioinformatics platform (F. Allain, T. Gutman, P. La Rosa, P. Hup�, N. Servant).
+This pipeline has been written by the Institut Curie bioinformatics platform (F. Allain, T. Gutman, P. La Rosa, P. Hupe, N. Servant).
 
 #### Contacts
 
