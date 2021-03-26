@@ -1,0 +1,7 @@
+name: snpeff-4.3.1
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::snpeff=4.3.1t=hdfd78af_5

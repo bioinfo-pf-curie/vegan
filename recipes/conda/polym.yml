@@ -1,0 +1,15 @@
+name: polym
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::bcftools=1.10.2=h4f4756c_3
+  - bioconda::snpsift=4.3.1t=2
+  - conda-forge::r-base=3.6.3=hd23ff56_6
+  - conda-forge::r-matrix=1.3_2=r36he454529_0
+  - conda-forge::r-mgcv=1.8_34=r36he454529_0
+  - conda-forge::r-vegan=2.5_7=r36h52d45c5_0
+  - conda-forge::r-pheatmap=1.0.12=r36h6115d3f_2
+  - conda-forge::r-rcolorbrewer=1.1_2=r36h6115d3f_1003
+
