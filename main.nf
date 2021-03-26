@@ -393,7 +393,7 @@ inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
 inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT MAP READS')
 
 process bwaMem {
-  label 'gatkBwaSamtools'
+  label 'bwa'
   label 'highCpu'
   label 'extraMem'
 
@@ -946,7 +946,7 @@ mdBamPolymCh = mdBamPolymCh.dump(tag:'polymCh')
 
 process getPolym {
   label 'lowCpu'
-  label 'midMem'
+  label 'medMem'
   label 'polym'
 
   publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
@@ -1617,7 +1617,7 @@ vcfConcatenateVCFsCh = vcfConcatenateVCFsCh.dump(tag:'VCF to merge')
 
 process concatVCF {
   label 'bcftools'
-  label 'higCpu'
+  label 'highCpu'
   label 'medMem'
 
   tag "${variantCaller}-${sampleId}"
@@ -1700,7 +1700,7 @@ process collectVCFmetrics {
 process computeTransition {
   label 'minCpu'
   label 'lowMem'
-  label 'cyvcf2'
+  label 'python'
 
   publishDir "${params.outDir}/${variantCaller}/transition", mode: params.publishDirMode
 
@@ -2085,8 +2085,9 @@ vcfMantaCh = vcfMantaCh.dump(tag:'Manta')
 // Run commands and code from Malin Larsson
 // Based on Jesper Eisfeldt's code
 process alleleCounter {
-  label 'canceritAllelecount'
+  label 'ascat'
   label 'lowMem'
+  label 'minCpu'
 
   tag "${sampleId}"
 
