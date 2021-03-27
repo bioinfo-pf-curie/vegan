@@ -1717,11 +1717,10 @@ process computeTransition {
         val(sampleId),
         val(sampleName),
         file(vcf),
-        file(tbi) from transitionCh.filter{it[0] == "HaplotypeCaller"}
+        file(tbi) from transitionCh.filter{it[0] == "HaplotypeCaller"}.dump(tag:'transi')
 
   output:
-  //tuple val(variantCaller),
-  file("*table.tsv") into transitionPerSampleCh
+   file("*table.tsv") into transitionPerSampleCh
 
   when: 'haplotypecaller' in tools
 
@@ -1731,25 +1730,6 @@ process computeTransition {
   apTransition.R ${vcf.baseName}.transi.tsv ${vcf.baseName}.table.tsv
   """
 }
-
-/*
-process mergeTransition {
-  label 'minCpu'
-  label 'lowMem'
-  label 'r'
-
-  input:
-  tuple val(variantCaller),
-        file(transi) from transitionPerSampleCh.collect()
-
-  output:
-
-
-  """
-  apTransition.R
-  """
-}
-*/
 
 // STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
 
@@ -2094,7 +2074,7 @@ vcfMantaCh = vcfMantaCh.dump(tag:'Manta')
 // Run commands and code from Malin Larsson
 // Based on Jesper Eisfeldt's code
 process alleleCounter {
-  label 'canceritAllelecount'
+  label 'ascat'
   label 'lowMem'
 
   tag "${sampleId}"
