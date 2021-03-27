@@ -1,0 +1,11 @@
+name: transition
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - conda-forge::python=3.7.9=hffdb5ce_100_cpython
+  - conda-forge::pymdown-extensions=8.1.1=pyh44b312d_0
+  - bioconda::cyvcf2=0.30.6=py37h94c4be0_0
+  - conda-forge::pandas=1.2.3=py37hdc94413_0
+  - conda-forge::r-dplyr
