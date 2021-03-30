@@ -993,7 +993,7 @@ process computePolym {
   file(header) from polymHeaderCh
 
   output:
-  file("*") into clustPolymResultsCh
+  file("*.csv") into clustPolymResultsCh
 
   script:
   """
@@ -1006,10 +1006,10 @@ process computePolym {
 
   apComputeClust.R clust_mat.tsv . clustering_plot
 
-  #touch temp_clust_mat.csv
-  #cat polym_header.txt >> temp_clust_mat.csv
-  #cat clustering_plot_identito.csv >> temp_clust_mat.csv
-  #mv temp_clust_mat.csv clustering_plot_identito.csv
+  touch temp_clust_mat.csv
+  cat polym_header.txt >> temp_clust_mat.csv
+  cat clustering_plot_identito.csv >> temp_clust_mat.csv
+  mv temp_clust_mat.csv clustering_plot_identito.csv
   """
 }
 
