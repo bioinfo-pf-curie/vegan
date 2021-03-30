@@ -946,7 +946,7 @@ mdBamPolymCh = mdBamPolymCh.dump(tag:'polymCh')
 
 process getPolym {
   label 'lowCpu'
-  label 'midMem'
+  label 'medMem'
   label 'polym'
 
   publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
@@ -1625,7 +1625,7 @@ vcfConcatenateVCFsCh = vcfConcatenateVCFsCh.dump(tag:'VCF to merge')
 
 process concatVCF {
   label 'bcftools'
-  label 'higCpu'
+  label 'highCpu'
   label 'medMem'
 
   tag "${variantCaller}-${sampleId}"
