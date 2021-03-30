@@ -57,24 +57,18 @@ rownames(clust_mat)=temp_rownames
 
 # Handle sample full of NA
 for (i in 1:nrow(as.matrix(clust_mat))){
-    if (!is.null(dim(clust_mat))){
-        if (sum(is.na(clust_mat[i,])) == ncol(clust_mat)){
-            warning('One or more samples contain only NAs, those samples will be removed')
-            print(dim(clust_mat))
-            clust_mat=clust_mat[-i,]
+    if (sum(is.na(clust_mat[i,])) == ncol(clust_mat)){
+        warning('One or more samples contain only NAs, those samples will be removed')
+        #print(dim(clust_mat))
+        clust_mat=clust_mat[-i,]
+        if(is.null(dim(clust_mat))){
+            print("this matrix has only one sample")
+            file.create(outputMatrix)
+            df <- data.frame()
+            #write.table(df, file="my.csv", sep=",", row.names=FALSE, append=TRUE)
+            write.csv(df, outputMatrix)
+            quit(save="no", status = 0)
         }
-    } 
-    else if(is.null(dim(clust_mat))) {
-        print("this matrix has only one sample")
-        #cat(NULL,file=outputMatrix)
-        file.create(outputMatrix)
-        df <- data.frame()
-        #write.table(df, file="my.csv", sep=",", row.names=FALSE, append=TRUE)
-        write.csv(df, outputMatrix)
-        quit(save="no", status = 0)
-    }
-    else{
-        print("else")
     }
 }
 print(is.null(dim(clust_mat)))
