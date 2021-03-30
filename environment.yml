@@ -21,7 +21,6 @@ dependencies:
   - bioconda::bedtools=2.29.2
   - bioconda::mosdepth=0.2.9
   - bioconda::gatk4=4.1.6.0
-  - bioconda::vcftools=0.1.16
   - bioconda::snpeff=4.3.1t
   - bioconda::snpsift=4.3
 
