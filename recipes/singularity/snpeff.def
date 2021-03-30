@@ -11,7 +11,7 @@ From: conda/miniconda3-centos7
     yum install -y which   \
     && yum clean all \
     && conda create -y -n snpeff_env  \
-&& conda install -y -c bioconda -n snpeff_env snpeff=4.3.1t=3 \
-    && echo "source activate snpeff_env" > ~/.bashrc \
+&& conda install -y -c bioconda -n snpeff snpeff=4.3.1t=3 \
+    && echo "source activate snpeff" > ~/.bashrc \
     && conda clean -a 
     source activate snpeff_env && snpEff download -v GRCh37.75 && snpEff download -v GRCh38.86
