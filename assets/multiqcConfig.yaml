@@ -271,6 +271,9 @@ sp:
       fn: '*_Mutect2_callingMetrics.mqc'
   hccaller:
       fn: '*_HaplotypeCaller_callingMetrics.mqc'
+  transition:
+      fn: '*.table.tsv'
+
 
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
