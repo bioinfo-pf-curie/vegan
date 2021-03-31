@@ -264,7 +264,8 @@ abstract class NFTools extends BaseScript {
         if ("${sessionWorkflow.manifest.version}" =~ /dev/ ) {
             def devMessageFile = new File("${workflow.projectDir}/assets/devMessage.txt")
             log.info devMessageFile.text
-        } else if (sessionParams.help) {
+        }
+        if (sessionParams.help) {
             def paramsWithUsage = readParamsFromJsonSettings("${sessionWorkflow.projectDir}/parameters.settings.json")
             helpMessage(paramsWithUsage, sessionWorkflow)
             Nextflow.exit(1)
