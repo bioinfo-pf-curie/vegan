@@ -32,9 +32,6 @@ vegan: Variant calling pipeline for whole Exome and whole Genome sequencing cANc
 --------------------------------------------------------------------------------
 */
 
-
-// TODO: implicit call in baseScript by overwriting setup ?
-// Welcome message and setup specific to the workflow
 // Initialize lintedParams and paramsWithUsage
 welcome()
 
@@ -67,7 +64,7 @@ if (params.design){
   log.info """\
 ========================================================================
   ${colors.greenBold}INFO${colors.reset}: No design file detected
-${tools && (('manta' in tools) || ('haplotypecaller' in tools) || ('mutect2' in tools))? "  ${colors.redBold}WARNING${colors.reset}: You need a design file in order to use VC tools\n" : ''}\
+  ${tools && (('ascat' in tools) || ('mutect2' in tools))? "  ${colors.redBold}WARNING${colors.reset}: You need a design file in order to run somatic analysis\n" : ''}\
   ${colors.yellowBold}Variant detection (SV/SNV) will be skipped
   Please set up a design file '--design' to run these steps${colors.reset}
 ========================================================================"""
@@ -514,7 +511,6 @@ process indexBamFile {
   """
 }
 
-
 /*
  * BWA-MEM MAPPING STATISTICS
  */
@@ -581,13 +577,11 @@ process preseq {
   """
 }
 
-
 /*
 ================================================================================
                                   FILTERING
 ================================================================================
 */
-
 
 /*
  * DUPLICATES - SAMBAMBA
@@ -669,7 +663,6 @@ if (('manta' in tools) && ('ascat' in tools || 'haplotypecaller' in tools || 'mu
   // SNV only if no design or just SNV
   procBamsCh = procBamsCh.flatMap { it -> [it + 'SNV']}
 }
-procBamsCh = procBamsCh.dump(tag:'procBamsCh')
 
 process bamFiltering {
   label 'samtools'
@@ -683,7 +676,7 @@ process bamFiltering {
   tuple val(sampleId), val(sampleName), file(bam), file(bai), val(vCType) from procBamsCh
 
   output:
-  tuple val(sampleId), val(sampleName), val(vCType), file("${sampleId}.filtered.${vCType}.bam"), file("${sampleId}.filtered.${vCType}.bam.bai") into filteredBamCh, filteredBamQCCh
+  tuple val(sampleId), val(sampleName), val(vCType), file("${sampleId}.filtered.${vCType}.bam"), file("${sampleId}.filtered.${vCType}.bam.bai") into filteredBamCh
   file("${sampleId}.filtered.${vCType}.idxstats") into bamFilterReportCh
   file('v_samtools.txt') into samtoolsBamFilterVersionCh
 
@@ -703,6 +696,25 @@ process bamFiltering {
   """
 }
 
+/*
+ * Separate SVN/SV/CNV bams after filtering
+ */
+                                                                                                                                                                                      
+filteredBamCh
+  .branch { it ->
+    snvCh: it[2] == 'SNV'
+    svCh: it[2] == 'SV'
+    otherCh: true
+  }.set { filteredBamForks }
+
+// Remove VCType from all channels
+filteredSNVBamsCh=filteredBamForks.snvCh.map{ sampleId, sampleName, VCType, bam, bai -> [sampleId, sampleName, bam, bai]}
+filteredSVBamsCh=filteredBamForks.svCh.map{ sampleId, sampleName, VCType, bam, bai -> [sampleId, sampleName, bam, bai]}
+filteredOtherBamsCh=filteredBamForks.otherCh.map{ sampleId, sampleName, VCType, bam, bai -> [sampleId, sampleName, bam, bai]}
+//(filteredSNVBamsCh, filteredSVBamsCh, filteredOtherBamsCh) = [filteredBamForks.snvCh, filteredBamForks.svCh, filteredBamForks.otherCh]
+
+// Copy SNV bams for CNV calling
+(filteredSNVBamsCh, filteredCNVBamsCh) = filteredSNVBamsCh.into(2)
 
 /*
 ================================================================================
@@ -710,20 +722,16 @@ process bamFiltering {
 ================================================================================
 */
 
-
-filteredBamCh = filteredBamCh.dump(tag:'filteredBamCh')
 // Run the QC on the SNV bam only if available - on the SV otherwise
 if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
-  filteredBamQCCh
-    .filter { it[2] == 'SV' }
-    .dump(tag:'qcbams')
-    .into {bamInsertSizeCh; bamMosdepthCh; bamGeneCovCh; bamWGSmetricsCh }
+  (filteredSVBamsCh, filteredBamQCCh)=filteredSVBamsCh.into(2)
 } else {
-  filteredBamQCCh
-    .filter { it[2] == 'SNV' }
-    .dump(tag:'qcbams')
-    .into {bamInsertSizeCh; bamMosdepthCh; bamGeneCovCh; bamWGSmetricsCh }
+  (filteredSNVBamsCh, filteredBamQCCh)=filteredSNVBamsCh.into(2)
 }
+
+filteredBamQCCh
+  .dump(tag:'qcbams')
+  .into {bamInsertSizeCh; bamMosdepthCh; bamGeneCovCh; bamWGSmetricsCh }
 
 /*
  * INSERT SIZE
@@ -742,7 +750,7 @@ process getFragmentSize {
   !params.singleEnd && !params.skipQC
 
   input:
-  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamInsertSizeCh
+  tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamInsertSizeCh
 
   output:
   file("*.{pdf,txt}") into fragmentSizeCh
@@ -774,7 +782,7 @@ process getSeqDepth {
   !params.skipQC
 
   input:
-  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamMosdepthCh
+  tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamMosdepthCh
   file(bed) from targetBedCh
 
   output:
@@ -826,7 +834,7 @@ process genesCoverage {
   !params.skipQC
 
   input:
-  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamGeneCovCh
+  tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamGeneCovCh
   file(exon) from exonBedCh
 
   output:
@@ -856,7 +864,7 @@ process getWGSmetrics {
   !params.skipQC
 
   input:
-  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai) from bamWGSmetricsCh
+  tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamWGSmetricsCh
   file(reference) from fastaCh
   file(dict) from dictCh
   file(bed) from targetBedCh
@@ -943,7 +951,6 @@ process computePolym {
   """
 }
 
-
 /*
 ================================================================================
                           RECALIBRATING
@@ -951,19 +958,6 @@ process computePolym {
 Recalibration is performed for SNV bams only
 SNVs filtered Bams are used for both SNV and CNV calling
 */
-
-// Separate SVN/SV bams
-filteredBamCh
-  .branch { it ->
-    snvCh: it[2] == 'SNV'
-    svCh: it[2] == 'SV'
-    otherCh: true
-  }.set { filteredBamForks }
-
-(filteredSNVBamsCh, filteredSVBamsCh, filteredOtherBamsCh) = [filteredBamForks.snvCh, filteredBamForks.svCh, filteredBamForks.otherCh]
-
-// Copy SNV bams for CNV calling
-(filteredSNVBamsCh, filteredCNVBamsCh) = filteredSNVBamsCh.into(2)
 
 // Channels for baseRecalibration
 (bamBaseRecalibratorCh, bamBaseRecalibratorToJoinCh) = params.skipBQSR ? [Channel.empty(), Channel.empty()] : filteredSNVBamsCh.into(2)
@@ -984,7 +978,7 @@ process baseRecalibrator {
              saveAs: {filename ->  if (params.noIntervals) filename}
 
   input:
-  tuple val(sampleId), val(sampleName), val(vCType), file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh
+  tuple val(sampleId), val(sampleName), file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh
   file(dbsnp) from dbsnpCh
   file(dbsnpIndex) from dbsnpIndexCh
   file(fasta) from fastaCh
@@ -1000,8 +994,6 @@ process baseRecalibrator {
   when: 'haplotypecaller' in tools || 'mutect2' in tools
 
   script:
-  //dbsnpOptions = params.dbsnp ? "--known-sites ${dbsnp}" : ""
-  //knownOptions = params.knownIndels ? knownIndels.collect{"--known-sites ${it}"}.join(' ') : ""
   dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
   knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
   prefix = params.noIntervals ? "${sampleId}" : "${sampleId}_${intervalBed.baseName}"
@@ -1058,28 +1050,17 @@ process gatherBQSRReports {
   """
 }
 
+
+// TODO
 // Create TSV files to restart from this step
 recalTableCSVCh = recalTableCSVCh.mix(recalTableTSVnoIntCh)
-recalTableCSVCh.map { sampleId, sampleName ->
+recalTableCSVCh.map { sampleId, sampleName  ->
   bam = "${params.outDir}/resume/${sampleId}/DuplicateMarked/${sampleId}.md.bam"
   bai = "${params.outDir}/resume/${sampleId}/DuplicateMarked/${sampleId}.md.bai"
   recalTable = "${params.outDir}/resume/${sampleId}/DuplicateMarked/${sampleId}.recal.table"
   "${sampleId},${sampleName},${bam},${bai},${recalTable}\n"
 }.collectFile(
-  name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/resume/CSV"
-)
-
-// TODO: find if generated files below are useful or not
-//recalTableSampleTSVCh
-//    .collectFile(storeDir: "${params.outDir}/resume/TSV/") {
-//        sampleId, sampleName, vCType ->
-//        status = statusMap[sampleId]
-//        gender = genderMap[sampleId]
-//        bam = "${params.outDir}/resume/${sampleName}/DuplicateMarked/${sampleName}.md.bam"
-//        bai = "${params.outDir}/resume/${sampleName}/DuplicateMarked/${sampleName}.md.bai"
-//        recalTable = "${params.outDir}/resume/${sampleName}/DuplicateMarked/${sampleName}.recal.table"
-//        ["duplicateMarked_${sampleName}.tsv", "${sampleId}\t${vCType}\t${sampleName}\t${bam}\t${bai}\t${recalTable}\n"]
-//}
+  name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/resume/CSV")
 
 bamApplyBQSRCh = step in 'recalibrate' ? samplePlanCh : bamBaseRecalibratorToJoinCh.join(recalTableCh, by:[0,1])
 bamApplyBQSRCh = bamApplyBQSRCh.combine(intApplyBQSRCh)
@@ -1097,7 +1078,7 @@ process applyBQSR {
   tag "${sampleId}-${sampleName}-${intervalBed.baseName}"
 
   input:
-  tuple val(sampleId), val(sampleName), val(VCType), file(bam), file(bai), file(recalibrationReport), file(intervalBed) from bamApplyBQSRCh.dump(tag:'bqsr')
+  tuple val(sampleId), val(sampleName), file(bam), file(bai), file(recalibrationReport), file(intervalBed) from bamApplyBQSRCh.dump(tag:'bqsr')
   file(dict) from dictCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
@@ -1156,7 +1137,6 @@ process mergeAndIndexBamRecal {
   """
 }
 
-
 /*
  * INDEXING THE MERGED RECALIBRATED BAM FILES
  */
@@ -1191,6 +1171,9 @@ bamRecalCh = bamRecalCh.mix(bamRecalNoIntCh)
 bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
 (bamRecalTSVCh, bamRecalSampleTSVCh) = bamRecalTSVCh.into(2)
 
+
+
+// TODO
 // Creating a TSV file to restart from this step
 bamRecalTSVCh.map { sampleId, sampleName ->
   bam = "${params.outDir}/resume/${sampleId}/Recalibrated/${sampleId}.recal.bam"
@@ -1200,17 +1183,6 @@ bamRecalTSVCh.map { sampleId, sampleName ->
   name: 'recal.samplePlan.tsv', sort: true, storeDir: "${params.outDir}/resume/TSV"
 )
 
-// TODO: find if generated files below are useful or not
-//bamRecalSampleTSVCh
-//    .collectFile(storeDir: "${params.outDir}/resume/TSV") {
-//        sampleId, sampleName ->
-//        status = statusMap[sampleId]
-//        gender = genderMap[sampleId]
-//        bam = "${params.outDir}/resume/${sampleName}/Recalibrated/${sampleName}.recal.bam"
-//        bai = "${params.outDir}/resume/${sampleName}/Recalibrated/${sampleName}.recal.bam.bai"
-//        ["recalibrated_${sampleName}.tsv", "${sampleId}\t${gender}\t${status}\t${sampleName}\t${bam}\t${bai}\n"]
-//}
-
 // When no knownIndels for mapping, Channel bamRecalCh is indexedBamCh
 // TODO: seems not suited to the actual layout, have to refactor line below (indexed bam are not filtered)
 // bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh.flatMap { it -> [it.plus(2, 'SV'), it.plus(2, 'SNV')]}
@@ -1218,33 +1190,26 @@ bamRecalTSVCh.map { sampleId, sampleName ->
 
 /*
 ================================================================================
-                            VARIANT CALLING
+                            DESIGN / PAIRED ANALYSIS
 ================================================================================
 */
+
+// By default, MANTA can be run without design in germline mode
+(filteredSVBamsCh, bamMantaSingleCh) = filteredSVBamsCh.into(2)
+
+// By default, HaplotypeCaller can be run without design in germline mode
+(bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(2)
+bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh) 
 
 if (params.design){
 
   // When starting with variant calling, Channel bamRecalCh is samplePlanCh
   bamRecalCh = step in 'variantcalling' ? samplePlanCh : params.skipBQSR ? filteredSNVBamsCh : bamRecalCh
 
-  // Here we have a recalibrated bam set
-  // The TSV file is formatted like: "sampleId status sampleName bamFile baiFile"
-  // Manta will be run in Germline mode, or in Tumor mode depending on status
-  // HaplotypeCaller will be run for Normal and Tumor samples
-
-  // SV Bams
-  (filteredSVBamsCh, bamMantaSingleCh) = filteredSVBamsCh.into(2)
-  bamMantaSingleCh=bamMantaSingleCh.dump(tag:'DEBUG2')
   // CNV Bams
   bamAscatCh = filteredCNVBamsCh
 
-  // SNV Bams (after base recalibration)
-  (bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(2)
-  bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh)
-
   // separate BAM by status for somatic variant calling
-  bamRecalAllCh = bamRecalAllCh.dump(tag: 'bamRecalAllCh')
-
   bamRecalAllCh.branch{
     normalCh: statusMap[it[0]] == 0
     tumorCh: statusMap[it[0]] == 1
@@ -1258,15 +1223,13 @@ if (params.design){
   (bamRecalNormalCh, bamRecalTumorCh) = [bamRecalAllForks.normalCh, bamRecalAllForks.tumorCh]
   (bamSVNormalCh, bamSVTumorCh) = [filteredSVBamsForks.normalCh, filteredSVBamsForks.tumorCh]
 
-  // Crossing Normal and Tumor to get a T/N pair for Somatic Variant Calling
+  // Crossing Normal and Tumor to get a T/N pair
   // Remapping channel to remove common key sampleId
-
   pairBamsSNVCh = bamRecalNormalCh.combine(bamRecalTumorCh)
-  pairBamsSVCh = bamSVNormalCh.combine(bamSVTumorCh).dump(tag:'DEBUG')
-
   pairBamsSNVCh = pairBamsSNVCh.filter{ pairMap.containsKey([it[0], it[4]]) }
+  pairBamsSVCh = bamSVNormalCh.combine(bamSVTumorCh)
   pairBamsSVCh = pairBamsSVCh.filter{ pairMap.containsKey([it[0], it[4]]) }
-
+  
   // Manta,  Mutect2
   (pairBamCalculateContaminationCh, pairBamsSNVCh) = pairBamsSNVCh.into(2)
   (pairBamMantaCh, pairBamsSVCh) = pairBamsSVCh.into(2)
@@ -1274,13 +1237,14 @@ if (params.design){
 
   // intervals for Mutect2 calls and pileups for Mutect2 filtering
   (pairBamMutect2Ch, pairBamPileupSummariesCh) = intervalPairBamCh.into(2)
-  pairBamMutect2Ch = pairBamMutect2Ch.dump(tag: 'pairBamMutect2Ch')
+
+  // Do not run Manta in single Mode if pair information is available
+  bamMantaSingleCh = Channel.empty()
+
 } else {
-  bamHaplotypeCallerCh = Channel.empty()
   pairBamPileupSummariesCh = Channel.empty()
   pairBamCalculateContaminationCh = Channel.empty()
   pairBamMutect2Ch = Channel.empty()
-  bamMantaSingleCh = Channel.empty()
   pairBamMantaCh = Channel.empty()
   bamAscatCh = Channel.empty()
 }
@@ -1422,10 +1386,7 @@ process mutect2 {
 }
 
 mutect2OutputCh = mutect2OutputCh.groupTuple(by:[0,1,2])
-//(mutect2OutputCh, mutect2OutForStatsCh) = mutect2OutputCh.into(2)
-//(mutect2StatsCh, intervalStatsFilesCh) = mutect2StatsCh.into(2)
 mutect2StatsCh = mutect2StatsCh.groupTuple(by:[0,1,2])
-//(mutect2StatsCh, intervalStatsFilesCh) = mutect2StatsCh.into(2)
 
 // STEP GATK MUTECT2.2 - MERGING STATS
 
@@ -1462,7 +1423,7 @@ process mergeMutect2Stats {
   """
 }
 
-// STEP MERGING VCF - GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED)
+// STEP MERGING VCF - /!\ GATK HAPLOTYPECALLER & GATK MUTECT2 (UNFILTERED) /!\
 
 // we are merging the VCFs that are called separatelly for different intervals
 // so we can have a single sorted VCF containing all the calls for a given caller
@@ -1537,7 +1498,6 @@ process collectVCFmetrics {
   getCallingMetrics.sh -i ${vcf} \
                        -n ${sampleId} > ${sampleId}_${variantCaller}_callingMetrics.mqc
   """
-
 }
 
 /*
@@ -1661,7 +1621,7 @@ process calculateContamination {
         file(mergedPileup) from pairBamCalculateContaminationCh.dump(tag:'debug5')
 
   output:
-    tuple val(pairName), val("${sampleIdTumor}_vs_${sampleIdNormal}"), file("${sampleIdTumor}_contamination.table.tsv") into contaminationTableCh
+  tuple val(pairName), val("${sampleIdTumor}_vs_${sampleIdNormal}"), file("${sampleIdTumor}_contamination.table.tsv") into contaminationTableCh
 
   when: 'mutect2' in tools && !params.skipMutectContamination
 
@@ -1754,24 +1714,16 @@ process mantaSingle {
   publishDir "${params.outDir}/Manta", mode: params.publishDirMode
 
   input:
-  tuple val(sampleId),
-    val(sampleName),
-    val(vCType),
-    file(bam),
-    file(bai) from bamMantaSingleCh
+  tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamMantaSingleCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
   file(targetBED) from targetBedCh
 
   output:
-  tuple val("Manta"),
-    val(sampleId),
-    val(sampleName),
-    file("*.vcf.gz"),
-    file("*.vcf.gz.tbi") into vcfMantaSingleCh
+  tuple val("Manta"), val(sampleId), val(sampleName), file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaSingleCh
   file('v_manta.txt') into mantaSingleVersionCh
 
-  when: 'manta' in tools && vCType == 'SV'
+  when: 'manta' in tools
 
   script:
   beforeScript = params.targetBED ? "bgzip --threads ${task.cpus} -c ${targetBED} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
@@ -1814,21 +1766,13 @@ process manta {
   label 'highCpu'
   label 'highMem'
 
-  tag "${sampleIdTumor}_vs_${sampleIdNormal}_${vCType}"
+  tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
   publishDir "${params.outDir}/Manta", mode: params.publishDirMode
 
   input:
-  tuple val(sampleIdNormal),
-    val(sampleNameNormal),
-    val(vCType),
-    file(bamNormal),
-    file(baiNormal),
-    val(sampleIdTumor),
-    val(sampleNameTumor),
-    val(vCType),
-    file(bamTumor),
-    file(baiTumor) from pairBamMantaCh
+  tuple val(sampleIdNormal), val(sampleNameNormal), file(bamNormal), file(baiNormal),
+        val(sampleIdTumor), val(sampleNameTumor), file(bamTumor), file(baiTumor) from pairBamMantaCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
   file(targetBED) from targetBedCh
@@ -1841,7 +1785,7 @@ process manta {
     file("*.vcf.gz.tbi") into vcfMantaCh
   file('v_manta.txt') into mantaVersionCh
 
-  when: 'manta' in tools && vCType == 'SV'
+  when: 'manta' in tools
 
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
@@ -1878,7 +1822,6 @@ process manta {
     """
 }
 
-vcfMantaCh = vcfMantaCh.dump(tag:'Manta')
 (vcfMantaSomaticSVCh, vcfMantaDiploidSVCh) = vcfMantaCh.into(2)
 
 
@@ -1895,11 +1838,12 @@ vcfMantaCh = vcfMantaCh.dump(tag:'Manta')
 process alleleCounter {
   label 'ascat'
   label 'lowMem'
+  label 'minCpu'
 
   tag "${sampleId}"
 
   input:
-  tuple val(sampleId), val(sampleName), val(VCtype), file(bam), file(bai) from bamAscatCh
+  tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamAscatCh
   file(acLoci) from acLociCh
   file(dict) from dictCh
   file(fasta) from fastaCh
@@ -1942,6 +1886,7 @@ alleleCounterOutCh = alleleCounterOutCh.map {
 process convertAlleleCounts {
   label 'ascat'
   label 'lowMem'
+  label 'minCpu'
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
@@ -1974,6 +1919,7 @@ process convertAlleleCounts {
 process ascat {
   label 'ascat'
   label 'lowMem'
+  label 'minCpu'
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
@@ -2082,6 +2028,8 @@ if (step == 'annotate') {
 
 process snpEff {
   label 'snpeff'
+  label 'lowMem'
+  label 'lowCpu'
 
   tag "${sampleId} - ${variantCaller} - ${vcf}"
 
@@ -2125,6 +2073,8 @@ process snpEff {
 
 process compressVCFsnpEff {
   label 'tabix'
+  label 'lowMem'
+  label 'lowCpu'
 
   tag "${sampleId} - ${vcf}"
 
@@ -2149,14 +2099,15 @@ process compressVCFsnpEff {
 ================================================================================
 */
 
-/**
+/*
  * Parse software version numbers
- *
  * @output software_versions_mqc.yaml
  */
 
 process getSoftwareVersions {
   label 'python'
+  label 'minCpu'
+  label 'minMem'
 
   publishDir path:"${params.outDir}/softwareVersions", mode: params.publishDirMode
 
@@ -2169,7 +2120,8 @@ process getSoftwareVersions {
   file('v_gatk.txt') from gatkVersionCh.first().ifEmpty('')
   file 'v_preseq.txt' from preseqVersionCh.first().ifEmpty([])
   file('v_manta.txt') from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
-  file('v_samtools.txt') from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh).mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
+  file('v_samtools.txt') from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh)
+                              .mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
   file('v_snpeff.txt') from snpeffVersionCh.first().ifEmpty('')
 
   output:
@@ -2179,15 +2131,14 @@ process getSoftwareVersions {
   """
   echo "${workflow.manifest.version}" &> v_pipeline.txt 2>&1 || true
   echo "${workflow.nextflow.version}" &> v_nextflow.txt 2>&1 || true
-
   apScrapeSoftwareVersions.py &> software_versions_mqc.yaml
   """
 }
 
-yamlSoftwareVersionCh = yamlSoftwareVersionCh.dump(tag:'SOFTWARE VERSIONS')
-
 process multiQC {
   label 'multiqc'
+  label 'lowMem'
+  label 'minCpu'
 
   publishDir "${params.outDir}/MultiQC", mode: params.publishDirMode
 
@@ -2203,14 +2154,12 @@ process multiQC {
   file('Mapping/*') from bamStatsMqcCh.collect().ifEmpty([])
   file('Mapping/*') from onTargetReportCh.collect().ifEmpty([])
   file('preseq/*') from preseqStatsCh.collect().ifEmpty([])
-  //file ('BamQC/*') from bamQCReportCh.collect().ifEmpty([])
   file('coverage/*') from mosdepthOutputCh.collect().ifEmpty([])
   file('coverage/*') from geneCovMqc.collect().ifEmpty([])
   file('BamQC/*') from fragmentSizeCh.collect().ifEmpty([])
   file('BamQC/*') from wgsMetricsOutputCh.collect().ifEmpty([])
   file('FastQC/*') from fastqcReportCh.collect().ifEmpty([])
   file('MarkDuplicates/*') from markDuplicatesReportCh.collect().ifEmpty([])
-  //file ('SamToolsStats/*') from samtoolsStatsReportCh.collect().ifEmpty([])
   file('SnpEff/*') from snpeffReportCh.collect().ifEmpty([])
   file('Identito/*') from clustPolymResultsCh.collect().ifEmpty([])
   file('vcfMetrics/*') from mutect2CallingMetricsMqcCh.collect().ifEmpty([])
