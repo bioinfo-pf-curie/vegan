@@ -366,6 +366,8 @@ remove_sections:
   - fastqc_overrepresented_sequences
   - fastqc_status_checks
   - mosdepth-coverage-cov
+  - picard-wgsmetrics-cov
+  - picard-wgsmetrics-bases
 
 fn_clean_exts:
     - '_bwa.log'
