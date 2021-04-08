@@ -65,10 +65,11 @@ if (params.design){
 ========================================================================
   ${colors.greenBold}INFO${colors.reset}: No design file detected
   ${tools && (('ascat' in tools) || ('mutect2' in tools))? "  ${colors.redBold}WARNING${colors.reset}: You need a design file in order to run somatic analysis\n" : ''}\
-  ${colors.yellowBold}Variant detection (SV/SNV) will be skipped
+  ${colors.yellowBold}Somatic variant detection (SNV/CNV/SV) will be skipped
   Please set up a design file '--design' to run these steps${colors.reset}
 ========================================================================"""
-  tools = []
+  tools.removeElement("mutect2")
+  tools.removeElement("ascat") 
 }
 /*
 ================================================================================
@@ -113,9 +114,9 @@ summary = [
   'Genome': params.genome,
   'Fasta': params.fasta ?: null,
   'Target BED': params.targetBED ?: null,
-  'Intervals': params.noIntervals && step != 'annotate' ? 'Do not use' : null,
+  'Intervals': params.noIntervals ? 'Do not use' : params.intervals,
   'Step': step ?: null,
-  'Tools': params.tools ? params.tools instanceof Collection ? params.tools.join(', ') : params.tools: null,
+  'Tools': params.tools ? tools instanceof Collection ? tools.join(', ') : tools: null,
   'QC tools skip': params.skipQC ? 'Yes' : 'No',
   'SV filters': params.SVFilters ? params.SVFilters instanceof Collection  ? params.SVFilters.join(', ') : params.SVFilters : null,
   'SNV filters': params.SNVFilters ? params.SNVFilters instanceof Collection  ? params.SNVFilters.join(', ') : params.SNVFilters : null,
@@ -172,7 +173,7 @@ snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 polymHeaderCh = Channel.fromPath("$baseDir/assets/polym_header.txt")
 
 // Optional files, not defined within the params.genomes[params.genome] scope
-intervalsCh = params.intervals && !params.noIntervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
+intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
 ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
 targetBedCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : "null")
@@ -1194,6 +1195,9 @@ bamRecalTSVCh.map { sampleId, sampleName ->
 ================================================================================
 */
 
+// When starting with variant calling, Channel bamRecalCh is samplePlanCh                                                                                                                                  
+bamRecalCh = step in 'variantcalling' ? samplePlanCh : params.skipBQSR ? filteredSNVBamsCh : bamRecalCh
+
 // By default, MANTA can be run without design in germline mode
 (filteredSVBamsCh, bamMantaSingleCh) = filteredSVBamsCh.into(2)
 
@@ -1202,9 +1206,6 @@ bamRecalTSVCh.map { sampleId, sampleName ->
 bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh) 
 
 if (params.design){
-
-  // When starting with variant calling, Channel bamRecalCh is samplePlanCh
-  bamRecalCh = step in 'variantcalling' ? samplePlanCh : params.skipBQSR ? filteredSNVBamsCh : bamRecalCh
 
   // CNV Bams
   bamAscatCh = filteredCNVBamsCh
