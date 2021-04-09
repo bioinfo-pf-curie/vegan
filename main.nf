@@ -70,6 +70,7 @@ if (params.design){
 ========================================================================"""
   tools.removeElement("mutect2")
   tools.removeElement("ascat") 
+  tools.removeElement("manta")
 }
 /*
 ================================================================================
@@ -434,23 +435,14 @@ process bwaMem {
 singleBamCh = Channel.create()
 multipleBamCh = Channel.create()
 bamMappedCh.groupTuple(by:[0, 1])
+  .map{it -> [it[0], it[1], it[3]]}
   .branch {
     singleCh: it[2].size() == 1
     multipleCh: it[2].size() > 1
   }.set { bamMappedForks }
 (singleBamCh, multipleBamCh) = [bamMappedForks.singleCh, bamMappedForks.multipleCh]
-
-singleBamCh = singleBamCh.map {
-  sampleId, sampleName, runId, bam ->
-    [sampleId, sampleName, bam]
-}
-
 singleBamCh = singleBamCh.dump(tag:'sbams')
-multipleBamCh = multipleBamCh
-  .map{it -> [it[0], it[1], it[3][0]]}
-  .groupTuple()
-  .dump(tag:'multipleBamCh')
-
+multipleBamCh = multipleBamCh.dump(tag:'mbams')
 
 /*
  * MERGING BAM FROM MULTIPLE LANES
@@ -474,8 +466,9 @@ process mergeBamMapped {
   file('v_samtools.txt') into samtoolsMergeBamMappedVersionCh
 
   script:
+  inputs = bams.collect{"${it}"}.join(' ')
   """
-  samtools merge --threads ${task.cpus} ${sampleId}_merged.bam ${bams[0]}
+  samtools merge --threads ${task.cpus} ${sampleId}_merged.bam ${inputs}
   samtools --version &> v_samtools.txt 2>&1 || true
   """
 }
@@ -1198,15 +1191,15 @@ bamRecalTSVCh.map { sampleId, sampleName ->
 // When starting with variant calling, Channel bamRecalCh is samplePlanCh                                                                                                                                  
 bamRecalCh = step in 'variantcalling' ? samplePlanCh : params.skipBQSR ? filteredSNVBamsCh : bamRecalCh
 
-// By default, MANTA can be run without design in germline mode
-(filteredSVBamsCh, bamMantaSingleCh) = filteredSVBamsCh.into(2)
-
 // By default, HaplotypeCaller can be run without design in germline mode
 (bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(2)
 bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh) 
 
 if (params.design){
 
+  // Manta requires some annotation, even in Single mode
+  (filteredSVBamsCh, bamMantaSingleCh) = filteredSVBamsCh.into(2)
+                                                                                                                                           
   // CNV Bams
   bamAscatCh = filteredCNVBamsCh
 
@@ -1239,14 +1232,12 @@ if (params.design){
   // intervals for Mutect2 calls and pileups for Mutect2 filtering
   (pairBamMutect2Ch, pairBamPileupSummariesCh) = intervalPairBamCh.into(2)
 
-  // Do not run Manta in single Mode if pair information is available
-  bamMantaSingleCh = Channel.empty()
-
 } else {
   pairBamPileupSummariesCh = Channel.empty()
   pairBamCalculateContaminationCh = Channel.empty()
   pairBamMutect2Ch = Channel.empty()
   pairBamMantaCh = Channel.empty()
+  bamMantaSingleCh = Channel.empty()
   bamAscatCh = Channel.empty()
 }
 
