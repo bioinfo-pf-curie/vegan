@@ -43,10 +43,10 @@ welcome()
 
 // Use lintedParams as default params object
 colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
-paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
-def params = lint(params, paramsWithUsage)
+//paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
+//def params = lint(params, paramsWithUsage)
 
-tools = params.tools
+tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
 SVFilters = params.SVFilters
 SNVFilters = params.SNVFilters
 annotateTools = params.annotateTools
@@ -282,7 +282,6 @@ if (!params.noIntervals){
   bedIntervalsCh = bedIntervalsCh.dump(tag:'bedintervals')
 }
 
-//if (params.noIntervals && step != 'annotate') {file("${params.outDir}/noIntervals.bed").text = "noIntervals\n"; bedIntervalsCh = Channel.from(file("${params.outDir}/noIntervals.bed"))}
 (intBaseRecalibratorCh, intApplyBQSRCh, intHaplotypeCallerCh, bedIntervalsCh) = bedIntervalsCh.into(5)
 
 // PREPARING CHANNELS FOR PREPROCESSING AND QC
@@ -972,7 +971,7 @@ process baseRecalibrator {
              saveAs: {filename ->  if (params.noIntervals) filename}
 
   input:
-  tuple val(sampleId), val(sampleName), file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh
+  tuple val(sampleId), val(sampleName), file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh.dump(tag:'bambqsr')
   file(dbsnp) from dbsnpCh
   file(dbsnpIndex) from dbsnpIndexCh
   file(fasta) from fastaCh
