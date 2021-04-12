@@ -47,9 +47,9 @@ paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.
 params.putAll(lint(params, paramsWithUsage))
 
 tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
-SVFilters = params.SVFilters
-SNVFilters = params.SNVFilters
-annotateTools = params.annotateTools
+SVFilters = params.SVFilters ? params.SVFilters.split(',').collect{it.trim().toLowerCase()} : []
+SNVFilters = params.SNVFilters ? params.SNVFilters.split(',').collect{it.trim().toLowerCase()} : []
+annotateTools = params.annotateTools ? params.annotateTools.split(',').collect{it.trim().toLowerCase()} : []
 
 customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
@@ -122,8 +122,8 @@ summary = [
   'Step': step ?: null,
   'Tools': params.tools ? tools instanceof Collection ? tools.join(', ') : tools: null,
   'QC tools skip': params.skipQC ? 'Yes' : 'No',
-  'SV filters': params.SVFilters ? params.SVFilters instanceof Collection  ? params.SVFilters.join(', ') : params.SVFilters : null,
-  'SNV filters': params.SNVFilters ? params.SNVFilters instanceof Collection  ? params.SNVFilters.join(', ') : params.SNVFilters : null,
+  'SV filters': params.SVFilters ? params.SVFilters instanceof Collection  ? SVFilters.join(', ') : params.SVFilters : null,
+  'SNV filters': params.SNVFilters ? params.SNVFilters instanceof Collection  ? SNVFilters.join(', ') : params.SNVFilters : null,
   'Polyms': params.polyms ?: null,
   'BwaIndex': params.bwaIndex ?: null,
   'GermlineResource': params.germlineResource ?: null,
@@ -633,13 +633,13 @@ process bamOnTarget {
 
   output:
   tuple val(sampleId), val(sampleName), file("*_onTarget.bam"), file("*_onTarget.bam.bai") into onTargetBamsCh
-  file("*_onTarget.bam.metrics") into onTargetReportCh
+  file("*_onTarget.flagstats") into onTargetReportCh
 
   script:
   """
   intersectBed -abam ${bam} -b ${targetBED} > ${bam.baseName}_onTarget.bam
   samtools index ${bam.baseName}_onTarget.bam
-  samtools flagstat ${bam.baseName}_onTarget.bam > ${bam.baseName}_onTarget.bam.metrics
+  samtools flagstat ${bam.baseName}_onTarget.bam > ${bam.baseName}_onTarget.flagstats
   """
 }
 
@@ -674,16 +674,17 @@ process bamFiltering {
   output:
   tuple val(sampleId), val(sampleName), val(vCType), file("${sampleId}.filtered.${vCType}.bam"), file("${sampleId}.filtered.${vCType}.bam.bai") into filteredBamCh
   file("${sampleId}.filtered.${vCType}.idxstats") into bamFilterReportCh
+  file("*.flagstats") into filteringReportCh
   file('v_samtools.txt') into samtoolsBamFilterVersionCh
 
   script:
-  dupParams = (vCType == 'SNV' && 'markduplicates' in SNVFilters) | (vCType == 'SV' && 'markduplicates' in SVFilters) ? "-F 0x0400" : ""
+  dupParams = (vCType == 'SNV' && 'duplicates' in SNVFilters) | (vCType == 'SV' && 'duplicates' in SVFilters) ? "-F 0x0400" : ""
   mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : ""
-  // Remove singletons and keep paired reads + Delete secondary and not primary alignment (0x100)
-  uniqParams =  (vCType == 'SNV' && 'uniq' in SNVFilters) | (vCType == 'SV' && 'uniq' in SVFilters) ? "-F 0x004 -F 0x0008 -f 0x001 -F 0x100 -F 0x800" :  ""
-  uniqFilter = (vCType == 'SNV' && 'uniq' in SNVFilters) | (vCType == 'SV' && 'uniq' in SVFilters) ? "| grep -v -e \\\"XA:Z:\\\" -e \\\"SA:Z:\\\" | samtools view -b -" : "| samtools view -b -"
+  singleParams = (vCType == 'SNV' && 'singleton' in SNVFilters) | (vCType == 'SV' && 'single' in SVFilters) ? "-F 0x004 -F 0x0008 -f 0x001": ""
+  uniqParams =  (vCType == 'SNV' && 'multihits' in SNVFilters) | (vCType == 'SV' && 'multi' in SVFilters) ? "-F 0x100 -F 0x800" :  ""
+  uniqFilter = (vCType == 'SNV' && 'multihits' in SNVFilters) | (vCType == 'SV' && 'multi' in SVFilters) ? "| grep -v -e \\\"XA:Z:\\\" -e \\\"SA:Z:\\\" | samtools view -b -" : "| samtools view -b -"
   """
-  samtools view -h -@ ${task.cpus} ${uniqParams} ${dupParams} ${mapqParams} ${bam} ${uniqFilter} > ${sampleId}.filtered.${vCType}.bam
+  samtools view -h -@ ${task.cpus} ${uniqParams} ${singleParams} ${dupParams} ${mapqParams} ${bam} ${uniqFilter} > ${sampleId}.filtered.${vCType}.bam
   samtools index ${sampleId}.filtered.${vCType}.bam
   samtools flagstat ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.flagstats
   samtools idxstats ${sampleId}.filtered.${vCType}.bam > ${sampleId}.filtered.${vCType}.idxstats
@@ -2185,6 +2186,7 @@ process multiQC {
   file('Mapping/*') from bwaMqcCh.collect().ifEmpty([])
   file('Mapping/*') from bamStatsMqcCh.collect().ifEmpty([])
   file('Mapping/*') from onTargetReportCh.collect().ifEmpty([])
+  file('Mapping/*') from filteringReportCh.collect().ifEmpty([])
   file('preseq/*') from preseqStatsCh.collect().ifEmpty([])
   file('coverage/*') from mosdepthOutputCh.collect().ifEmpty([])
   file('coverage/*') from geneCovMqc.collect().ifEmpty([])

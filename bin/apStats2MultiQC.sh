@@ -46,7 +46,7 @@ fi
 
 all_samples=$(awk -F, '{print $1}' $splan)
 
-echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_on_target,Percent_reads_on_target,Mean_depth,30X_cov,50X_cov,100X_cov" >mqc.stats
+echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_after_filt,Percent_reads_after_filt,Mean_depth,30X_cov,50X_cov,100X_cov" >mqc.stats
 
 for sample in $all_samples; do
   #SAMPLE NAME
@@ -89,14 +89,25 @@ for sample in $all_samples; do
     perc_dups='NA'
   fi
 
-  #On target
-  if [[ -e Mapping/${sample}.md_onTarget.bam.metrics ]]; then
-    nb_ontarget=$(grep "mapped (" Mapping/${sample}.md_onTarget.bam.metrics | awk '{print $1}')
-    perc_ontarget=$(echo "${nb_ontarget} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+  #On target + filtering
+  if [[ -e Mapping/${sampleId}.filtered.SNV.flagstats ]]; then
+    nb_filt=$(grep "mapped (" Mapping/Mapping/${sampleId}.filtered.SNV.flagstats | awk '{print $1}')
+    perc_filt=$(echo "${nb_filt} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+  elif [[ -e Mapping/${sampleId}.filtered.SV.flagstats ]]; then
+    nb_filt=$(grep "mapped (" Mapping/Mapping/${sampleId}.filtered.SV.flagstats | awk '{print $1}')
+    perc_filt=$(echo "${nb_filt} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
   else
-    nb_ontarget='NA'
-    perc_ontarget='NA'
+    nb_filt='NA'
+    perc_filt='NA'
   fi
+
+  #if [[ -e Mapping/${sample}.md_onTarget.flagstats ]]; then
+  #  nb_ontarget=$(grep "mapped (" Mapping/${sample}.md_onTarget.flagstats | awk '{print $1}')
+  #  perc_ontarget=$(echo "${nb_ontarget} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+  #else
+  #  nb_ontarget='NA'
+  #  perc_ontarget='NA'
+  #fi
 
   if [[ -e coverage/${sample}.filtered.SNV.mosdepth.summary.txt ]]; then
     mean_depth=$(tail -n 1 coverage/${sample}.filtered.SNV.mosdepth.summary.txt | awk '{print $4}')
@@ -133,5 +144,5 @@ for sample in $all_samples; do
     perc_over='NA'
   fi
 
-  echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${perc_over},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${mean_depth},${cov30},${cov50},${cov100} >>mqc.stats
+  echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${perc_over},${nb_dups},${perc_dups},${nb_filt},${perc_filt},${mean_depth},${cov30},${cov50},${cov100} >>mqc.stats
 done
