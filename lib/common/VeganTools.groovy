@@ -141,31 +141,53 @@ abstract class VeganTools extends NFTools {
      * @param inputFile
      * @return
      */
-    static def extractFastqOrBam(inputFile, sep, singleEnd) {
-        return Channel.of(inputFile)
-                .splitCsv(sep: sep, header: false)
-                .map { row ->
-                    def sampleID = row[0]
-                    def sampleName  = row[1]
-                    def inputFile1  = returnFile(row[2])
-                    def inputFile2  = "null"
-                    if ((!singleEnd) && (hasExtension(inputFile1, "fastq.gz") || hasExtension(inputFile1, "fq.gz"))) {
-                        checkNumberOfItem(row, 4)
-                        inputFile2 = returnFile(row[3])
-                        if (!hasExtension(inputFile2, "fastq.gz") && !hasExtension(inputFile2, "fq.gz")) {
-                            Nextflow.exit(1, "File: ${inputFile2} has the wrong extension. See --help for more information")
+    static def extractFastqOrBam(inputFile, sep, singleEnd, reads, readPaths) {
+        if (inputFile) {
+            return Channel.of(inputFile)
+                    .splitCsv(sep: sep, header: false)
+                    .map { row ->
+                        def sampleID = row[0]
+                        def sampleName  = row[1]
+                        def inputFile1  = returnFile(row[2])
+                        def inputFile2  = "null"
+                        if ((!singleEnd) && (hasExtension(inputFile1, "fastq.gz") || hasExtension(inputFile1, "fq.gz"))) {
+                            checkNumberOfItem(row, 4)
+                            inputFile2 = returnFile(row[3])
+                            if (!hasExtension(inputFile2, "fastq.gz") && !hasExtension(inputFile2, "fq.gz")) {
+                                Nextflow.exit(1, "File: ${inputFile2} has the wrong extension. See --help for more information")
+                            }
                         }
+                        else if (hasExtension(inputFile1, "bam")) checkNumberOfItem(row, 3)
+                        else "No recognisable extention for input file: ${inputFile1}"
+                        // ["sampleID": sampleID, "sampleName": sampleName, "inputFile1": inputFile1, "inputFile2": inputFile2]
+                        [sampleID, sampleName, inputFile1, inputFile2]
                     }
-                    else if (hasExtension(inputFile1, "bam")) checkNumberOfItem(row, 3)
-                    else "No recognisable extention for input file: ${inputFile1}"
-                    // ["sampleID": sampleID, "sampleName": sampleName, "inputFile1": inputFile1, "inputFile2": inputFile2]
-                    [sampleID, sampleName, inputFile1, inputFile2]
-                }
+        } else if (readPaths) {
+            if (singleEnd) {
+                return Channel.of(readPaths)
+                    .map { row ->
+                        def sampleId = row[0]
+                        def inputFile1 = returnFile(row[1][0])
+                        [sampleId, sampleId, inputFile1]
+                    }.ifEmpty { Nextflow.exit 1, "params.readPaths was empty - no input files supplied" }
+            } else {
+                return Channel.of(readPaths)
+                  .map { row ->
+                      def sampleId = row[0]
+                      def inputFile1 = returnFile(row[1][0])
+                      def inputFile2 = returnFile(row[1][1])
+                      [sampleId, sampleId, inputFile1, inputFile2]
+                  }.ifEmpty { Nextflow.exit 1, "params.readPaths was empty - no input files supplied" }
+            }
+        } else {
+            return Channel.fromFilePairs(reads, size: singleEnd ? 1 : 2)
+              .ifEmpty { Nextflow.exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nNB: Path requires at least one * wildcard!\nIf this is single-end data, please specify --singleEnd on the command line." }
+        }
     }
 
     /**
-     * Channeling the input file containing Recalibration Tables
-     * Format is: "subject gender status sample bam bai recalTables"
+     * Channeling the input file containing Filtered Bams
+     * Format is: "sampleID sampleName vCType bam bai"
      *
      * @param inputFile
      * @return
@@ -208,16 +230,16 @@ abstract class VeganTools extends NFTools {
      *
      * @return inputSample
      */
-    def getSamplePlan(String inputPath, Boolean singleEnd, String reads) {
+    def getSamplePlan(String inputPath, String step, Boolean singleEnd, String reads, List readPaths) {
         inputSample = Channel.empty()
         def input = inputPath ? Nextflow.file(inputPath) : null
-        if (inputPath) {
+        if (inputPath || reads) {
             inputExt = getExtension(inputPath, ['csv', 'tsv'])
             sep = (inputExt == 'tsv') ? '\t' : (inputExt == 'csv') ? ',' : ''
             switch (step) {
                 // idSample,sampleName,pathToFastq1,[pathToFastq2]
                 // idSample,sampleName,pathToBam
-                case 'mapping': return extractFastqOrBam(input, sep, singleEnd); break
+                case 'mapping': return extractFastqOrBam(input, sep, singleEnd, reads, readPaths); break
                 // idSample,sampleName,pathToBam,pathToBai,pathToRecalTable
                 // [sampleID, sampleName, bamFile, baiFile, recalTable]
                 case 'recalibrate': return extractRecal(input, sep); break
