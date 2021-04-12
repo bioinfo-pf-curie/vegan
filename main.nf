@@ -54,7 +54,7 @@ annotateTools = params.annotateTools ? params.annotateTools.split(',').collect{i
 customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
 samplePlanPath = getPath(step, params.samplePlan, params.outDir)
-samplePlanCh = getSamplePlan(samplePlanPath, step, params.singleEnd, params.reads, params.readPaths)
+samplePlanCh = getSamplePlan(samplePlanPath, step, params.singleEnd, params.reads, params.readPaths).dump(tag: 'samplePlanCh')
 samplePlanCheckCh = params.samplePlan ? Channel.fromPath(samplePlanPath) : Channel.empty()
 (designCh, designCheckCh) = params.design ? [getDesign(params.design), Channel.fromPath(params.design)] : [Channel.empty(), Channel.empty()]
 
@@ -69,6 +69,13 @@ if (params.design){
   Please set up a design file '--design' to run these steps${colors.reset}
 ========================================================================"""
   tools.removeAll(["mutect2", "ascat", "manta"])
+}
+
+if (tools && ('manta' in tools) && params.singleEnd) {
+  log.info """\
+========================================================================
+${colors.redBold}WARNING${colors.reset}: Manta is not compatible with singleEnd option 
+========================================================================"""
 }
 /*
 ================================================================================
@@ -301,7 +308,7 @@ if (step == "mapping") {
     runIds[it[0]] = runIds.containsKey(it[0]) ? runIds[it[0]] + 1 : 0
     // sampleId, sampleName, runID, inputFiles
     // runId = platformId_XX
-    return it[0,1] + [[it[0], runIds[it[0]].toString()].join("_")] + [it[2..-1]]
+    return it[0,1] + [[it[0], runIds[it[0]].toString()].join("_")] + it[2..-1]
   }.branch {
      bamCh: it[3][0] =~ /.*bam$/
      pairCh: it[3][0] =~ /.*(fastq.gz|fq.gz|fastq|fq)$/
@@ -344,7 +351,7 @@ inputBamCh = inputBamCh.map {
     [sampleId, sampleName, runID, inputFiles[0]]
 }
 (inputBamCh, inputBamFastQCCh) = inputBamCh.into(2)
-(inputPairReadsCh, inputPairReadsFastQC) = inputPairReadsCh.into(2)
+(inputPairReadsCh, inputPairReadsFastQC) = inputPairReadsCh.dump(tag: "inputPairReadsCh").into(2)
 inputPairReadsCh = inputPairReadsCh.dump(tag:'inputPairReadsCh')
 
 /*
@@ -402,7 +409,7 @@ process bwaMem {
                saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
 
   input:
-  tuple val(sampleId), val(sampleName), val(runId), file(inputFile), file(index), val(genomeBase) from inputPairReadsCh.combine(bwaIndexCh)
+  tuple val(sampleId), val(sampleName), val(runId), file(reads), file(index), val(genomeBase) from inputPairReadsCh.combine(bwaIndexCh)
 
   output:
   tuple val(sampleId), val(sampleName), val(runId), file("${sampleId}.bam") into bamMappedCh
@@ -421,8 +428,8 @@ process bwaMem {
   // adjust mismatch penalty for tumor samples
   //status = statusMap[sampleId]
   //extra = status == 1 ? "-B 3" : ""
-  convertToFastq = hasExtension(inputFile[0], "bam") ? "gatk --java-options -Xmx${task.memory.toGiga()}g SamToFastq --INPUT=${inputFile[0]} --FASTQ=/dev/stdout --INTERLEAVE=true --NON_PF=true | \\" : ""
-  input = hasExtension(inputFile[0], "bam") ? "-p /dev/stdin - 2> >(tee ${inputFile[0]}.bwa.stderr.log >&2)" : "${inputFile[0]} ${inputFile[1]}"
+  convertToFastq = hasExtension(reads[0], "bam") ? "gatk --java-options -Xmx${task.memory.toGiga()}g SamToFastq --INPUT=${reads[0]} --FASTQ=/dev/stdout --INTERLEAVE=true --NON_PF=true | \\" : ""
+  input = hasExtension(reads[0], "bam") ? "-p /dev/stdin - 2> >(tee ${reads[0]}.bwa.stderr.log >&2)" : "$reads"
   """
   ${convertToFastq}
   bwa mem ${params.bwaOptions} -R \"${readGroup}\" -t ${task.cpus} ${index}/${genomeBase} \
@@ -1756,7 +1763,7 @@ process mantaSingle {
   tuple val("Manta"), val(sampleId), val(sampleName), file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaSingleCh
   file('v_manta.txt') into mantaSingleVersionCh
 
-  when: 'manta' in tools
+  when: 'manta' in tools && !params.singleEnd
 
   script:
   beforeScript = params.targetBED ? "bgzip --threads ${task.cpus} -c ${targetBED} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
@@ -1818,7 +1825,7 @@ process manta {
     file("*.vcf.gz.tbi") into vcfMantaCh
   file('v_manta.txt') into mantaVersionCh
 
-  when: 'manta' in tools
+  when: 'manta' in tools && !params.singleEnd
 
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
