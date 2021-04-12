@@ -68,7 +68,7 @@ if (params.design){
   ${colors.yellowBold}Somatic variant detection (SNV/CNV/SV) will be skipped
   Please set up a design file '--design' to run these steps${colors.reset}
 ========================================================================"""
-  tools.removeElement(["mutect2", "ascat", "manta"])
+  tools.removeAll(["mutect2", "ascat", "manta"])
 }
 /*
 ================================================================================
