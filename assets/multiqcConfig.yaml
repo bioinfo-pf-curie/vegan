@@ -16,7 +16,7 @@ custom_data:
     my_stats:
         file_format: 'csv'
         section_name: 'General Metrics'
-        description: ' of sequenced data. High (low)-quality alignments show the number of aligned reads with a mapping quality higher (lower) than 20. The fragment length, reads on target and mean sequencing depth are calculated after reads filtering.'
+        description: ' of sequenced data. High (low)-quality alignments show the number of aligned reads with a mapping quality higher (lower) than 20. Reads are filtered according to the specified parameters (for SNV calling by default), keeping only those overlapping the targets file (if any). The fragment length and sequencing depth are calculated after reads filtering.'
         plot_type: 'table'
         pconfig:
             namespace: 'stats'
@@ -100,14 +100,14 @@ custom_data:
               format: '{:,.1f}'
               suffix: '%'
               placement: 10000
-            Number_reads_on_target:
-              title: 'On Target'
+            Number_reads_after_filt:
+              title: 'After Filtering'
               scale: 'RdYlGn'
               format: '{:,.0f}'
               hidden: true
               placement: 11000
-            Percent_reads_on_target:
-              title: 'On Target (%)'
+            Percent_reads_after_filt:
+              title: 'After Filtering (%)'
               min: 0
               max: 100
               scale: 'RdYlVBu'
@@ -295,7 +295,7 @@ table_cond_formatting_rules:
           - gt: 25
         fail:
           - gt: 50
-    Percent_reads_on_target:
+    Percent_reads_after_filt:
         pass:
           - gt: 70
         warn:
