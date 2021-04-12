@@ -1,70 +1,66 @@
 #!/bin/bash
 
-function usage {
-    echo -e "usage : stats2multiqc.sh -s SAMPLE_PLAN -d DESIGN [-p][-t][-h]"
-    echo -e "Use option -h|--help for more information"
+function usage() {
+  echo -e "usage : stats2multiqc.sh -s SAMPLE_PLAN -d DESIGN [-p][-t][-h]"
+  echo -e "Use option -h|--help for more information"
 }
 
-function help {
-    usage;
-    echo 
-    echo "stat2multiqc.sh"
-    echo "---------------"
-    echo "OPTIONS"
-    echo
-    echo "   -s SAMPLE_PLAN"
-    echo "   -d DESIGN"
-    echo "   [-p] paired-end mode"
-    echo "   [-h]: help"
-    exit;
+function help() {
+  usage
+  echo
+  echo "stat2multiqc.sh"
+  echo "---------------"
+  echo "OPTIONS"
+  echo
+  echo "   -s SAMPLE_PLAN"
+  echo "   -d DESIGN"
+  echo "   [-p] paired-end mode"
+  echo "   [-h]: help"
+  exit
 }
 
 is_pe=0
-while getopts "s:d:ph" OPT
-do
-    case $OPT in
-        s) splan=$OPTARG;;
-	d) design=$OPTARG;;
-	p) is_pe=1;;
-	h) help ;;
-	\?)
-	    echo "Invalid option: -$OPTARG" >&2
-	    usage
-	    exit 1
-	    ;;
-	:)
-	    echo "Option -$OPTARG requires an argument." >&2
-	    usage
-	    exit 1
-	    ;;
-    esac
+while getopts "s:d:ph" OPT; do
+  case $OPT in
+  s) splan=$OPTARG ;;
+  d) design=$OPTARG ;;
+  p) is_pe=1 ;;
+  h) help ;;
+  \?)
+    echo "Invalid option: -$OPTARG" >&2
+    usage
+    exit 1
+    ;;
+  :)
+    echo "Option -$OPTARG requires an argument." >&2
+    usage
+    exit 1
+    ;;
+  esac
 done
 
-if  [[ -z $splan ]]; then
-    usage
-    exit
+if [[ -z $splan ]]; then
+  usage
+  exit
 fi
 
 all_samples=$(awk -F, '{print $1}' $splan)
 
-echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_on_target,Percent_reads_on_target,Mean_depth,30X_cov,50X_cov,100X_cov" > mqc.stats
+echo -e "Sample_ID,Sample_name,Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads,Number_of_hq_mapped_reads,Percent_of_hq_mapped_reads,Number_of_lq_mapped_reads,Percent_of_lq_mapped_reads,Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_on_target,Percent_reads_on_target,Mean_depth,30X_cov,50X_cov,100X_cov" >mqc.stats
 
-for sample in $all_samples
-do
-    #SAMPLE NAME
-    sname=$(grep "$sample," $splan | awk -F, '{print $2}')
+for sample in $all_samples; do
+  #SAMPLE NAME
+  sname=$(grep "$sample," $splan | awk -F, '{print $2}')
 
-    #ALIGNMENT
+  #ALIGNMENT
+  if [[ -e MarkDuplicates/${sample}.md.bam.metrics ]]; then
     nb_reads=$(grep 'Total' Mapping/${sample}_bwa.log | awk -F "\t" '{print $2}')
-
     if [[ $is_pe == 1 ]]; then
-	    nb_frag=$(( $nb_reads / 2 ))
+      nb_frag=$(($nb_reads / 2))
     else
-	    nb_frag=$nb_reads
+      nb_frag=$nb_reads
     fi
-
-    tail -n +3 Mapping/${sample}_bwa.log > Mapping/${sample}_bwa.mqc
-
+    tail -n +3 Mapping/${sample}_bwa.log >Mapping/${sample}_bwa.mqc
     #Mapping stats (always in reads - so must be converted for PE)
     #These statistics are calculated after spike cleaning but before filtering
     nb_mapped=$(awk -F, '$1=="Mapped"{print $2}' Mapping/${sample}_mappingstats.mqc)
@@ -73,60 +69,69 @@ do
     perc_mapped=$(echo "${nb_mapped} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     perc_mapped_hq=$(echo "${nb_mapped_hq} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     perc_mapped_lq=$(echo "${nb_mapped_lq} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+  else
+    nb_reads='NA'
+    nb_frag='NA'
+    nb_mapped='NA'
+    nb_mapped_hq='NA'
+    nb_mapped_lq='NA'
+    perc_mapped='NA'
+    perc_mapped_hq='NA'
+    perc_mapped_lq='NA'
+  fi
 
-    #sambamba
-    if [[ -e MarkDuplicates/${sample}.md.bam.metrics ]]; then
-      nb_dups=$(grep duplicates MarkDuplicates/${sample}.md.bam.metrics | awk '{print $1}')
-      perc_dups=$(echo "${nb_dups} ${nb_mapped}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
-    else
-      nb_dups='NA'
-      perc_dups='NA'
-    fi
+  #sambamba
+  if [[ -e MarkDuplicates/${sample}.md.bam.metrics ]]; then
+    nb_dups=$(grep duplicates MarkDuplicates/${sample}.md.bam.metrics | awk '{print $1}')
+    perc_dups=$(echo "${nb_dups} ${nb_mapped}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+  else
+    nb_dups='NA'
+    perc_dups='NA'
+  fi
 
-    #On target
-    if [[ -e Mapping/${sample}.md_onTarget.bam.metrics ]]; then
-      nb_ontarget=$(grep "mapped (" Mapping/${sample}.md_onTarget.bam.metrics | awk '{print $1}')
-      perc_ontarget=$(echo "${nb_ontarget} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
-    else
-      nb_ontarget='NA'
-      perc_ontarget='NA'
-    fi
+  #On target
+  if [[ -e Mapping/${sample}.md_onTarget.bam.metrics ]]; then
+    nb_ontarget=$(grep "mapped (" Mapping/${sample}.md_onTarget.bam.metrics | awk '{print $1}')
+    perc_ontarget=$(echo "${nb_ontarget} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
+  else
+    nb_ontarget='NA'
+    perc_ontarget='NA'
+  fi
 
-    if [[ -e coverage/${sample}.filtered.SNV.mosdepth.summary.txt ]]; then
-	mean_depth=$(tail -n 1 coverage/${sample}.filtered.SNV.mosdepth.summary.txt | awk '{print $4}')
-    else
-	    mean_depth='NA'
-    fi
+  if [[ -e coverage/${sample}.filtered.SNV.mosdepth.summary.txt ]]; then
+    mean_depth=$(tail -n 1 coverage/${sample}.filtered.SNV.mosdepth.summary.txt | awk '{print $4}')
+  else
+    mean_depth='NA'
+  fi
 
-    if [[ -e coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt ]]; then 
-	cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
-	cov50=$(awk '$1=="total" && $2=="50"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
-	cov100=$(awk '$1=="total" && $2=="100"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
-    elif [[ -e coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt ]]; then
-	cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
-        cov50=$(awk '$1=="total" && $2=="50"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
-	cov100=$(awk '$1=="total" && $2=="100"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
-    else
-	cov30='NA'
-	cov50='NA'
-	cov100='NA'
-    fi
+  if [[ -e coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt ]]; then
+    cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
+    cov50=$(awk '$1=="total" && $2=="50"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
+    cov100=$(awk '$1=="total" && $2=="100"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
+  elif [[ -e coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt ]]; then
+    cov30=$(awk '$1=="total" && $2=="30"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
+    cov50=$(awk '$1=="total" && $2=="50"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
+    cov100=$(awk '$1=="total" && $2=="100"{print $3*100}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
+  else
+    cov30='NA'
+    cov50='NA'
+    cov100='NA'
+  fi
 
-    if [[ -e BamQC/${sample}.filtered.SNV_insert_size_metrics.txt ]]; then
-	    frag_length=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_insert_size_metrics.txt | tail -n 1 | awk '{print $1}')
-    else
-	    frag_length='NA'
-    fi
+  if [[ -e BamQC/${sample}.filtered.SNV_insert_size_metrics.txt ]]; then
+    frag_length=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_insert_size_metrics.txt | tail -n 1 | awk '{print $1}')
+  else
+    frag_length='NA'
+  fi
 
-    if [[ -e BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt ]]; then
-	## PERC_EXC_OVERLAP is between 0 and 0.5 as this is the fraction of aligned bases that would be filtered out because they were the second observation from an insert with overlapping reads.
-	## So we multiply by 2 to have the % of base overlap
-	perc_over=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt | tail -n 1 | awk '{print $11}')
-	perc_over=$(echo "${perc_over}" | awk ' { printf "%.*f",2,$1*100 } ')
-    else
-	    perc_over='NA'
-    fi
+  if [[ -e BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt ]]; then
+    ## PERC_EXC_OVERLAP is between 0 and 0.5 as this is the fraction of aligned bases that would be filtered out because they were the second observation from an insert with overlapping reads.
+    ## So we multiply by 2 to have the % of base overlap
+    perc_over=$(grep -A2 "## METRIC" BamQC/${sample}.filtered.SNV_collect_wgs_metrics.txt | tail -n 1 | awk '{print $11}')
+    perc_over=$(echo "${perc_over}" | awk ' { printf "%.*f",2,$1*100 } ')
+  else
+    perc_over='NA'
+  fi
 
-    echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${perc_over},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${mean_depth},${cov30},${cov50},${cov100} >> mqc.stats
+  echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${nb_mapped_hq},${perc_mapped_hq},${nb_mapped_lq},${perc_mapped_lq},${perc_over},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${mean_depth},${cov30},${cov50},${cov100} >>mqc.stats
 done
-

@@ -68,9 +68,7 @@ if (params.design){
   ${colors.yellowBold}Somatic variant detection (SNV/CNV/SV) will be skipped
   Please set up a design file '--design' to run these steps${colors.reset}
 ========================================================================"""
-  tools.removeElement("mutect2")
-  tools.removeElement("ascat") 
-  tools.removeElement("manta")
+  tools.removeElement(["mutect2", "ascat", "manta"])
 }
 /*
 ================================================================================
@@ -97,8 +95,12 @@ params.putAll([
   knownIndels: params.genome ? params.genomes[params.genome].knownIndels ?: false : false,
   knownIndelsIndex: params.genome && params.genomes[params.genome].knownIndels ? params.genomes[params.genome].knownIndelsIndex ?: false : false,
   snpeffDb: params.genome ? params.genomes[params.genome].snpeffDb ?: false : false,
-  snpeffCache: params.genome ? params.genomes[params.genome].snpeffCache ?: false : false
-]
+  snpeffCache: params.genome ? params.genomes[params.genome].snpeffCache ?: false : false,
+  outDir: params.outDir ? file(params.outDir).toAbsolutePath() : './results',
+  bamDir: params.bamDir ? file(params.bamDir).toAbsolutePath() : "${params.outDir}/preprocessing/bams",
+  filteredBamDir: params.filteredBamDir ? file(params.filteredBamDir).toAbsolutePath() : "${params.bamDir}/filtering",
+  bqsrBamDir: params.bqsrBamDir ? file(params.bqsrBamDir).toAbsolutePath() : "${params.bamDir}/bqsr",
+  summaryDir: params.summaryDir ? file(params.summaryDir).toAbsolutePath() : "${params.outDir}/summary",
 ])
 
 /*
@@ -664,7 +666,7 @@ process bamFiltering {
   label 'minMem'
   tag "${sampleId}-${vCType}"
 
-  publishDir "${params.outDir}/preprocessing/bams/filtering", mode: params.publishDirMode
+  publishDir "${params.filteredBamDir}", mode: params.publishDirMode
 
   input:
   tuple val(sampleId), val(sampleName), file(bam), file(bai), val(vCType) from procBamsCh
@@ -694,18 +696,31 @@ process bamFiltering {
  * Separate SVN/SV/CNV bams after filtering
  */
                                                                                                                                                                                       
+
+(filteredBamCh, filteredBamCSVCh) = filteredBamCh.dump(tag: "filteredBamCh").into(2)
+
+// Save in a csv file in order to restart after filtering step
+filteredBamCSVCh.map { sampleId, sampleName, vCType, bam, bai ->
+   "${sampleId},${sampleName},${vCType},${params.filteredBamDir}/${bam.getName()},${params.filteredBamDir}/${bai.getName()}\n"
+}.collectFile(
+   name: 'samplePlan.filtered.csv', sort: true, storeDir: "${params.outDir}/resume/CSV"
+)
+
+// Allow to restart here with a sample plan with filteredBams
+filteredBamCh = step in 'recalibrate' ? samplePlanCh : filteredBamCh
+
 filteredBamCh
-  .branch { it ->
-    snvCh: it[2] == 'SNV'
-    svCh: it[2] == 'SV'
+  .branch { sampleId, sampleName, vCType, bam, bai ->
+    snvCh: vCType == 'SNV'
+      return [sampleId, sampleName, bam, bai]
+    svCh: vCType == 'SV'
+      return [sampleId, sampleName, bam, bai]
     otherCh: true
+      return [sampleId, sampleName, bam, bai]
   }.set { filteredBamForks }
 
 // Remove VCType from all channels
-filteredSNVBamsCh=filteredBamForks.snvCh.map{ sampleId, sampleName, VCType, bam, bai -> [sampleId, sampleName, bam, bai]}
-filteredSVBamsCh=filteredBamForks.svCh.map{ sampleId, sampleName, VCType, bam, bai -> [sampleId, sampleName, bam, bai]}
-filteredOtherBamsCh=filteredBamForks.otherCh.map{ sampleId, sampleName, VCType, bam, bai -> [sampleId, sampleName, bam, bai]}
-//(filteredSNVBamsCh, filteredSVBamsCh, filteredOtherBamsCh) = [filteredBamForks.snvCh, filteredBamForks.svCh, filteredBamForks.otherCh]
+(filteredSNVBamsCh, filteredSVBamsCh, filteredOtherBamsCh) = [filteredBamForks.snvCh, filteredBamForks.svCh, filteredBamForks.otherCh]
 
 // Copy SNV bams for CNV calling
 (filteredSNVBamsCh, filteredCNVBamsCh) = filteredSNVBamsCh.into(2)
@@ -718,9 +733,9 @@ filteredOtherBamsCh=filteredBamForks.otherCh.map{ sampleId, sampleName, VCType, 
 
 // Run the QC on the SNV bam only if available - on the SV otherwise
 if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
-  (filteredSVBamsCh, filteredBamQCCh)=filteredSVBamsCh.into(2)
+  (filteredSVBamsCh, filteredBamQCCh) = filteredSVBamsCh.into(2)
 } else {
-  (filteredSNVBamsCh, filteredBamQCCh)=filteredSNVBamsCh.into(2)
+  (filteredSNVBamsCh, filteredBamQCCh) = filteredSNVBamsCh.into(2)
 }
 
 filteredBamQCCh
@@ -955,7 +970,7 @@ SNVs filtered Bams are used for both SNV and CNV calling
 
 // Channels for baseRecalibration
 (bamBaseRecalibratorCh, bamBaseRecalibratorToJoinCh) = params.skipBQSR ? [Channel.empty(), Channel.empty()] : filteredSNVBamsCh.into(2)
-bamBaseRecalibratorCh = params.skipBQSR ? bamBaseRecalibratorCh : bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
+bamBaseRecalibratorCh = params.skipBQSR ? bamBaseRecalibratorCh : bamBaseRecalibratorCh.combine(intBaseRecalibratorCh).dump(tag: "bamBaseRecalibratorCh")
 
 /*
  * CREATING RECALIBRATION TABLES
@@ -968,7 +983,7 @@ process baseRecalibrator {
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/preprocessing/bams/bqsr/", mode: params.publishDirMode,
+  publishDir "${params.bqsrBamDir}", mode: params.publishDirMode,
              saveAs: {filename ->  if (params.noIntervals) filename}
 
   input:
@@ -982,8 +997,9 @@ process baseRecalibrator {
   file(knownIndelsIndex) from knownIndelsIndexCh
 
   output:
-  tuple val(sampleId), val(sampleName), file("${prefix}.recal.table") into tableGatherBQSRReportsCh
-  tuple val(sampleId), val(sampleName) into recalTableTSVnoIntCh
+  tuple val(sampleId),
+    val(sampleName),
+    file("${prefix}.recal.table") into tableGatherBQSRReportsCh
 
   when: 'haplotypecaller' in tools || 'mutect2' in tools
 
@@ -1007,7 +1023,7 @@ process baseRecalibrator {
 }
 
 /*
- * MERGE BQSR TABLES PER INERVALS
+ * MERGE BQSR TABLES PER INTERVALS
  */
 
 if (!params.noIntervals) {
@@ -1023,14 +1039,17 @@ process gatherBQSRReports {
 
   tag "${sampleId}"
 
-  publishDir "${params.outDir}/preprocessing/bams/bqsr/", mode: params.publishDirMode, overwrite: false
+  publishDir "${params.bqsrBamDir}", mode: params.publishDirMode, overwrite: false
 
   input:
-  tuple val(sampleId), val(sampleName), file(recal) from tableGatherBQSRReportsCh
+  tuple val(sampleId),
+    val(sampleName),
+    file(recal) from tableGatherBQSRReportsCh
 
   output:
-  tuple val(sampleId), val(sampleName), file("${sampleId}.recal.table") into recalTableCh
-  tuple val(sampleId), val(sampleName) into recalTableCSVCh
+  tuple val(sampleId),
+    val(sampleName),
+    file("${sampleId}.recal.table") into recalTableCh
 
   when: !(params.noIntervals)
 
@@ -1044,20 +1063,10 @@ process gatherBQSRReports {
   """
 }
 
-
-// TODO
-// Create TSV files to restart from this step
-recalTableCSVCh = recalTableCSVCh.mix(recalTableTSVnoIntCh)
-recalTableCSVCh.map { sampleId, sampleName  ->
-  bam = "${params.outDir}/resume/${sampleId}/DuplicateMarked/${sampleId}.md.bam"
-  bai = "${params.outDir}/resume/${sampleId}/DuplicateMarked/${sampleId}.md.bai"
-  recalTable = "${params.outDir}/resume/${sampleId}/DuplicateMarked/${sampleId}.recal.table"
-  "${sampleId},${sampleName},${bam},${bai},${recalTable}\n"
-}.collectFile(
-  name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/resume/CSV")
-
-bamApplyBQSRCh = step in 'recalibrate' ? samplePlanCh : bamBaseRecalibratorToJoinCh.join(recalTableCh, by:[0,1])
-bamApplyBQSRCh = bamApplyBQSRCh.combine(intApplyBQSRCh)
+bamApplyBQSRCh = bamBaseRecalibratorToJoinCh
+  .join(recalTableCh, by:[0, 1])
+  .combine(intApplyBQSRCh)
+  .dump(tag: 'bamApplyBQSRCh')
 
 
 /*
@@ -1096,8 +1105,8 @@ process applyBQSR {
   """
 }
 
-bamMergeBamRecalCh = bamMergeBamRecalCh.groupTuple(by:[0, 1])
-(bamMergeBamRecalCh, bamMergeBamRecalNoIntCh) = bamMergeBamRecalCh.into(2)
+//bamMergeBamRecalCh = bamMergeBamRecalCh.groupTuple(by:[0, 1])
+(bamMergeBamRecalCh, bamMergeBamRecalNoIntCh) = bamMergeBamRecalCh.groupTuple(by:[0, 1]).into(2)
 
 
 /*
@@ -1111,14 +1120,16 @@ process mergeAndIndexBamRecal {
 
   tag "${sampleId}-${sampleName}"
 
-  publishDir "${params.outDir}/preprocessing/bams/bqsr/", mode: params.publishDirMode
+  publishDir "${params.bqsrBamDir}", mode: params.publishDirMode
 
   input:
   tuple val(sampleId), val(sampleName), file(bam) from bamMergeBamRecalCh
 
   output:
-  tuple val(sampleId), val(sampleName), file("*recal.bam"), file("*recal.bam.bai") into bamRecalCh
-  tuple val(sampleId), val(sampleName) into bamRecalTSVCh
+  tuple val(sampleId),
+    val(sampleName),
+    file("*recal.bam"),
+    file("*recal.bam.bai") into bamRecalCh
   file('v_samtools.txt') into samtoolsMergeBamRecalVersionCh
 
   when: !(params.noIntervals)
@@ -1142,14 +1153,16 @@ process indexBamRecal {
 
   tag "${sampleId}-${sampleName}"
 
-  publishDir "${params.outDir}/preprocessing/bams/bqsr/", mode: params.publishDirMode
+  publishDir "${params.bqsrBamDir}", mode: params.publishDirMode
 
   input:
   tuple val(sampleId), val(sampleName), file(bam) from bamMergeBamRecalNoIntCh
 
   output:
-  tuple val(sampleId), val(sampleName), file(bam), file("*bam.bai") into bamRecalNoIntCh
-  tuple val(sampleId), val(sampleName) into bamRecalTSVnoIntCh
+  tuple val(sampleId),
+    val(sampleName),
+    file(bam),
+    file("*bam.bai") into bamRecalNoIntCh
   file('v_samtools.txt') into samtoolsIndexBamRecalVersionCh
 
   when: params.noIntervals
@@ -1161,26 +1174,34 @@ process indexBamRecal {
   """
 }
 
-bamRecalCh = bamRecalCh.mix(bamRecalNoIntCh)
-bamRecalTSVCh = bamRecalTSVCh.mix(bamRecalTSVnoIntCh)
-(bamRecalTSVCh, bamRecalSampleTSVCh) = bamRecalTSVCh.into(2)
-
-
-
-// TODO
-// Creating a TSV file to restart from this step
-bamRecalTSVCh.map { sampleId, sampleName ->
-  bam = "${params.outDir}/resume/${sampleId}/Recalibrated/${sampleId}.recal.bam"
-  bai = "${params.outDir}/resume/${sampleId}/Recalibrated/${sampleId}.recal.bam.bai"
-  "${sampleId}\t${sampleName}\t${bam}\t${bai}\n"
-}.collectFile(
-  name: 'recal.samplePlan.tsv', sort: true, storeDir: "${params.outDir}/resume/TSV"
-)
+// Since bamRecalCh or bamRecalNoIntCh are empty according to noIntervals flag, we merge them
+(bamRecalCh, bamRecalCSVCh) = bamRecalCh.mix(bamRecalNoIntCh).into(2)
 
 // When no knownIndels for mapping, Channel bamRecalCh is indexedBamCh
 // TODO: seems not suited to the actual layout, have to refactor line below (indexed bam are not filtered)
 // bamRecalCh = (params.knownIndels && step == 'mapping') ? bamRecalCh : indexedBamCh.flatMap { it -> [it.plus(2, 'SV'), it.plus(2, 'SNV')]}
 
+// Save here filteredSVBamsCh, filteredCNVBamsCh and bamRecalCh or filteredSNVBamsCh if skipBQSR
+// into a single samplePlan file
+(filteredSVBamsCh, filteredSVBamsCSVCh) = filteredSVBamsCh.into(2)
+filteredSVBamsCSVCh = filteredSVBamsCSVCh.map{ it + ["SV"]}
+(filteredCNVBamsCh, filteredCNVBamsCSVCh) = filteredCNVBamsCh.into(2)
+filteredCNVBamsCSVCh = filteredCNVBamsCSVCh.map{ it + ["CNV"]}
+
+if (params.skipBQSR) {
+  (filteredSNVBamsCh, recalOrSNVBamsCSVCh) = filteredSNVBamsCh.into(2)
+  recalOrSNVBamsCSVCh = recalOrSNVBamsCSVCh.map{ it + ["SNV"]}
+} else {
+  (bamRecalCh, recalOrSNVBamsCSVCh) = bamRecalCh.into(2)
+  recalOrSNVBamsCSVCh = recalOrSNVBamsCSVCh.map{ it + ["RECAL"]}
+}
+
+bamvCCSVCh = filteredSVBamsCSVCh.mix(filteredCNVBamsCSVCh, recalOrSNVBamsCSVCh)
+bamvCCSVCh.map { sampleId, sampleName, bam, bai, vCType ->
+   (vCType == 'RECAL') ? "${sampleId},${sampleName},${vCType},${params.bqsrBamDir}/${bam.getName()},${params.bqsrBamDir}/${bai.getName()}\n" : "${sampleId},${sampleName},${vCType},${params.filteredBamDir}/${bam.getName()},${params.filteredBamDir}/${bai.getName()}\n" 
+}.collectFile(
+   name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/resume/CSV"
+)
 
 /*
 ================================================================================
@@ -1188,14 +1209,33 @@ bamRecalTSVCh.map { sampleId, sampleName ->
 ================================================================================
 */
 
-// When starting with variant calling, Channel bamRecalCh is samplePlanCh                                                                                                                                  
-bamRecalCh = step in 'variantcalling' ? samplePlanCh : params.skipBQSR ? filteredSNVBamsCh : bamRecalCh
+if (step in 'variantcalling') {
+  // if step is variantcalling, start from samplePlanCh in order to init 
+  // filteredSVBamsCh, filteredCNVBamsCh and filteredSNVBamsCh or bamRecalCh 
+  // according to skipBQSR option
+  samplePlanCh.branch{ sampleId, sampleName, vCType, bam, bai ->
+    snvCh:  vCType == 'SNV'
+      return [sampleId, sampleName, bam, bai]
+    recalCh: vCType == 'RECAL'
+      return [sampleId, sampleName, bam, bai]
+    sVCh: vCType == 'SV'
+      return [sampleId, sampleName, bam, bai]
+    cNVCh: vCType == 'CNV'
+      return [sampleId, sampleName, bam, bai]
+    otherCh: true
+      return [sampleId, sampleName, bam, bai]
+  }.set{ samplePlanForks }
+  bamRecalCh = params.skipBQSR ? samplePlanForks.snvCh : samplePlanForks.recalCh
+  (filteredSVBamsCh, filteredCNVBamsCh) = [samplePlanForks.sVCh, samplePlanForks.cNVCh]
+} else {
+  bamRecalCh = params.skipBQSR ? filteredSNVBamsCh : bamRecalCh
+}
 
 // By default, HaplotypeCaller can be run without design in germline mode
 (bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(2)
 bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh) 
 
-if (params.design){
+if (params.design) {
 
   // Manta requires some annotation, even in Single mode
   (filteredSVBamsCh, bamMantaSingleCh) = filteredSVBamsCh.into(2)
