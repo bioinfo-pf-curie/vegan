@@ -43,8 +43,8 @@ welcome()
 
 // Use lintedParams as default params object
 colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
-//paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
-//def params = lint(params, paramsWithUsage)
+paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
+params.putAll(lint(params, paramsWithUsage))
 
 tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
 SVFilters = params.SVFilters
@@ -80,7 +80,7 @@ if (params.design){
 
 // Initialize each reference with default values in params.genomes, catch the genome defined on the command line first
 // if it was defined
-params << [
+params.putAll([
   fasta: params.genome ? params.genomes[params.genome].fasta ?: false : false,
   gtf: params.genome ? params.genomes[params.genome].gtf ?: false : false,
   polyms: params.genome ? params.genomes[params.genome].polyms ?: false : false,
@@ -99,6 +99,7 @@ params << [
   snpeffDb: params.genome ? params.genomes[params.genome].snpeffDb ?: false : false,
   snpeffCache: params.genome ? params.genomes[params.genome].snpeffCache ?: false : false
 ]
+])
 
 /*
 ================================================================================
