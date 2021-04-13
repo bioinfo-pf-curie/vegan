@@ -598,7 +598,8 @@ process markDuplicates {
   tag "${sampleId}"
 
   publishDir "${params.outDir}/preprocessing/bams/markDuplicates", mode: params.publishDirMode,
-              saveAs: {filename -> if (params.saveAlignedIntermediates) filename}
+              saveAs: {filename -> if ( filename.endsWith("md.flagstats")) "stats/$filename"
+                                   else if (params.saveAlignedIntermediates) "$filename" }
 
   input:
   tuple val(sampleId), val(sampleName), file(bam) from mergedBamCh
@@ -610,7 +611,7 @@ process markDuplicates {
   script:
   """
   sambamba markdup --nthreads ${task.cpus} --tmpdir . ${bam} ${sampleId}.md.bam
-  sambamba flagstat --nthreads ${task.cpus} ${sampleId}.md.bam > ${sampleId}.md.bam.metrics
+  sambamba flagstat --nthreads ${task.cpus} ${sampleId}.md.bam > ${sampleId}.md.flagstats
   """
 }
 
@@ -628,7 +629,7 @@ process bamOnTarget {
   tag {sampleId}
 
   publishDir "${params.outDir}/preprocessing/bams/onTarget", mode: params.publishDirMode,
-             saveAs: {filename -> if ( filename.endsWith("metrics") && params.saveAlignedIntermediates ) "stats/$filename"
+             saveAs: {filename -> if ( filename.endsWith("_onTarget.flagstats") ) "stats/$filename"
 	                          else if (params.saveAlignedIntermediates) "$filename"}
 
   when:
@@ -687,7 +688,7 @@ process bamFiltering {
   script:
   dupParams = (vCType == 'SNV' && 'duplicates' in SNVFilters) | (vCType == 'SV' && 'duplicates' in SVFilters) ? "-F 0x0400" : ""
   mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : ""
-  singleParams = (vCType == 'SNV' && 'singleton' in SNVFilters) | (vCType == 'SV' && 'single' in SVFilters) ? "-F 0x004 -F 0x0008 -f 0x001": ""
+  singleParams = (vCType == 'SNV' && 'singleton' in SNVFilters) | (vCType == 'SV' && 'single' in SVFilters) ? "-F 0x004 -F 0x008 -f 0x001": "-F 0x004"
   uniqParams =  (vCType == 'SNV' && 'multihits' in SNVFilters) | (vCType == 'SV' && 'multi' in SVFilters) ? "-F 0x100 -F 0x800" :  ""
   uniqFilter = (vCType == 'SNV' && 'multihits' in SNVFilters) | (vCType == 'SV' && 'multi' in SVFilters) ? "| grep -v -e \\\"XA:Z:\\\" -e \\\"SA:Z:\\\" | samtools view -b -" : "| samtools view -b -"
   """
@@ -896,7 +897,6 @@ process getWGSmetrics {
   """
   ${bedTointerCmd}
   picard ${memOption} CollectWgsMetrics \
-       USE_FAST_ALGORITHM=true \
        I=${bam} \
        O=${bam.baseName}_collect_wgs_metrics.txt \
        R=${reference} \
