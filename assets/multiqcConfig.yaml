@@ -16,7 +16,7 @@ custom_data:
     my_stats:
         file_format: 'csv'
         section_name: 'General Metrics'
-        description: ' of sequenced data. High (low)-quality alignments show the number of aligned reads with a mapping quality higher (lower) than 20. Reads are filtered according to the specified parameters (for SNV calling by default), keeping only those overlapping the targets file (if any). The fragment length and sequencing depth are calculated after reads filtering.'
+        description: ' of sequenced data. High (low)-quality alignments show the number of aligned reads with a mapping quality higher (lower) than 20. Reads are filtered according to the specified parameters (for SNV calling by default), keeping only those overlapping the targets file (if any). The fragment length, overlapping bases and sequencing depth are calculated after reads filtering.'
         plot_type: 'table'
         pconfig:
             namespace: 'stats'
