@@ -74,7 +74,7 @@ if (params.design){
 if (tools && ('manta' in tools) && params.singleEnd) {
   log.info """\
 ========================================================================
-${colors.redBold}WARNING${colors.reset}: Manta is not compatible with singleEnd option 
+${colors.redBold}WARNING${colors.reset}: Manta is not compatible with singleEnd option
 ========================================================================"""
 }
 /*
@@ -181,7 +181,6 @@ knownIndelsCh = params.knownIndels ? Channel.value(file(params.knownIndels)) : "
 knownIndelsIndexCh = params.knownIndels ? params.knownIndelsIndex ? Channel.value(file(params.knownIndelsIndex)) : "null" : "null"
 snpeffCacheCh = params.snpeffCache ? Channel.value(file(params.snpeffCache)) : "null"
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
-polymHeaderCh = Channel.fromPath("$baseDir/assets/polym_header.txt")
 
 // Optional files, not defined within the params.genomes[params.genome] scope
 intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
@@ -703,7 +702,7 @@ process bamFiltering {
 /*
  * Separate SVN/SV/CNV bams after filtering
  */
-                                                                                                                                                                                      
+
 
 (filteredBamCh, filteredBamCSVCh) = filteredBamCh.dump(tag: "filteredBamCh").into(2)
 
@@ -947,7 +946,6 @@ process computePolym {
 
   input:
   file(matrix) from clustPolymCh.collect()
-  file(header) from polymHeaderCh
 
   output:
   file("*.csv") into clustPolymResultsCh
@@ -962,9 +960,6 @@ process computePolym {
   done
 
   apComputeClust.R clust_mat.tsv . clustering_plot
-  cat polym_header.txt > temp_clust_mat.csv
-  cat clustering_plot_identito.csv >> temp_clust_mat.csv
-  mv temp_clust_mat.csv clustering_plot_identito.csv
   """
 }
 
@@ -1206,7 +1201,7 @@ if (params.skipBQSR) {
 
 bamvCCSVCh = filteredSVBamsCSVCh.mix(filteredCNVBamsCSVCh, recalOrSNVBamsCSVCh)
 bamvCCSVCh.map { sampleId, sampleName, bam, bai, vCType ->
-   (vCType == 'RECAL') ? "${sampleId},${sampleName},${vCType},${params.bqsrBamDir}/${bam.getName()},${params.bqsrBamDir}/${bai.getName()}\n" : "${sampleId},${sampleName},${vCType},${params.filteredBamDir}/${bam.getName()},${params.filteredBamDir}/${bai.getName()}\n" 
+   (vCType == 'RECAL') ? "${sampleId},${sampleName},${vCType},${params.bqsrBamDir}/${bam.getName()},${params.bqsrBamDir}/${bai.getName()}\n" : "${sampleId},${sampleName},${vCType},${params.filteredBamDir}/${bam.getName()},${params.filteredBamDir}/${bai.getName()}\n"
 }.collectFile(
    name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/resume/CSV"
 )
@@ -1218,8 +1213,8 @@ bamvCCSVCh.map { sampleId, sampleName, bam, bai, vCType ->
 */
 
 if (step in 'variantcalling') {
-  // if step is variantcalling, start from samplePlanCh in order to init 
-  // filteredSVBamsCh, filteredCNVBamsCh and filteredSNVBamsCh or bamRecalCh 
+  // if step is variantcalling, start from samplePlanCh in order to init
+  // filteredSVBamsCh, filteredCNVBamsCh and filteredSNVBamsCh or bamRecalCh
   // according to skipBQSR option
   samplePlanCh.branch{ sampleId, sampleName, vCType, bam, bai ->
     snvCh:  vCType == 'SNV'
@@ -1241,13 +1236,13 @@ if (step in 'variantcalling') {
 
 // By default, HaplotypeCaller can be run without design in germline mode
 (bamRecalAllCh, bamRecalAllTempCh) = bamRecalCh.into(2)
-bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh) 
+bamHaplotypeCallerCh = bamRecalAllTempCh.combine(intHaplotypeCallerCh)
 
 if (params.design) {
 
   // Manta requires some annotation, even in Single mode
   (filteredSVBamsCh, bamMantaSingleCh) = filteredSVBamsCh.into(2)
-                                                                                                                                           
+
   // CNV Bams
   bamAscatCh = filteredCNVBamsCh
 
@@ -1271,14 +1266,14 @@ if (params.design) {
   pairBamsSNVCh = pairBamsSNVCh.filter{ pairMap.containsKey([it[0], it[4]]) }
   pairBamsSVCh = bamSVNormalCh.combine(bamSVTumorCh)
   pairBamsSVCh = pairBamsSVCh.filter{ pairMap.containsKey([it[0], it[4]]) }
-  
+
   // Manta,  Mutect2
   (pairBamCalculateContaminationCh, pairBamsSNVCh) = pairBamsSNVCh.into(2)
   (pairBamMantaCh, pairBamsSVCh) = pairBamsSVCh.into(2)
   intervalPairBamCh = pairBamsSNVCh.combine(bedIntervalsCh)
 
-  // intervals for Mutect2 calls and pileups for Mutect2 filtering
-  (pairBamMutect2Ch, pairBamPileupSummariesCh) = intervalPairBamCh.into(2)
+  // intervals for Mutect2 calls and pileups for Mutect2 filtering and transitions
+  (pairBamMutect2Ch, pairBamPileupSummariesCh,mutectForTransitionCh) = intervalPairBamCh.into(3)
 
 } else {
   pairBamPileupSummariesCh = Channel.empty()
@@ -1540,36 +1535,6 @@ process collectVCFmetrics {
   """
 }
 
-/*
- * TRANSITION/TRANSVERSION RATIO
- */
-
-process computeTransition {
-  label 'minCpu'
-  label 'lowMem'
-  label 'transition'
-
-  publishDir "${params.outDir}/${variantCaller}/transition", mode: params.publishDirMode
-
-  input:
-  tuple val(variantCaller),
-        val(sampleId),
-        val(sampleName),
-        file(vcf),
-        file(tbi) from transitionCh.filter{it[0] == "HaplotypeCaller"}.dump(tag:'transi')
-
-  output:
-   file("*table.tsv") into transitionPerSampleCh
-
-  when: 'haplotypecaller' in tools
-
-  script:
-  """
-  apParseTransition.py -i $vcf -o ${vcf.baseName}.transi.tsv
-  apTransition.R ${vcf.baseName}.transi.tsv ${vcf.baseName}.table.tsv
-  """
-}
-
 // STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
 
 process pileupSummariesForMutect2 {
@@ -1654,7 +1619,7 @@ process calculateContamination {
   publishDir "${params.outDir}/Mutect2/contamination", mode: params.publishDirMode
 
   input:
-  tuple val(sampleIdNormal), val(sampleIdTumor), 
+  tuple val(sampleIdNormal), val(sampleIdTumor),
         val(sampleNameNormal), val(sampleNameTumor),
         file(bamNormal), file(baiNormal),
         file(bamTumor), file(baiTumor),
@@ -1699,7 +1664,7 @@ process filterMutect2Calls {
 
   input:
   tuple val(sampleId), val(sampleIdTN),
-        file(unfiltered), file(unfilteredIndex), 
+        file(unfiltered), file(unfilteredIndex),
         file(statsFile),
         file(contaminationTable) from mutect2CallsToFilterCh
   file(dict) from dictCh
@@ -1936,7 +1901,7 @@ process convertAlleleCounts {
   tuple val(sampleIdNormal), val(sampleIdTumor), file(alleleCountNormal), file(alleleCountTumor) from alleleCounterOutCh
 
   output:
-  tuple val(sampleIdNormal), val(sampleIdTumor), 
+  tuple val(sampleIdNormal), val(sampleIdTumor),
         file("${sampleIdNormal}.BAF"), file("${sampleIdNormal}.LogR"),
         file("${sampleIdTumor}.BAF"), file("${sampleIdTumor}.LogR") into convertAlleleCountsOutCh
   file("v_ascat.txt") into convertAlleleCountsVersionCh
@@ -2061,6 +2026,45 @@ if (step == 'annotate') {
 }
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
+
+/*
+ * TRANSITION/TRANSVERSION RATIO
+ */
+
+ (transitionCh, vcfAnnotationCh) = vcfAnnotationCh.into(2)
+
+ transitionCh = transitionCh.dump(tag:'transition')
+
+process computeTransition {
+  label 'minCpu'
+  label 'lowMem'
+  label 'transition'
+
+  publishDir "${params.outDir}/${variantCaller}/transition", mode: params.publishDirMode
+
+  input:
+  tuple val(variantCaller),
+        val(sampleId),
+        file(vcf) from transitionCh.filter{it[0] == "HaplotypeCaller" || "mutect2"}.dump(tag:'transi')
+  tuple val(sampleIdNormal), val(sampleNameNormal), file(bamNormal), file(baiNormal),
+        val(sampleIdTumor), val(sampleNameTumor), file(bamTumor), file(baiTumor),
+        file(intervalBed) from mutectForTransitionCh
+
+  output:
+   file("*table.tsv") into transitionPerSampleCh
+
+  when: 'haplotypecaller' || 'muutect2' in tools
+
+  script:
+  if (variantCaller == 'HaplotypeCaller')
+    sId = "${sampleId}"
+  else if (variantCaller == 'Mutect2')
+    sId = "${sampleIdTumor}"
+  """
+  apParseTransition.py -i $vcf --sample ${sId} -o ${vcf.baseName}.transi.tsv
+  apTransition.R ${vcf.baseName}.transi.tsv ${vcf.baseName}.table.tsv
+  """
+}
 
 /*
  * SNPEFF
