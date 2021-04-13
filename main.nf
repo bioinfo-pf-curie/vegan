@@ -1273,7 +1273,7 @@ if (params.design) {
   intervalPairBamCh = pairBamsSNVCh.combine(bedIntervalsCh)
 
   // intervals for Mutect2 calls and pileups for Mutect2 filtering and transitions
-  (pairBamMutect2Ch, pairBamPileupSummariesCh,mutectForTransitionCh) = intervalPairBamCh.into(3)
+  (pairBamMutect2Ch, pairBamPileupSummariesCh) = intervalPairBamCh.into(2)
 
 } else {
   pairBamPileupSummariesCh = Channel.empty()
@@ -2046,9 +2046,6 @@ process computeTransition {
   tuple val(variantCaller),
         val(sampleId),
         file(vcf) from transitionCh.filter{it[0] == "HaplotypeCaller" || "mutect2"}.dump(tag:'transi')
-  tuple val(sampleIdNormal), val(sampleNameNormal), file(bamNormal), file(baiNormal),
-        val(sampleIdTumor), val(sampleNameTumor), file(bamTumor), file(baiTumor),
-        file(intervalBed) from mutectForTransitionCh
 
   output:
    file("*table.tsv") into transitionPerSampleCh
@@ -2056,10 +2053,7 @@ process computeTransition {
   when: 'haplotypecaller' || 'muutect2' in tools
 
   script:
-  if (variantCaller == 'HaplotypeCaller')
-    sId = "${sampleId}"
-  else if (variantCaller == 'Mutect2')
-    sId = "${sampleIdTumor}"
+  sId = variantCaller == 'HaplotypeCaller' ? "${sampleId}" : variantCaller == 'Mutect2' ? """`bcftools query -l "${vcf}" |awk 'NR==2'`""" : ""
   """
   apParseTransition.py -i $vcf --sample ${sId} -o ${vcf.baseName}.transi.tsv
   apTransition.R ${vcf.baseName}.transi.tsv ${vcf.baseName}.table.tsv
