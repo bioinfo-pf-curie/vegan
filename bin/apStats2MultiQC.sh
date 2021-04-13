@@ -90,11 +90,11 @@ for sample in $all_samples; do
   fi
 
   #On target + filtering
-  if [[ -e Mapping/${sampleId}.filtered.SNV.flagstats ]]; then
-    nb_filt=$(grep "mapped (" Mapping/Mapping/${sampleId}.filtered.SNV.flagstats | awk '{print $1}')
+  if [[ -e Mapping/${sample}.filtered.SNV.flagstats ]]; then
+    nb_filt=$(grep "mapped (" Mapping/${sample}.filtered.SNV.flagstats | awk '{print $1}')
     perc_filt=$(echo "${nb_filt} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
-  elif [[ -e Mapping/${sampleId}.filtered.SV.flagstats ]]; then
-    nb_filt=$(grep "mapped (" Mapping/Mapping/${sampleId}.filtered.SV.flagstats | awk '{print $1}')
+  elif [[ -e Mapping/${sample}.filtered.SV.flagstats ]]; then
+    nb_filt=$(grep "mapped (" Mapping/${sample}.filtered.SV.flagstats | awk '{print $1}')
     perc_filt=$(echo "${nb_filt} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
   else
     nb_filt='NA'
