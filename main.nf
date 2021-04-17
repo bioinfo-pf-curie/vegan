@@ -605,7 +605,7 @@ process markDuplicates {
 
   output:
   tuple val(sampleId), val(sampleName), file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh,mdBamPolymCh
-  file ("${sampleId}.md.bam.metrics") into markDuplicatesReportCh
+  file ("${sampleId}.md.flagstats") into markDuplicatesReportCh
 
   script:
   """
@@ -842,7 +842,7 @@ process prepareExonInfo {
 process genesCoverage {
   label 'mosdepth'
   label 'minCpu'
-  label 'lowMem'
+  label 'medMem'
   publishDir path: "${params.outDir}/preprocessing/metrics/depth", mode: params.publishDirMode
 
   tag "${sampleId}"
