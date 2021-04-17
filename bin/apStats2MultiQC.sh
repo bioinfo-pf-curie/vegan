@@ -53,7 +53,7 @@ for sample in $all_samples; do
   sname=$(grep "$sample," $splan | awk -F, '{print $2}')
 
   #ALIGNMENT
-  if [[ -e MarkDuplicates/${sample}.md.bam.metrics ]]; then
+  if [[ -e Mapping/${sample}_bwa.log && -e Mapping/${sample}_mappingstats.mqc ]]; then
     nb_reads=$(grep 'Total' Mapping/${sample}_bwa.log | awk -F "\t" '{print $2}')
     if [[ $is_pe == 1 ]]; then
       nb_frag=$(($nb_reads / 2))
@@ -62,7 +62,6 @@ for sample in $all_samples; do
     fi
     tail -n +3 Mapping/${sample}_bwa.log >Mapping/${sample}_bwa.mqc
     #Mapping stats (always in reads - so must be converted for PE)
-    #These statistics are calculated after spike cleaning but before filtering
     nb_mapped=$(awk -F, '$1=="Mapped"{print $2}' Mapping/${sample}_mappingstats.mqc)
     nb_mapped_hq=$(awk -F, '$1=="HighQual"{print $2}' Mapping/${sample}_mappingstats.mqc)
     nb_mapped_lq=$(awk -F, '$1=="LowQual"{print $2}' Mapping/${sample}_mappingstats.mqc)
@@ -81,8 +80,8 @@ for sample in $all_samples; do
   fi
 
   #sambamba
-  if [[ -e MarkDuplicates/${sample}.md.bam.metrics ]]; then
-    nb_dups=$(grep duplicates MarkDuplicates/${sample}.md.bam.metrics | awk '{print $1}')
+  if [[ -e MarkDuplicates/${sample}.md.flagstats ]]; then
+    nb_dups=$(grep duplicates MarkDuplicates/${sample}.md.flagstats | awk '{print $1}')
     perc_dups=$(echo "${nb_dups} ${nb_mapped}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
   else
     nb_dups='NA'
