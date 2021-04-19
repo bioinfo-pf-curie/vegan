@@ -1224,17 +1224,17 @@ if (step in 'variantcalling') {
   samplePlanCh.branch{ sampleId, sampleName, vCType, bam, bai ->
     snvCh:  vCType == 'SNV'
       return [sampleId, sampleName, bam, bai]
-    recalCh: vCType == 'RECAL'
+    //recalCh: vCType == 'RECAL'
+    //  return [sampleId, sampleName, bam, bai]
+    svCh: vCType == 'SV'
       return [sampleId, sampleName, bam, bai]
-    sVCh: vCType == 'SV'
-      return [sampleId, sampleName, bam, bai]
-    cNVCh: vCType == 'CNV'
+    cnvCh: vCType == 'CNV'
       return [sampleId, sampleName, bam, bai]
     otherCh: true
       return [sampleId, sampleName, bam, bai]
   }.set{ samplePlanForks }
-  bamRecalCh = params.skipBQSR ? samplePlanForks.snvCh : samplePlanForks.recalCh
-  (filteredSVBamsCh, filteredCNVBamsCh) = [samplePlanForks.sVCh, samplePlanForks.cNVCh]
+  //bamRecalCh = params.skipBQSR ? samplePlanForks.snvCh : samplePlanForks.recalCh
+  (bamRecalCh, filteredSVBamsCh, filteredCNVBamsCh) = [samplePlanForks.snvCh, samplePlanForks.svCh, samplePlanForks.cnvCh]
 } else {
   bamRecalCh = params.skipBQSR ? filteredSNVBamsCh : bamRecalCh
 }
