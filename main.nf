@@ -2038,8 +2038,6 @@ if (step == 'annotate') {
 
  (transitionCh, vcfAnnotationCh) = vcfAnnotationCh.into(2)
 
- transitionCh = transitionCh.dump(tag:'transition')
-
 process computeTransition {
   label 'minCpu'
   label 'lowMem'
@@ -2053,9 +2051,9 @@ process computeTransition {
         file(vcf) from transitionCh.filter{it[0] == "HaplotypeCaller" || "mutect2"}.dump(tag:'transi')
 
   output:
-   file("*table.tsv") into transitionPerSampleCh
+  file("*table.tsv") into transitionPerSampleCh
 
-  when: 'haplotypecaller' || 'muutect2' in tools
+  when: 'haplotypecaller' || 'mutect2' in tools
 
   script:
   if (variantCaller == 'HaplotypeCaller'){
