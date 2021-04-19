@@ -71,12 +71,20 @@ if (params.design){
   tools.removeAll(["mutect2", "ascat", "manta"])
 }
 
+if (! tools){
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: No tool specified - see the `--tools` parameter
+========================================================================"""
+}
+
 if (tools && ('manta' in tools) && params.singleEnd) {
   log.info """\
 ========================================================================
-${colors.redBold}WARNING${colors.reset}: Manta is not compatible with singleEnd option
+  ${colors.redBold}WARNING${colors.reset}: Manta is not compatible with singleEnd option
 ========================================================================"""
 }
+
 /*
 ================================================================================
                                CHECKING REFERENCES
@@ -295,8 +303,6 @@ if (!params.noIntervals){
 
 // PREPARING CHANNELS FOR PREPROCESSING AND QC
 
-// TODO: not working
-//(inputBamCh, inputPairReadsCh) = step == 'mapping' ? forkMappingSamplePlan(samplePlanCh) : [Channel.empty(), Channel.empty()]
 if (step == "mapping") {
   runIds = [:]
   samplePlanCh.map {
@@ -711,12 +717,11 @@ process bamFiltering {
 filteredBamCSVCh.map { sampleId, sampleName, vCType, bam, bai ->
    "${sampleId},${sampleName},${vCType},${params.filteredBamDir}/${bam.getName()},${params.filteredBamDir}/${bai.getName()}\n"
 }.collectFile(
-   name: 'samplePlan.filtered.csv', sort: true, storeDir: "${params.outDir}/resume/CSV"
+   name: 'samplePlan.filtered.csv', sort: true, storeDir: "${params.outDir}/resume/"
 )
 
 // Allow to restart here with a sample plan with filteredBams
 filteredBamCh = step in 'recalibrate' ? samplePlanCh : filteredBamCh
-
 filteredBamCh
   .branch { sampleId, sampleName, vCType, bam, bai ->
     snvCh: vCType == 'SNV'
@@ -973,7 +978,7 @@ SNVs filtered Bams are used for both SNV and CNV calling
 
 // Channels for baseRecalibration
 (bamBaseRecalibratorCh, bamBaseRecalibratorToJoinCh) = params.skipBQSR ? [Channel.empty(), Channel.empty()] : filteredSNVBamsCh.into(2)
-bamBaseRecalibratorCh = params.skipBQSR ? bamBaseRecalibratorCh : bamBaseRecalibratorCh.combine(intBaseRecalibratorCh).dump(tag: "bamBaseRecalibratorCh")
+bamBaseRecalibratorCh = params.skipBQSR ? bamBaseRecalibratorCh : bamBaseRecalibratorCh.combine(intBaseRecalibratorCh)
 
 /*
  * CREATING RECALIBRATION TABLES
@@ -1203,7 +1208,7 @@ bamvCCSVCh = filteredSVBamsCSVCh.mix(filteredCNVBamsCSVCh, recalOrSNVBamsCSVCh)
 bamvCCSVCh.map { sampleId, sampleName, bam, bai, vCType ->
    (vCType == 'RECAL') ? "${sampleId},${sampleName},${vCType},${params.bqsrBamDir}/${bam.getName()},${params.bqsrBamDir}/${bai.getName()}\n" : "${sampleId},${sampleName},${vCType},${params.filteredBamDir}/${bam.getName()},${params.filteredBamDir}/${bai.getName()}\n"
 }.collectFile(
-   name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/resume/CSV"
+   name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/resume/"
 )
 
 /*
