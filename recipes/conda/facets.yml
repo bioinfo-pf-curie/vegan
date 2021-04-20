@@ -4,8 +4,8 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - conda-forge::r-optparse=1.6.6=r36h6115d3f_1
-  - conda-forge::r-base=3.6.3=hd23ff56_6
-  - bioconda::r-facets=0.6.1
-  - conda-forge::r-data.table=1.13.6=r36hcfec24a_0
-  - bioconda::snp-pileup=0.6.1
+  - conda-forge::r-optparse=1.6.6=r40h6115d3f_1
+  - conda-forge::r-base=4.0.3=h349a78a_8
+  - bioconda::r-facets=0.6.1=r40h3d09ca8_0
+  - conda-forge::r-data.table=1.14.0=r40hcfec24a_0
+  - bioconda::snp-pileup=0.6.1=h3198e80_1
