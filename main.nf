@@ -68,7 +68,7 @@ if (params.design){
   ${colors.yellowBold}Somatic variant detection (SNV/CNV/SV) will be skipped
   Please set up a design file '--design' to run these steps${colors.reset}
 ========================================================================"""
-  tools.removeAll(["mutect2", "ascat", "manta"])
+  tools.removeAll(["mutect2", "ascat", "facets", "manta"])
 }
 
 if (! tools){
@@ -662,10 +662,10 @@ procBamsCh = params.targetBED ? onTargetBamsCh : duplicateMarkedBamsCh
  * FILTER ALIGNED BAM FILE FOR SNV/SV
  */
 
-if (('manta' in tools) && ('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
+if (('manta' in tools) && ('ascat' in tools || 'facets' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
   // Duplicates the channel for SV and SNV filtering
   procBamsCh = procBamsCh.flatMap { it -> [it + 'SV', it + 'SNV']}
-}else if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
+}else if ( ('manta' in tools) && !('ascat' in tools || 'facets' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
   // SV only
   procBamsCh = procBamsCh.flatMap { it -> [it + 'SV']}
 }else{
@@ -692,7 +692,7 @@ process bamFiltering {
 
   script:
   dupParams = (vCType == 'SNV' && 'duplicates' in SNVFilters) | (vCType == 'SV' && 'duplicates' in SVFilters) ? "-F 0x0400" : ""
-  mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : ""
+  mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapq > 0) ? "-q ${params.mapq}" : ""
   singleParams = (vCType == 'SNV' && 'singleton' in SNVFilters) | (vCType == 'SV' && 'single' in SVFilters) ? "-F 0x004 -F 0x008 -f 0x001": "-F 0x004"
   uniqParams =  (vCType == 'SNV' && 'multihits' in SNVFilters) | (vCType == 'SV' && 'multi' in SVFilters) ? "-F 0x100 -F 0x800" :  ""
   uniqFilter = (vCType == 'SNV' && 'multihits' in SNVFilters) | (vCType == 'SV' && 'multi' in SVFilters) ? "| grep -v -e \\\"XA:Z:\\\" -e \\\"SA:Z:\\\" | samtools view -b -" : "| samtools view -b -"
@@ -745,7 +745,7 @@ filteredBamCh
 */
 
 // Run the QC on the SNV bam only if available - on the SV otherwise
-if ( ('manta' in tools) && !('ascat' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
+if ( ('manta' in tools) && !('ascat' in tools || 'facets' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)){
   (filteredSVBamsCh, filteredBamQCCh) = filteredSVBamsCh.into(2)
 } else {
   (filteredSNVBamsCh, filteredBamQCCh) = filteredSNVBamsCh.into(2)
@@ -1249,7 +1249,7 @@ if (params.design) {
   (filteredSVBamsCh, bamMantaSingleCh) = filteredSVBamsCh.into(2)
 
   // CNV Bams
-  bamAscatCh = filteredCNVBamsCh
+  (bamAscatCh, bamFacetsCh) = filteredCNVBamsCh.into(2)
 
   // separate BAM by status for somatic variant calling
   bamRecalAllCh.branch{
@@ -1287,6 +1287,7 @@ if (params.design) {
   pairBamMantaCh = Channel.empty()
   bamMantaSingleCh = Channel.empty()
   bamAscatCh = Channel.empty()
+  bamFacetsCh = Channel.empty()
 }
 
 /*
@@ -1841,8 +1842,12 @@ process manta {
 ================================================================================
 */
 
-// STEP ASCAT.1 - ALLELECOUNTER
 
+/*
+ * ASCAT
+ */
+
+// STEP ASCAT.1 - ALLELECOUNTER
 // Run commands and code from Malin Larsson
 // Based on Jesper Eisfeldt's code
 process alleleCounter {
@@ -1890,7 +1895,6 @@ alleleCounterOutCh = alleleCounterOutCh.map {
 }
 
 // STEP ASCAT.2 - CONVERTALLELECOUNTS
-
 // R script from Malin Larssons bitbucket repo:
 // https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
 process convertAlleleCounts {
@@ -1923,7 +1927,6 @@ process convertAlleleCounts {
 }
 
 // STEP ASCAT.3 - ASCAT
-
 // R scripts from Malin Larssons bitbucket repo:
 // https://bitbucket.org/malinlarsson/somatic_wgs_pipeline
 process ascat {
@@ -1965,6 +1968,77 @@ process ascat {
   R -e "packageVersion('ASCAT')" > v_ascat.txt
   """
 }
+
+
+/*
+ * FACETS
+ */
+
+bamFacetsCh
+  .branch {
+    normalCh: statusMap[it[0]] == 0
+    tumorCh: statusMap[it[0]] == 1
+  }.set { bamFacetsForks }
+(bamFacetsNormalCh, bamFacetsTumorCh) = [bamFacetsForks.normalCh, bamFacetsForks.tumorCh]
+bamPairedFacetsCh = bamFacetsNormalCh.combine(bamFacetsTumorCh).filter{ pairMap.containsKey([it[0], it[4]]) }
+
+bamPairedFacetsCh = bamPairedFacetsCh.map {
+  sampleIdNormal, sampleNameNormal, bamNormal, baiNormal, sampleIdTumor, sampleNameTumor, bamTumor, baiTumor ->
+  [sampleIdNormal, sampleIdTumor, bamNormal, bamTumor, baiNormal, baiTumor]
+}
+
+process facetsPileup {
+  label 'facets'
+  label 'minCpu'
+  label 'medMem'
+
+  tag "${sampleIdTumor}_vs_${sampleIdNormal}"
+
+  input:
+  tuple val(sampleIdNormal), val(sampleIdTumor), file(bamNormal), file(bamTumor), file(baiNormal), file(baiTumor) from bamPairedFacetsCh
+  file(polym) from dbsnpCh
+  
+  output:
+  tuple val(sampleIdNormal), val(sampleIdTumor), file("${sampleIdNormal}_${sampleIdTumor}.csv.gz") into snppileupOutCh
+
+  when: 'facets' in tools
+
+  script:
+  """
+  snp-pileup \\
+    -A -d 1000000 \\
+    --gzip \\
+    --min-map-quality ${params.mapQual} \\
+    --min-base-quality ${params.baseQual} \\
+     ${polym} ${sampleIdNormal}_${sampleIdTumor}.csv.gz ${bamNormal} ${bamTumor}
+  """
+}
+
+
+process facets{
+  label 'facets'
+  label 'minCpu'
+  label 'medMem'
+
+  publishDir "${params.outDir}/Facets", mode: params.publishDirMode 
+
+  input:
+  set val(sampleIdNormal), val(sampleIdTumor), file(snppileupCounts) from snppileupOutChresult
+
+  output:
+  file("*.{txt,pdf}") into facetsResultsCh
+
+  when: 'facets' in tools
+
+  script:
+  """
+  Rscript facets.r \\
+          ${snppileupCounts} \\
+	  --name ${sampleIdTumor} \\
+	  --assembly ${params.genome} \\
+	  --normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25
+  """
+ }
 
 
 /*
