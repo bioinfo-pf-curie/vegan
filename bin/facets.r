@@ -5,8 +5,8 @@ suppressMessages(library(facets))
 library(optparse)
 set.seed(1234)
 
-option_list <- list(make_option(c("-i", "--input"), type="character", default=NULL, help="Facets pileup input file")
-                    make_option(c("-n", "--name"), type="character", default=NULL, help="Sample name")
+option_list <- list(make_option(c("-i", "--input"), type="character", default=NULL, help="Facets pileup input file"),
+                    make_option(c("-n", "--name"), type="character", default=NULL, help="Sample name"),
                     make_option(c("-o", "--outDir"), type="character", default='./', help="Output directory"),
                     make_option(c("-a", "--assembly"), type="character", default=NULL, help="Genome assembly, Must be hg18, hg19, hg38, mm9, mm10"),
                     make_option(c("--normalDepth"), type="numeric", default=25, help="Minimum normal sample depth"),
@@ -15,7 +15,7 @@ option_list <- list(make_option(c("-i", "--input"), type="character", default=NU
                     make_option(c("--cval"), type="numeric", default=150, help="Critical value for segmentation"),
                     make_option(c("--cvalPreproc"), type="numeric", default=25, help="Criticial segmentation value for preprocessing"),
                     make_option(c("--ampCopy"), type="numeric", default=5, help="Copy number to call an amplification"),
-                    make_option(c("--maxCluster"), type="numeric", default=5, help=""),
+                    #make_option(c("--maxCluster"), type="numeric", default=5, help=""),
                     make_option(c("--hetThres"), type="numeric", default=0.25, help="VAF value to call a SNP heterozygous"),
                     make_option(c("--unmatch"), action="store_true", default=FALSE, help="Normal sample is not matched with tumor. In this case, heterogygous SNPs are called using tumor reads only and logOR calculations are different. Use het.thresh = 0.1 or lower in that case.")
                     )
@@ -140,7 +140,10 @@ facetsPlot <- function (x, emfit = NULL, clustered = FALSE, chromlevels = c(1:22
 #####################
 
 ## Load pileup
-rcmat <- readSnpMatrix(input)
+message("Loading pileup ...")
+rcmat <- readSnpMatrix(opt$input)
+rcmat
+
 xx <- preProcSample(rcmat, ndepth=opt$normalDepth, het.thresh=opt$hetThres,
                     snp.nbhd=opt$windowSize, cval=opt$cvalPreproc, deltaCN=0,
                     gbuild=opt$assembly, hetscale=TRUE, unmatched=opt$unmatch,
@@ -154,24 +157,26 @@ oo <- suppressWarnings(procSample(xx, cval=opt$cval,
 diplogR <- oo$dipLogR
 flags <- oo$flags
 
-
 ## Estimate copy number and cellular fraction
-fit2 <- suppressWarnings(emcncf2(oo, trace=FALSE, unif=FALSE,
-                                 min.nhet=15, maxiter=50,
-                                 difcf=0.05, maxk=opt$maxCluster, eps=1e-3))
+fit2 <- suppressWarnings(emcncf(oo, trace=FALSE, unif=FALSE,
+                                 min.nhet=15, maxiter=50, eps=1e-3))
 
 fit2$cncf$purity <- fit2$purity
 fit2$cncf$ploidy <- fit2$ploidy
+
+purity <- round(unique(fit2$cncf$purity),2)
+ploidy <- round(unique(fit2$cncf$ploidy),2)
+    
 if(!is.null(fit2$emflags)){
-    title=paste("Allele-specific facets CNV profile of ",name," : cellularity=",round(unique(fit2$cncf$purity),2),", ploidy=",round(unique(fit2$cncf$ploidy),2)," , Warning:",fit2 <- flags,sep="")
+    title <- paste0("Allele-specific facets CNV profile of ",name, " : cellularity=",purity, ", ploidy=",ploidy, " , Warning:", fit2$emflags)
 } else {
-    title=paste("Allele-specific facets CNV profile of ",name," : cellularity=",round(unique(fit2$cncf$purity),2),", ploidy=",round(unique(fit2$cncf$ploidy),2),sep="")
+    title <- paste0("Allele-specific facets CNV profile of ",name, " : cellularity=", purity, ", ploidy=", ploidy)
 }
 
-write.table(fit2$cncf,paste0(outDir,"/",name,"_subclonal_allele_spe_cnv_",round(unique(fit2$cncf$purity),2),"cellularity_",round(unique(fit2$cncf$ploidy),2),"ploidy.txt"),
+write.table(fit2$cncf,paste0(outDir,"/",name,"_subclonal_allele_spe_cnv_", purity, "cellularity_", ploidy,"ploidy.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
 
-pdf(paste0(outDir,"/",name,"_subclonal_allele_spe_cnv_",round(unique(fit2$cncf$purity),2),"cellularity_",round(unique(fit2$cncf$ploidy),2),"ploidy.pdf"), width=16, height=8)
+pdf(paste0(outDir,"/",name,"_subclonal_allele_spe_cnv_", purity, "cellularity_", ploidy, "ploidy.pdf"), width=16, height=8)
 facetsPlot(x=oo, emfit=fit2, sname=title, chromlevels=unique(xx$pmat$chrom))
 invisible(dev.off())
 

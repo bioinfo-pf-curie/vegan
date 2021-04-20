@@ -692,7 +692,7 @@ process bamFiltering {
 
   script:
   dupParams = (vCType == 'SNV' && 'duplicates' in SNVFilters) | (vCType == 'SV' && 'duplicates' in SVFilters) ? "-F 0x0400" : ""
-  mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapq > 0) ? "-q ${params.mapq}" : ""
+  mapqParams = (vCType == 'SNV' && 'mapq' in SNVFilters) | (vCType == 'SV' && 'mapq' in SVFilters) && (params.mapQual > 0) ? "-q ${params.mapQual}" : ""
   singleParams = (vCType == 'SNV' && 'singleton' in SNVFilters) | (vCType == 'SV' && 'single' in SVFilters) ? "-F 0x004 -F 0x008 -f 0x001": "-F 0x004"
   uniqParams =  (vCType == 'SNV' && 'multihits' in SNVFilters) | (vCType == 'SV' && 'multi' in SVFilters) ? "-F 0x100 -F 0x800" :  ""
   uniqFilter = (vCType == 'SNV' && 'multihits' in SNVFilters) | (vCType == 'SV' && 'multi' in SVFilters) ? "| grep -v -e \\\"XA:Z:\\\" -e \\\"SA:Z:\\\" | samtools view -b -" : "| samtools view -b -"
@@ -2020,10 +2020,12 @@ process facets{
   label 'minCpu'
   label 'medMem'
 
+  tag "${sampleIdTumor}_vs_${sampleIdNormal}"
+
   publishDir "${params.outDir}/Facets", mode: params.publishDirMode 
 
   input:
-  set val(sampleIdNormal), val(sampleIdTumor), file(snppileupCounts) from snppileupOutChresult
+  set val(sampleIdNormal), val(sampleIdTumor), file(snppileupCounts) from snppileupOutCh
 
   output:
   file("*.{txt,pdf}") into facetsResultsCh
@@ -2032,11 +2034,10 @@ process facets{
 
   script:
   """
-  Rscript facets.r \\
-          ${snppileupCounts} \\
-	  --name ${sampleIdTumor} \\
-	  --assembly ${params.genome} \\
-	  --normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25
+  facets.r -i ${snppileupCounts} \\
+	   --name ${sampleIdTumor} \\
+	   --assembly ${params.genome} \\
+	   --normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25
   """
  }
 
