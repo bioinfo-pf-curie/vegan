@@ -2,6 +2,10 @@ version-0.1.1
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Move to dbSNP-149 for hg19
+  - add Facets for CNV calling
+  - add `--reads` parameter
+  - add `--singleEnd` option
   - Update ressources
   - Run BQSR for SNV calling only
   - Report reads overlap from picard
