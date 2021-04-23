@@ -29,10 +29,17 @@ if __name__ == "__main__":
 
     # Load Data
     if args.sample is not None:
-        vcf = cyvcf2.VCF(args.vcf, samples=args.sample)
+        vcf = cyvcf2.VCF(args.vcf)
+        count = 0
+        for sample in vcf.samples:
+            count = count + 1
+            if str(sample) == str(args.sample):
+                vcf = cyvcf2.VCF(args.vcf, samples=args.sample)
+            elif count == len(vcf.samples):
+                print("Error: Name of the sample incorrect")
+                sys.exit(-1)
     else:
         vcf = cyvcf2.VCF(args.vcf)
-        #print(vcf.samples)
 
     # Sample name
     if len(vcf.samples) > 1:

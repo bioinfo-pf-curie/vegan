@@ -2131,24 +2131,11 @@ process computeTransition {
   when: 'haplotypecaller' || 'mutect2' in tools
 
   script:
-  if (variantCaller == 'HaplotypeCaller'){
-  sId = "${sampleId}_${variantCaller}"
+  sId = """`bcftools query -l "${vcf}" |tail -n1` """
   """
-  echo "${sId}" > temp.txt
-  bcftools reheader -s temp.txt $vcf -o temp.vcf.gz
-  apParseTransition.py -i temp.vcf.gz --sample ${sId} -o ${vcf.baseName}.${variantCaller}.transi.tsv
-  apTransition.R ${vcf.baseName}.${variantCaller}.transi.tsv ${vcf.baseName}.${variantCaller}.table.tsv
+  apParseTransition.py -i ${vcf} --sample ${sId} -o ${vcf.baseName}.${variantCaller}.transi.tsv
+  apTransition.R ${vcf.baseName}.${variantCaller}.transi.tsv ${vcf.baseName}.${variantCaller}.table.tsv ${variantCaller}
   """
-  }
-  else if (variantCaller == 'Mutect2'){
-  sId = """`bcftools query -l "${vcf}"`"_${variantCaller}" """
-  """
-  echo "${sId}" > temp.txt
-  bcftools reheader -s temp.txt $vcf -o temp.vcf.gz
-  apParseTransition.py -i temp.vcf.gz --sample `tail -n1 temp.txt` -o ${vcf.baseName}.${variantCaller}.transi.tsv
-  apTransition.R ${vcf.baseName}.${variantCaller}.transi.tsv ${vcf.baseName}.${variantCaller}.table.tsv
-  """
-  }
 }
 
 /*
