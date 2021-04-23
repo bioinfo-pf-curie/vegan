@@ -1206,7 +1206,7 @@ if (params.skipBQSR) {
 
 bamvCCSVCh = filteredSVBamsCSVCh.mix(filteredCNVBamsCSVCh, recalOrSNVBamsCSVCh)
 bamvCCSVCh.map { sampleId, sampleName, bam, bai, vCType ->
-   (vCType == 'RECAL') ? "${sampleId},${sampleName},${vCType},${params.bqsrBamDir}/${bam.getName()},${params.bqsrBamDir}/${bai.getName()}\n" : "${sampleId},${sampleName},${vCType},${params.filteredBamDir}/${bam.getName()},${params.filteredBamDir}/${bai.getName()}\n"
+   (vCType == 'RECAL') ? "${sampleId},${sampleName},SNV,${params.bqsrBamDir}/${bam.getName()},${params.bqsrBamDir}/${bai.getName()}\n" : "${sampleId},${sampleName},${vCType},${params.filteredBamDir}/${bam.getName()},${params.filteredBamDir}/${bai.getName()}\n"
 }.collectFile(
    name: 'samplePlan.recal.csv', sort: true, storeDir: "${params.outDir}/resume/"
 )
@@ -1224,8 +1224,6 @@ if (step in 'variantcalling') {
   samplePlanCh.branch{ sampleId, sampleName, vCType, bam, bai ->
     snvCh:  vCType == 'SNV'
       return [sampleId, sampleName, bam, bai]
-    //recalCh: vCType == 'RECAL'
-    //  return [sampleId, sampleName, bam, bai]
     svCh: vCType == 'SV'
       return [sampleId, sampleName, bam, bai]
     cnvCh: vCType == 'CNV'
@@ -1233,7 +1231,6 @@ if (step in 'variantcalling') {
     otherCh: true
       return [sampleId, sampleName, bam, bai]
   }.set{ samplePlanForks }
-  //bamRecalCh = params.skipBQSR ? samplePlanForks.snvCh : samplePlanForks.recalCh
   (bamRecalCh, filteredSVBamsCh, filteredCNVBamsCh) = [samplePlanForks.snvCh, samplePlanForks.svCh, samplePlanForks.cnvCh]
 } else {
   bamRecalCh = params.skipBQSR ? filteredSNVBamsCh : bamRecalCh
