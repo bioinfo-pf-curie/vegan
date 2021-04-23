@@ -191,7 +191,7 @@
       "type": "string",
       "nargs": "+",
       "choices": ["mapq", "duplicates", "singleton", "multihits" ],
-      "default_value": ["mapq", "duplicates"],
+      "default_value": ["duplicates"],
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
