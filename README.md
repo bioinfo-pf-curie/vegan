@@ -42,84 +42,86 @@ It comes with conda / singularity containers making installation easier and resu
 ### Quick help
 
 ```bash
-nextflow run main.nf --help
-N E X T F L O W  ~  version 20.01.0
-Launching `main.nf` [kickass_curie] - revision: fdf28a1b23
-data-analysis_demo v@git_commit@
-======================================================================
+>>nextflow ~/GitLab/vegan/main.nf --help
+N E X T F L O W  ~  version 20.10.0
+Launching `/data/users/nservant/GitLab/vegan/main.nf` [ridiculous_borg] - revision: a44a457623
+------------------------------------------------------------------------
 
+    _   _   _____          __     __  _____    ____      _      _   _
+   | \ | | |  ___|         \ \   / / | ____|  / ___|    / \    | \ | |
+   |  \| | | |_     _____   \ \ / /  |  _|   | |  _    / _ \   |  \| |
+   | |\  | |  _|   |_____|   \ V /   | |___  | |_| |  / ___ \  | |\  |
+   |_| \_| |_|                \_/    |_____|  \____| /_/   \_\ |_| \_|
+
+
+                   VEGAN v0.1.1dev
+------------------------------------------------------------------------
+========================================================================
 Usage:
 
 The typical command for running the pipeline is as follows:
 
-nextflow run main.nf -profile singularity,cluster --input samples-WGS.tsv --tools manta,mutect2,haplotypecaller,ascat,snpeff --genome hg19_base -resume
+nextflow run main.nf --reads/--samplePlan PATH --design PATH --profile STRING --genome STRING
 
+MANDATORY ARGUMENTS:
+    --design     PATH                                                                              Path to design file specifying the metadata associated with the samples
+    --genome     STRING [hg19, hg38]                                                               Name of the reference genome.
+    --profile    STRING [conda, cluster, docker, multiconda, conda, path, multipath, singularity]  Configuration profile to use. Can use multiple (comma separated).
+    --reads      PATH                                                                              Path to input data (must be surrounded with quotes)
+    --samplePlan PATH                                                                              Path to sample plan (csv format) with raw reads (if `--reads` is not specified), or intermediate 
+                                                                                                   files according to the `--step` parameter
 
-Mandatory arguments:
-    --input PATH                        Path to input TSV file on mapping, recalibrate and variantcalling steps
-                                        Multiple TSV files can be specified with quotes
-                                        Works also with the path to a directory on mapping step with a single germline sample only
-                                        Alternatively, path to VCF input file on annotate step
-                                        Multiple VCF files can be specified with quotes
-    -profile STRING                     Configuration profile to use
-                                        Can use multiple (comma separated)
-                                        Available: conda, cluster, docker,  multiconda, conda, path, multipath, singularity
+MAIN OPTIONS:
+    --noIntervals                                                                   Disable usage of intervals
+    --step        STRING [mapping, recalibrate, variantcalling, annotate]           Specify starting step
+    --tools       STRING [facets, ascat, haplotypecaller, manta, mutect2, snpeff]   Specify tools to use for variant calling
 
-Main Options:
-    --annotateTools STRING              Specify from which tools it will look for VCF files to annotate (only for step annotate
-                                        Available: HaplotypeCaller, Manta, Mutect2,
-    --annotation_cache                  Enable the use of cache for annotation, to be used with --snpEff_cache
-    --genome STRING                     Name of iGenomes reference
-    --noGVCF                            No g.vcf output from HaplotypeCaller
-    --no_intervals                      Disable usage of intervals
-    --nucleotidesPerSecond DECIMAL      To estimate interval size
-    --pon PATH                          panel-of-normals VCF (bgzipped, indexed). See: https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_hellbender_tools_walkers_mutect_CreateSomaticPanelOfNormals.php
-    --pon_index PATH                    index of pon panel-of-normals VCF
-    --skipFilterSNV STRING              Specify which SNV tools to skip when running vegan
-                                        Available: mapq, markduplicates, uniq
-    --skipFilterSV STRING               Specify which SV tools to skip when running vegan
-                                        Available: mapq, markduplicates, uniq
-    --skipQC STRING                     Specify which QC tools to skip when running vegan
-                                        Available: bamQC, FastQC, MultiQC, samtoolsstats, versions
-    --snpEff_cache PATH                 Specity the path to snpEff cache, to be used with --annotation_cache
-    --step STRING                       Specify starting step
-                                        Available: Mapping, Recalibrate, VariantCalling, Annotate
-    --targetBED PATH                    Target BED file for targeted or whole exome sequencing
-    --tools STRING                      Specify tools to use for variant calling:
-                                        Available: ASCAT, HaplotypeCaller, Manta, Mutect2, snpEff,
-References                      
-    --acLoci PATH                       acLoci file
-    --acLociGC PATH                     acLoci GC file
-    --bwaIndex PATH                     bwa indexes
-                                        If none provided, will be generated automatically from the fasta reference
-    --dbsnp PATH                        dbsnp file
-    --dbsnpIndex PATH                   dbsnp index
-                                        If none provided, will be generated automatically if a dbsnp file is provided
-    --dict PATH                         dict from the fasta reference
-                                        If none provided, will be generated automatically from the fasta reference
-    --fasta PATH                        fasta reference
-    --fastafai PATH                     reference index
-                                        If none provided, will be generated automatically from the fasta reference
-    --germlineResource PATH             Germline Resource File
-    --germlineResourceIndex PATH        Germline Resource Index
-                                        If none provided, will be generated automatically if a germlineResource file is provided
-    --intervals PATH                    intervals
-                                        If none provided, will be generated automatically from the fasta reference
-                                        Use --no_intervals to disable automatic  generation
-    --knownIndels PATH                  knownIndels file
-    --knownIndelsIndex PATH             knownIndels index
-                                        If none provided, will be generated automatically if a knownIndels file is provided
-    --snpeffDb STRING                   snpeffDb version
+ALIGNMENT:
+    --bwaOptions               STRING    Define BWA-mem option for read mapping
+    --saveAlignedIntermediates           Save intermediates alignment files
+    --targetBED                PATH      Target BED file for targeted or whole exome sequencing
 
-Other options:
-    --email STRING                      Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits
-    --maxMultiqcEmailFileSize STRING    Theshold size for MultiQC report to be attached in notification email. If file generated by pipeline exceeds the threshold, it will not be attached (Default: 25MB)
-    --monochrome_logs                   Logs will be without colors
-    --multiqc_config                    Specify a custom config file for MultiQC
-    -name STRING                        Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
+FILTERING:
+    --SNVFilters STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SNV
+    --SVFilters  STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SV
+    --mapQual    INTEGER                                           Minimum mapping quality
 
-    --outDir PATH                    The output directory where the results will be saved
-    --sequencing_center STRING          Name of sequencing center to be displayed in BAM file
+VARIANT CALLING:
+    --baseQual INTEGER   Minimum base quality used by Facets for CNV calling
+    --noGVCF             No g.vcf output from HaplotypeCaller
+
+SKIP OPTIONS:
+    --skipBQSR               Disable BQSR
+    --skipIdentito           Disable Identito
+    --skipMultiqc            Disable MultiQC
+    --skipPreseq             Disable Preseq
+    --skipQC                 Specify which QC tools to skip
+
+REFERENCES:
+    --acLoci                PATH     acLoci file
+    --acLociGC              PATH     acLociGC file
+    --bwaIndex              PATH     BWA indexes for reads alignment
+    --dbsnp                 PATH     DBSNP file
+    --dbsnpIndex            PATH     DBSNP index file
+    --dict                  PATH     Dict from the fasta reference
+    --fasta                 PATH     Fasta reference
+    --fastafai              PATH     Fasta reference index
+    --germlineResource      PATH     Germline Resource File
+    --germlineResourceIndex PATH     Germline Resource Index File
+    --intervals             PATH     List of genomic intervals to split the processing
+    --knownIndels           PATH     knownIndels File
+    --knownIndelsIndex      PATH     knownIndels Index File
+    --pon                   PATH     Panel-of-normals VCF (bgzipped, indexed)
+    --ponIndex              PATH     Index of pon panel-of-normals VCF
+    --snpEffCache           PATH     Specity the path to snpEff cache
+    --snpeffDb              STRING   snpeffDb version. Initialized from genomes configuration by default
+
+OTHER OPTIONS:
+    --multiqcConfig        PATH      Specify a custom config file for MultiQC
+    --name                 STRING    Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
+    --nucleotidesPerSecond DECIMAL   To estimate interval size
+    --outDir               PATH      The output directory where the results will be saved
+    --sequencingCenter     STRING    Name of sequencing center to be displayed in BAM file
 
 ======================================================================
 
@@ -133,7 +135,6 @@ Other options:
       -profile singularity              Use the Singularity images for each process. Use `--singularityPath` to define the insallation path
       -profile cluster                  Run the workflow on the cluster, instead of locally
 
-
 ```
 
 ### Quick run
@@ -144,21 +145,28 @@ The pipeline can be run on any infrastructure from a list of input files or from
 See the conf/test.conf to set your test dataset.
 
 ```
-nextflow run main.nf -c conf/test.config -profile test
+nextflow run main.nf -profile test,multiconda --genomeAnnotationPath ANNOTATION_PATH
+
+```
+
+#### Run the pipeline for WES analysis using singularity containers
+
+```
+nextflow run main.nf -profile singularity,cluster --input samples-WES.tsv --targetBED capture.bed --tools mutect2,snpeff --genome hg19 -resume
 
 ```
 
 #### Run the pipeline from a sample plan with specified tools and genome on the cluster, using the Singularity containers
 
 ```
-nextflow run main.nf -profile singularity,cluster --input samples-WGS.tsv --tools manta,mutect2,haplotypecaller,ascat,snpeff --genome hg19_base -resume
+nextflow run main.nf -profile singularity,cluster --input samples-WGS.tsv --tools manta,mutect2,haplotypecaller,ascat,snpeff --genome hg19 -resume
 
 ```
 
 #### Run the pipeline on the cluster, building a new conda environment
 
 ```
-nextflow run main.nf -profile conda,cluster --input samples-WGS.tsv --tools manta,mutect2,haplotypecaller,ascat,snpeff --genome hg19_base -resume
+nextflow run main.nf -profile multiconda,cluster --input samples-WGS.tsv --tools manta,mutect2,haplotypecaller,ascat,snpeff --genome hg38 -resume
 
 ```
 
