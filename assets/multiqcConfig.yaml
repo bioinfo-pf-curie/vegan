@@ -100,6 +100,21 @@ custom_data:
               format: '{:,.1f}'
               suffix: '%'
               placement: 10000
+            Number_reads_ontarget:
+              title: 'On target'
+              scale: 'RdYlGn'
+              format: '{:,.0f}'
+              hidden: true
+              placement: 10500
+            Percent_reads_ontarget:
+              title: 'On target (%)'
+              min: 0
+              max: 100
+              scale: 'RdYlGn'
+              format: '{:,.1f}'
+              suffix: '%'
+              hidden: true
+              placement: 10600
             Number_reads_after_filt:
               title: 'After Filtering'
               scale: 'RdYlGn'
