@@ -29,13 +29,13 @@ It comes with conda / singularity containers making installation easier and resu
   - GenotypeGVCFs
 11. Somatic Variants calling ([`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2))
   - Mutect2
-  - MergeMutectStats 
-  - GetPileupSummaries 
-  - GatherPileupSummaries 
-  - CalculateContamination 
+  - MergeMutectStats
+  - GetPileupSummaries
+  - GatherPileupSummaries
+  - CalculateContamination
   - FilterMutectCalls
 11. Variants annotation ([`snpeff`](https://pcingola.github.io/SnpEff/))
-12. Copy-number analysis ([`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software))
+12. Copy-number analysis ([`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software), [`FACETS`](https://github.com/mskcc/facets))
 13. Structural variants analysis ([`MANTA`](https://github.com/Illumina/manta))
 14. Present all QC results in a final report ([`MultiQC`](http://multiqc.info/))
 
@@ -122,7 +122,6 @@ OTHER OPTIONS:
     --nucleotidesPerSecond DECIMAL   To estimate interval size
     --outDir               PATH      The output directory where the results will be saved
     --sequencingCenter     STRING    Name of sequencing center to be displayed in BAM file
-
 ======================================================================
 
     Available Profiles
@@ -153,7 +152,6 @@ nextflow run main.nf -profile test,multiconda --genomeAnnotationPath ANNOTATION_
 
 ```
 nextflow run main.nf -profile singularity,cluster --input samples-WES.tsv --targetBED capture.bed --tools mutect2,snpeff --genome hg19 -resume
-
 ```
 
 #### Run the pipeline from a sample plan with specified tools and genome on the cluster, using the Singularity containers
