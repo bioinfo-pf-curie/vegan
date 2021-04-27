@@ -111,7 +111,7 @@ process buildFastaFai {
   file(fasta) from fastaCh
 
   output:
-  file("${fasta}.fai") into fastaFaiCh
+  file("${fasta}.fai") into fastaFaiCh, fastaFaiVcfCh
 
   script:
   """
@@ -139,6 +139,25 @@ process buildDbsnpIndex {
   tabix -p vcf ${dbsnp}
   """
 }
+
+process updateVcfName {
+  label 'bcftools'
+  label 'minCpu'
+  label 'lowMem'
+
+  input:
+  file(dbsnp) from dbsnpCh
+  file(fai) from fastaFaiVcfCh
+
+  output:
+  file("*base.vcf.gz") into desnpBaseCh
+
+  script:
+  grep -v "_" ${fai} | awk '{x=$1; gsub("chr","",$1); print x"\t"$1}' > chrom.map
+  bcftools annotate --rename-chrs chrom.map -O z ${dbsnp} > ${dbsnp.baseName}_rename.vcf.gz
+  bcftools reheader -f ${fai} ${dbsnp.baseName}_rename.vcf.gz > ${dbsnp.baseName}_base.vcf.gz
+}
+
 
 process buildGermlineResourceIndex {
   label 'tabix'
