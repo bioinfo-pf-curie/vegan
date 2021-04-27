@@ -7,25 +7,30 @@
 * [Main arguments](#main-arguments)
     * [`-profile`](#-profile-single-dash)
         * [`conda`](#conda)
-        * [`toolsPath`](#toolsPath)
+        * [`multiconda`](#multiconda)
         * [`singularity`](#singularity)
+        * [`docker`](#docker)
         * ['cluster'](#cluster)
         * [`test`](#test)
     * [`--reads`](#--reads)
 	* [`--samplePlan`](#--samplePlan)
+    * [`--design`](#--design)
 	* [`--singleEnd`](#--singleend)
-	* [`--stranded`](#--stranded)
-	* [`--aligner`](#--aligner)
-	* [`--counts`](#--counts)
+    * [`--noIntervals`](#--noIntervals)
+    * [`--step`](#--step)
+    * [`--targetBED`](#--targetBED)
+    * [`--tools`](#--tools)
+    * [`--SNVFilters`](#--SNVFilters)
+    * [`--SVFilters`](#--SVFilters)
+    * [`--condaCacheDir`](#--condaCacheDir)
+    * [`--genomeAnnotationPath`](#--genomeAnnotationPath)
+
 * [Reference genomes](#reference-genomes)
     * [`--genome`](#--genome)
-* [Tools parameters](#tools-parameters)
 * [Job resources](#job-resources)
 * [Automatic resubmission](#automatic-resubmission)
-* [Custom resource requests](#custom-resource-requests)
 * [Other command line parameters](#other-command-line-parameters)
     * [`--skip*`](#--skip*)
-	* [`--metadata`](#--metadta)
 	* [`--outDir`](#--outDir)
     * [`--email`](#--email)
     * [`-name`](#-name-single-dash)
@@ -69,19 +74,21 @@ You can change the output director using the `--outDir/-w` options.
 
 ### `-profile`
 
-Use this parameter to choose a configuration profile. Profiles can give configuration presets for different compute environments. Note that multiple profiles can be loaded, for example: `-profile singularity` - the order of arguments is important!
+Use this parameter to choose a configuration profile. Profiles can give configuration presets for different compute environments. Note that multiple profiles can be loaded, for example: `-profile singularity,cluster` - the order of arguments is important!
 
 If `-profile` is not specified at all the pipeline will be run locally and expects all software to be installed and available on the `PATH`.
 
 * `conda`
     * A generic configuration profile to be used with [conda](https://conda.io/docs/)
     * Pulls most software from [Bioconda](https://bioconda.github.io/)
-* `toolsPath`
+* `multiconda`
     * A generic configuration profile to be used with [conda](https://conda.io/docs/)
-    * Use the conda images available on the cluster
+    * Uses one conda environment per general task / tool
 * `singularity`
     * A generic configuration profile to be used with [Singularity](http://singularity.lbl.gov/)
     * Use the singularity images available on the cluster
+* `docker`
+    * A generic configuration profile to be used with [Docker](https://www.docker.com/)
 * `cluster`
     * Run the workflow on the computational cluster
 * `test`
@@ -109,12 +116,24 @@ If left unspecified, a default pattern is used: `data/*{1,2}.fastq.gz`
 Use this to specify a sample plan file instead of a regular expression to find fastq files. For example :
 
 ```bash
---samplePlan 'path/to/data/sample_plan.csv
+--samplePlan 'path/to/data/sample_plan.csv'
 ```
 
 The sample plan is a csv file with the following information :
 
 Sample ID | Sample Name | Path to R1 fastq file | Path to R2 fastq file
+
+### `--design`
+
+Use this to specify a design file to list all experimental samples, their IDs, the associated germinal sample, the sex of the patient and the status (tumor / normal). For example :
+
+```bash
+--design 'path/to/design.csv'
+```
+
+The design file is a csv file with the following information :
+
+SAMPLE_ID | GERMLINE ID | SAMPLE_NAME | SEX | STATUS
 
 ### `--singleEnd`
 
@@ -126,51 +145,54 @@ By default, the pipeline expects paired-end data. If you have single-end data, y
 
 It is not possible to run a mixture of single-end and paired-end files in one run.
 
-### `--stranded`
+### `--noIntervals`
+Disable usage of intervals file, and disable automatic generation of intervals file when none are provided.
 
-Several parts of the RNA-seq data analysis rely on the strandness information.
-If you already have the information, you should specifiy the strandness using either `forward` (ie. stranded), `no`, (ie. unstranded), `reverse` (ie. reverse stranded), as follows:
+For WGS samples, splitting in interval is advised to reduce running time.
 
-```bash
---stranded 'reverse'
-```
+### `--step`
 
-If you do not have the information, you can the automatic detection mode (default mode) as follows:
+This parameter specify the starting step of the pipeline. Several entry point are available. Each step require a specific sample_plan.
 
-```bash
---stranded 'auto'
-```
+**Available:** mapping, recalibrate, variantcalling, annotate.
 
-In the case, the pipeline will the run the [`rseqc`](http://rseqc.sourceforge.net/) tool to automatically detect the strandness parameter.
+### `--targetBED`
 
-### `--aligner`
+Specify a target BED file for targeted or whole exome sequencing
 
-The current version of the pipeline supports three different aligners;
-- [`STAR`](https://github.com/alexdobin/STAR). Default value.
-- [`tophat2`](http://ccb.jhu.edu/software/tophat/index.shtml)
-- [`hisat2`](http://ccb.jhu.edu/software/hisat2/index.shtml)
+### `--tools`
 
-By default, the `STAR` mapper is run. You can specify the tool to use as follows:
+Specify the tools to use for variant calling and downstream steps.
 
-```bash
---aligner 'STAR'
-```
+**Available:** facets, ascat, haplotypecaller, manta, mutect2, snpeff
 
-### `--counts`
+### `--SNVFilters`
 
-The raw count table for all samples can be generated using one of the following tool:
-- [`STAR`](https://github.com/alexdobin/STAR). Require `--aligner 'STAR'`. Default value.
-- [`featureCounts`](http://bioinf.wehi.edu.au/featureCounts/)
-- [`HTSeqCounts`](https://htseq.readthedocs.io/en/release_0.11.1/count.html)
+Specify which filter to use for SNV calling.
 
-You can specify one of these tools using:
-```bash
---counts 'featureCounts`
-```
+**Available:** mapq, duplicates, singleton, multihits
+
+**Default:** mapq and duplicates
+
+### `--SVFilters`
+
+Specify which filter to use for SV calling.
+
+**Available:** mapq, duplicates, singleton, multihits
+
+**Default:** duplicates
+
+### `--condaCacheDir`
+
+Specify the path to store conda environment create by Nextflow
+
+### `--genomeAnnotationPath`
+
+Specify the path to the annotations files required by the pipeline
 
 ## Reference genomes
 
-The pipeline config files come bundled with paths to the genomes reference files. 
+The pipeline config files come bundled with paths to the genomes reference files.
 
 ### `--genome`
 
@@ -179,13 +201,12 @@ There are different species supported in the genomes references file. To run the
 You can find the keys to specify the genomes in the [genomes config file](../conf/genomes.config). Common genomes that are supported are:
 
 * Human
+  * `--genome hg19`
   * `--genome hg38`
 * Mouse
   * `--genome mm10`
 
-> There are numerous others - check the config file for more.
-
-Note that you can use the same configuration setup to save sets of reference files for your own use, even if they are not part of the genomes resource. 
+Note that you can use the same configuration setup to save sets of reference files for your own use, even if they are not part of the genomes resource.
 See the [Nextflow documentation](https://www.nextflow.io/docs/latest/config.html) for instructions on where to save such a file.
 
 The syntax for this reference configuration is as follows:
@@ -194,36 +215,37 @@ The syntax for this reference configuration is as follows:
 params {
   genomes {
     'hg19' {
-      star     = '<path to the STAR index files>'
-      bowtiee2 = '<path to the bowtie index files>'
-      hisat2   = '<path to the HiSat2 index files>'
-      rrna     = '<path to bowtie1 mapping on rRNA reference>'
-      bed12    = '<path to Bed12 annotation file>'
-      gtf      = '<path to GTF annotation file>'
+      bwaIndex              = "/path/to/bwaIndex"
+      chrLength             = "/path/to/chrom_hg19.sizes"
+      dict                  = "/path/to/hg19.dict"
+      fasta                 = "/path/to/hg19.fa"
+      fastaFai              = "/path/to/hg19.fa.fai"
+      gtf                   = "/path/to/gencode.v19.annotation_proteinCoding.gtf"
+      dbsnp                 = "/path/to/dbsnp_138.hg19.vcf.gz"
+      dbsnpIndex            = "/path/to/dbsnp_138.hg19.vcf.gz.tbi"
+      acLoci                = "/path/to/1000G_phase3_20130502_SNP_maf0.3.loci"
+      acLociGC              = "/path/to/1000G_phase3_20130502_SNP_maf0.3.loci.gc"
+      polyms                = "/path/to/44polyms.bed"
+      germlineResource      = "/path/to/af-only-gnomad_modified.raw.sites.vcf.gz"
+      germlineResourceIndex = "/path/to/af-only-gnomad_modified.raw.sites.vcf.gz.tbi"
+      intervals             = "/path/to/wgs_calling_regions.grch37.list.txt"
+      knownIndels           = "/path/to/{1000G_phase1,Mills_and_1000G_gold_standard}.indels.hg19.sites.vcf.gz"
+      knownIndelsIndex      = "/path/to/{1000G_phase1,Mills_and_1000G_gold_standard}.indels.hg19.sites.vcf.gz.tbi"
+      snpeffDb              = "hg19"
+      snpeffCache           = "/path/to/snpEff_v4_3"
     }
-    // Any number of additional genomes, key is used with --genome
-  }
 }
 ```
 
-Note that these paths can be updated on command line using the following parameters:
-- `--star_index` - Path to STAR index
-- `--hisat2_index` - Path to HiSAT2 index
-- `--tophat2_index` - Path to TopHat2 index
+Note that all these paths can be updated on the command line using for example the following parameters:
+- `--bwaIndex` - Path to Bwa index
 - `--gtf` - Path to GTF file
-- `--bed12` - Path to gene bed12 file
-- `--saveAlignedIntermediates` - Save the BAM files from the Aligment step  - not done by default
-
-## Tools parameters
-
-The `conf/tools.conf` configuration file can be used to specify some of the tools options.
-Note that these options can also be genome dependent. So far, only the `STAR` options can be changed from an organism to another.
 
 ## Job resources
 
 ### Automatic resubmission
 
-Each step in the pipeline has a default set of requirements for number of CPUs, memory and time (see the `conf/base.conf` file). 
+Each step in the pipeline has a default set of requirements for number of CPUs, memory and time (see the `conf/process.conf` file).
 For most of the steps in the pipeline, if the job exits with an error code of `143` (exceeded requested resources) it will automatically resubmit with higher requests (2 x original, then 3 x original). If it still fails after three times then the pipeline is stopped.
 
 ## Other command line parameters
@@ -232,19 +254,13 @@ For most of the steps in the pipeline, if the job exits with an error code of `1
 
 The pipeline is made with a few *skip* options that allow to skip optional steps in the workflow.
 The following options can be used:
-- `--skip_qc` - Skip all QC steps apart from MultiQC
-- `--skip_rrna` - Skip rRNA mapping
-- `--skip_fastqc` - Skip FastQC
-- '--skip_genebody_coverage' - Skip genebody coverage step
-- `--skip_saturation` - Skip Saturation qc
-- `--skip_dupradar` - Skip dupRadar (and Picard MarkDups)
-- `--skip_readdist` - Skip read distribution steps
-- `--skip_expan` - Skip exploratory analysis
-- `--skip_multiqc` - Skip MultiQC
-				
-### `--metadata`
 
-Specify a two-columns (tab-delimited) metadata file to diplay in the final Multiqc report.
+- `--skipBQSR`  Disable BQSR
+- `--skipIdentito` Disable Identito vigilance
+- `--skipMultiqc` Disable MultiQC
+- `--skipPreseq` Disable Preseq
+- `--skipQC` Specify which QC tools to skip from bamqc, fastqc, multiqc, samtoolsstats, versions
+- `--skipMutectContamination` Disable mutect2 `CalculateContamination` step
 
 ### `--outDir`
 
