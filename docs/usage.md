@@ -150,6 +150,8 @@ Disable usage of intervals file, and disable automatic generation of intervals f
 
 For WGS samples, splitting in interval is advised to reduce running time.
 
+>**NB:** Running the pipeline with or without intervals can results in small differences in the variant calling due to some heuristics in the algorithms
+
 ### `--step`
 
 This parameter specify the starting step of the pipeline. Several entry point are available. Each step require a specific sample_plan.
