@@ -101,7 +101,7 @@ clust_order=clust$tree_col$order
 
 # Save figure:
 save_pheatmap_png(clust, outputPlot)
-write.csv(corr_mat[clust_order,clust_order], outputMatrix, quote=TRUE, row.names=TRUE)
+write.csv(round(corr_mat[clust_order,clust_order],3), outputMatrix, quote=TRUE, row.names=TRUE)
 
 # End message + Path:
 print("script ended successfully")
