@@ -205,9 +205,9 @@
 
 
     {
-      "name": "noGVCF",
-      "label": "No g.vcf files",
-      "usage": "No g.vcf output from HaplotypeCaller",
+      "name": "saveGVCF",
+      "label": "Save gvcf files",
+      "usage": "Save gvcf output from HaplotypeCaller",
       "type": "boolean",
       "nargs": 0,
       "choices": [],

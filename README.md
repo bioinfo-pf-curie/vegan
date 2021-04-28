@@ -11,7 +11,7 @@
 This pipeline was built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis.  
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner.
-It comes with conda / singularity containers making installation easier and results highly reproducible. The current workflow was inspired from the [nf-core Sarek pipeline](https://github.com/nf-core/sarek).
+It comes with conda / singularity containers making installation easier and results highly reproducible. The current workflow was inspired from the [nf-core Sarek pipeline](https://github.com/nf-core/sarek) with several common processes, and further modified to fill our needs.
 
 ### Pipeline summary
 
@@ -90,7 +90,7 @@ FILTERING:
 
 VARIANT CALLING:
     --baseQual INTEGER   Minimum base quality used by Facets for CNV calling
-    --noGVCF             No g.vcf output from HaplotypeCaller
+    --saveGVCF           Save gvcf output from HaplotypeCaller
 
 SKIP OPTIONS:
     --skipBQSR               Disable BQSR
