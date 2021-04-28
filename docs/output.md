@@ -47,7 +47,7 @@ In general, we expect more than 80% of aligned reads. Samples with less than 50%
 
   >**NB:** Note that by default, these mapping files are not saved. Use `--saveAlignedIntermediates` to save them.
   
-	  ![MultiQC - Bowtie2 stats plot](images/bwalogs.png)
+  ![MultiQC - Bowtie2 stats plot](images/bwalogs.png)
 
 ### Duplicates
 
