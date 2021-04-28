@@ -158,7 +158,6 @@ In the case of FFPE samples for which the fragment size is usually smaller, this
 In order to check the association between pairs of normal/tumor samples, a list of common SNPs (`--polym`) is used to cluster all the samples.  
 The results are displayed as a heatmap with a color code representing the distance (1 - Jaccard) between two samples.
 
-
 **Output directory: `preprocessing/metrics/identito`** 
 
 * `sample.matrix.tsv`
@@ -167,6 +166,34 @@ The results are displayed as a heatmap with a color code representing the distan
   * distance matrix between each sample
 
   ![MultiQC - Sequencing depth and genes coverage](images/identito.png)
+
+## SNVs calling
+
+### Germline variants
+
+### Somatic mutations
+
+### Transition/Transversion
+
+  ![MultiQC - Transition/Transversion/Indels](images/transition.png)
+
+### Variants annotation
+
+![MultiQC - SnpEff - variants by genomic region](images/snpeff_variant_effects_region.png) 
+
+![MultiQC - SnpEff - variants by impact](images/snpeff_variant_effects_impact.png) 
+
+![MultiQC - SnpEff - variants by effect types](images/snpeff_effects.png)
+
+![MultiQC - SnpEff - variants by functional class](images/snpeff_variant_effects_class.png)
+
+
+## SVs calling
+
+## CNVs calling
+
+
+
 
 ## MultiQC
 
