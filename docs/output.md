@@ -22,9 +22,9 @@ For details about reads trimming, see the `raw_qc` pipeline.
 
 **Output directory: `preprocessing/metrics/fastqc`**
 
-* `sample_fastqc.html`
+* `[SAMPLE]_fastqc.html`
   * FastQC report, containing quality metrics for your untrimmed raw fastq files
-* `zips/sample_fastqc.zip`
+* `zips/[SAMPLE]_fastqc.zip`
   * zip file containing the FastQC report, tab-delimited data file and plot images
 
 
@@ -37,9 +37,9 @@ Note that if multiple sequencing lanes from the same samples (same sampleID, sam
 
 **Output directory: `preprocessing/bams/bwa/`**
 
-* `sample.bam`
+* `[SAMPLE].bam`
   * Aligned reads
-* `sample.bam.bai`
+* `[SAMPLE].bam.bai`
   * Index of aligned reads
 
 The mapping statistics are presented in the MultiQC report as follows.  
@@ -56,9 +56,9 @@ The results are presented in the `General Metrics` table.
 
 **Output directory: `preprocessing/bams/markDuplicates`** 
 
-* `sample.md.bam`
+* `[SAMPLE].md.bam`
   * Aligned reads marked for duplicates
-* `stats/sample.md.flagstats`
+* `stats/[SAMPLE].md.flagstats`
   * Number of alignments for each FLAG type
   
   >**NB:** Note that by default, these mapping files are not saved. Use `--saveAlignedIntermediates` to save them.
@@ -70,9 +70,9 @@ The percentage of reads on targets are presented in the `General Metrics` table.
 
 **Output directory: `preprocessing/bams/onTarget`** 
 
-* `sample.onTarget.bam`
+* `[SAMPLE].onTarget.bam`
   * Aligned reads restricted to the genomic targets.
-* `stats/sample.onTarget.flagstat`
+* `stats/[SAMPLE].onTarget.flagstat`
   * Number of alignments for each FLAG type
   
   >**NB:** Note that by default, these mapping files are not saved. Use `--saveAlignedIntermediates` to save them.
@@ -93,13 +93,13 @@ The fraction of remaining reads after filtering is also presented in the `Genera
 
 **Output directory: `preprocessing/bams/filtering/`**
 
-* `sample.filtered.[SNV/SV].bam`
+* `[SAMPLE].filtered.[SNV/SV].bam`
   * Aligned and filtered reads
-* `sample.filtered.[SNV/SV].bam.bai`
+* `[SAMPLE].filtered.[SNV/SV].bam.bai`
   * Index files
-* `sample.filtered.[SNV/SV].idxstats`
+* `[SAMPLE].filtered.[SNV/SV].idxstats`
   * Alignment summary statistics
-* `sample.filtered.[SNV/SV].flagstats`
+* `[SAMPLE].filtered.[SNV/SV].flagstats`
   * Number of alignments for each FLAG type
 
 ## Quality controls
@@ -112,7 +112,7 @@ The [Preseq](http://smithlabresearch.org/software/preseq/) package is aimed at p
 
 **Output directory: `preprocessing/metrics/preseq`**
 
-* `sample_ccurve.txt`
+* `[SAMPLE]_ccurve.txt`
   * Preseq expected future yield file.
   
   ![MultiQC - Preseq library complexity plot](images/preseq_plot.png)
@@ -123,9 +123,9 @@ The fragment length is calculated from paired-end reads as the distance between 
 
 **Output directory: `preprocessing/metrics/fragSize`**
 
-* `sample_insert_size_metrics.txt`
+* `[SAMPLE]_insert_size_metrics.txt`
   * Fragment size values reported by `picard`
-* `sample_insert_size_hist.pdf`
+* `[SAMPLE]_insert_size_hist.pdf`
   * Graphical representation
 
   ![MultiQC - Fragment size distribution](images/picard_insert_size.png)
@@ -160,7 +160,7 @@ The results are displayed as a heatmap with a color code representing the distan
 
 **Output directory: `preprocessing/metrics/identito`** 
 
-* `sample.matrix.tsv`
+* `[SAMPLE].matrix.tsv`
   * results of the SNPs calling for the list of SNPs
 * `clustering_plot_identito.csv`
   * distance matrix between each sample
@@ -169,15 +169,81 @@ The results are displayed as a heatmap with a color code representing the distan
 
 ## SNVs calling
 
+### GATK Preprocessing
+
+The current workflow follows the GATK good practices with [base recalibration](https://gatk.broadinstitute.org/hc/en-us/articles/360035890531-Base-Quality-Score-Recalibration-BQSR-).  
+This step is usally recommanded to detects systematic errors in the data, but can be skipped with the option `--skipBQSR`.  
+These files are used as inputs of all germline and somatic SNVs calling.
+
+**Output directory: `preprocessing/bams/bqsr`**
+
+* `[SAMPLE].recal.bam`
+  * Aligned data after base recalibration
+* `[SAMPLE].recal.bam.bai`
+  * Index files
+
 ### Germline variants
+
+Germline variants are then called using [`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller) following good practices (HaplotypeCaller, GenotypeGVCFs).
+The number of detected variants are presented as a table in the MultiQC report.  
+Note that by default the `gvcf` files are not stored unless the option `--saveGVCF` is used.
+
+**Output directory: `HaplotypeCaller`**
+
+* `[SAMPLE]_HaplotypeCaller.vcf.gz`
+  * vcf file with the variants detected by HaplotypeCaller
+* `[SAMPLE]_HaplotypeCaller.vcf.gz.tbi`
+  * index files
 
 ### Somatic mutations
 
+The somatic mutations calling requires pairs of normal/tumor samples defined in the `design` file.  
+The [`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) tool is used to call somatic variants following the GATK good practices (Mutect2, MergeMutectStats, GetPileupSummaries, GatherPileupSummaries, CalculateContamination, FilterMutectCall).
+
+**Output directory: `Mutect2`** 
+
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_unfiltered.vcf.gz`
+  * Mutect2 somatic variants before filtering
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_unfiltered.vcf.gz.tbi`
+  * Index file
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered.vcf.gz`
+  * Mutect2 somatic variants after filtering
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered.vcf.gz.tbi`
+  * Index file
+
+
 ### Transition/Transversion
+
+For each filtered vcf files, the current workflow calculate the number of transition (A>G,T>C,C>T,G>A), transversions (A>C,T>G,C>A,G>T,A>T,T>A,C>G,G>C) and short insertions/delations (indels).
+The results are available as table and presented in MultiQC.
+
+**Output directory: `HaplotypeCaller/transition`** 
+
+* `[SAMPLE]_filtered.vcf.Mutect2.table.tsv`
+  * Number of bases substitution and indels for each type
+
+**Output directory: `Mutect2/transition`**
+
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_filtered.vcf.Mutect2.table.tsv`
+  * Number of bases substitution and indels for each type
+  
 
   ![MultiQC - Transition/Transversion/Indels](images/transition.png)
 
 ### Variants annotation
+
+Each filtered VCF file is then annotated using [`snpeff`](https://pcingola.github.io/SnpEff/).
+All annotated vcf files are saved and the following summary metrics are displayed in MultiQC.
+
+**Output directory: `HaplotypeCaller/snpEff`**
+
+* `[SAMPLE]_HaplotypeCaller_snpeff.ann.vcf.gz`
+  * HaplotypeCaller annotated variants
+  
+**Output directory: `Mutect2/snpEff`*
+
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered_snpeff.ann.vcf.gz`
+  * Mutect2 filtered and annotated somatic variants
 
 ![MultiQC - SnpEff - variants by genomic region](images/snpeff_variant_effects_region.png) 
 
@@ -187,12 +253,71 @@ The results are displayed as a heatmap with a color code representing the distan
 
 ![MultiQC - SnpEff - variants by functional class](images/snpeff_variant_effects_class.png)
 
+## CNVs calling
+
+CNVs calling can be run using [`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software) and [`FACETS`](https://github.com/mskcc/facets).
+Both tools require pairs of tumor/normal samples.
+ASCAT and Facets are two software for performing allele-specific copy number analysis of tumor samples and for estimating tumor ploidy and purity (normal contamination). They infer tumor purity and ploidy and calculates allele-specific copy number profiles. Both tools provide several images and tables as output.
+
+**Output directory: `Facets`**
+
+* `[TUMORSAMPLE]_subclonal_allele_spe_cnv_[CELLULARITY]cellularity_[PLOIDY]ploidy.txt`
+  * Facets main table results
+* `[TUMORSAMPLE]_subclonal_allele_spe_cnv_[CELLULARITY]cellularity_[PLOIDY]ploidy.pdf`
+  * CNVs plot
+
+**Output directory: `ASCAT`**
+ * `sample.aberrationreliability.png`
+   * Image with information about aberration reliability
+ * `sample.ASCATprofile.png`
+   * Image with information about ASCAT profile
+ * `sample.ASPCF.png`
+   * Image with information about ASPCF
+ * `sample.rawprofile.png`
+   * Image with information about raw profile
+ * `sample.sunrise.png`
+   * Image with information about sunrise
+ * `sample.tumour.png`
+   * Image with information about tumor
+ * `sample.cnvs.txt`
+   * file with information about CNVS
+ * `sample.LogR.PCFed.txt`
+   * file with information about LogR
+ * `sample.purityploidy.txt`
+   * file with information about purity ploidy
+
+The text file `sample.cnvs.txt` countains predictions about copy number state for all the segments.
+The output is a tab delimited text file with the following columns:
+ - *chr*: chromosome number
+ - *startpos*: start position of the segment
+ - *endpos*: end position of the segment
+ - *nMajor*: number of copies of one of the allels (for example the chromosome inherited from the father)
+ - *nMinor*: number of copies of the other allele (for example the chromosome inherited of the mother)
 
 ## SVs calling
 
-## CNVs calling
+Structural variants and indels are called using [`MANTA`](https://github.com/Illumina/manta) with or without matched control.
+It is optimized for analysis of germline variation in small sets of individuals and somatic variation in tumor/normal sample pairs.
 
+For all samples :
 
+**Output directory: `Manta`**
+  * `Manta_[SAMPLE].candidateSmallIndels.vcf.gz` and `Manta_[SAMPLE].candidateSmallIndels.vcf.gz.tbi`
+    * `VCF` with Tabix index
+  * `Manta_[SAMPLE].candidateSV.vcf.gz` and `Manta_[SAMPLE].candidateSV.vcf.gz.tbi`
+    * `VCF` with Tabix index
+	
+For Tumor/Normal pair :
+
+**Output directory: `Manta`**
+  * `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].candidateSmallIndels.vcf.gz` and `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].candidateSmallIndels.vcf.gz.tbi`
+    * `VCF` with Tabix index
+  * `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].candidateSV.vcf.gz` and `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].candidateSV.vcf.gz.tbi`
+    * `VCF` with Tabix index
+  * `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].diploidSV.vcf.gz` and `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].diploidSV.vcf.gz.tbi`
+    * `VCF` with Tabix index
+  * `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].somaticSV.vcf.gz` and `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].somaticSV.vcf.gz.tbi`
+    * `VCF` with Tabix index
 
 
 ## MultiQC
