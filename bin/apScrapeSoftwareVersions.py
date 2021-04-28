@@ -9,15 +9,18 @@ regexes = {
     'FastQC': ['v_fastqc.txt', r"FastQC v(\S+)"],
     'BWA': ['v_bwa.txt', r"Version: (\S+)"],
     'samtools': ['v_samtools.txt', r"samtools (\S+)"],
+    'sambamba': ['v_sambamba.txt', r"sambamba (\S+)"],
+    'mosdepth': ['v_mosdepth.txt', r"mosdepth (\S+)"],
+    'bedtools': ['v_bedtools.txt', r"bedtools v(\S+)"],
     'preseq': ['v_preseq.txt', r"Version: (\S+)"], 
     'bcftools': ['v_bcftools.txt', r"bcftools (\S+)"],
+    'picard': ['v_picard.txt', r"([\d\.]+)-SNAPSHOT"],
     'GATK': ['v_gatk.txt', r"Version:(\S+)"],
     'AlleleCount': ['v_allelecount.txt', r"(\S+)"],
-    'ASCAT': ['v_ascat.txt', r"Version:       (\S+)"],
+    'ASCAT': ['v_ascat.txt', r"\[1\] .(\S+)."],
+    'Facets':  ['v_facets.txt', r"\[1\] .(\S+)."],
     'Manta': ['v_manta.txt', r"([0-9.]+)"],
-    'R': ['v_r.txt', r"R version (\S+)"],
-    'SnpEff': ['v_snpeff.txt', r"version SnpEff (\S+)"],
-    'TIDDIT': ['v_tiddit.txt', r"TIDDIT-(\S+)"],
+    'SnpEff': ['v_snpeff.txt', r"SnpEff\t(\S+)"],
 }
 results = OrderedDict({
     key: '<span style="color:#999999;\">N/A</span>'

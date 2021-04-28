@@ -612,9 +612,11 @@ process markDuplicates {
   output:
   tuple val(sampleId), val(sampleName), file("${sampleId}.md.bam"), file("${sampleId}.md.bam.bai") into duplicateMarkedBamsCh,mdBamPolymCh
   file ("${sampleId}.md.flagstats") into markDuplicatesReportCh
+  file ("v_sambamba.txt") into sambambaVersionCh
 
   script:
   """
+  sambamba --version &> v_sambamba.txt 2>&1 || true
   sambamba markdup --nthreads ${task.cpus} --tmpdir . ${bam} ${sampleId}.md.bam
   sambamba flagstat --nthreads ${task.cpus} ${sampleId}.md.bam > ${sampleId}.md.flagstats
   """
@@ -647,9 +649,11 @@ process bamOnTarget {
   output:
   tuple val(sampleId), val(sampleName), file("*_onTarget.bam"), file("*_onTarget.bam.bai") into onTargetBamsCh
   file("*_onTarget.flagstats") into onTargetReportCh
+  file("v_bedtools.txt") into bedtoolsVersionCh
 
   script:
   """
+  echo \$(bedtools --version 2>&1) &> v_bedtools.txt
   intersectBed -abam ${bam} -b ${targetBED} > ${bam.baseName}_onTarget.bam
   samtools index ${bam.baseName}_onTarget.bam
   samtools flagstat ${bam.baseName}_onTarget.bam > ${bam.baseName}_onTarget.flagstats
@@ -775,10 +779,12 @@ process getFragmentSize {
   tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamInsertSizeCh
 
   output:
-  file("*.{pdf,txt}") into fragmentSizeCh
+  file("*_insert_size_{hist.pdf,metrics.txt}") into fragmentSizeCh
+  file("v_picard.txt") into picardISVersionCh
 
   script:
   """
+  echo \$(picard CollectInsertSizeMetrics --version 2>&1) &> v_picard.txt 
   picard CollectInsertSizeMetrics \
       I=${bam} \
       O=${bam.baseName}_insert_size_metrics.txt \
@@ -808,12 +814,14 @@ process getSeqDepth {
   file(bed) from targetBedCh
 
   output:
-  file("*.txt") into mosdepthOutputCh
-  file("*{.bed.gz,.bed.gz.csi}") into mosdepthBedOutputCh
+  file("${bam.baseName}*.txt") into mosdepthOutputCh
+  file("${bam.baseName}*{.bed.gz,.bed.gz.csi}") into mosdepthBedOutputCh
+  file("v_mosdepth.txt") into mosdepthVersionCh
 
   script:
   bedCmd = params.targetBED ? "--by ${bed}" : ''
   """
+  mosdepth --version &> v_mosdepth.txt 2>&1 || true
   mosdepth -t ${task.cpus} -n --quantize 0:1:10:50:100: ${bedCmd} ${bam.baseName} ${bam}
   """
 }
@@ -892,13 +900,15 @@ process getWGSmetrics {
   file(bed) from targetBedCh
 
   output:
-  file("*.txt") into wgsMetricsOutputCh
+  file("*metrics.txt") into wgsMetricsOutputCh
+  file("v_picard.txt") into picardWGSVersionCh
 
   script:
   memOption = "\"-Xms" +  (task.memory.toGiga() / 2).trunc() + "g -Xmx" + (task.memory.toGiga() - 1) + "g\""
   bedTointerCmd = params.targetBED ? "picard BedToIntervalList I=${bed} O=intervals.bed SD=${dict}":""
   bedCmd = params.targetBED ? "INTERVALS=intervals.bed" : ""
   """
+  echo \$(picard CollectWgsMetrics --version 2>&1) &> v_picard.txt
   ${bedTointerCmd}
   picard ${memOption} CollectWgsMetrics \
        I=${bam} \
@@ -930,9 +940,11 @@ process getPolym {
 
   output:
   file("${sampleId}_matrix.tsv") into clustPolymCh
+  file("v_bcftools.txt") into bcftoolsIdentitoVersionCh
 
   script:
   """
+  bcftools --version &> v_bcftools.txt 2>&1 || true
   bcftools mpileup -R ${polyms} -f ${fasta} -x -A -B -q 20 -I -Q 0 -d 1000 --annotate FORMAT/DP,FORMAT/AD ${sampleId}.md.bam > ${sampleId}_bcftools.vcf
   SnpSift extractFields -e "."  -s ";" ${sampleId}_bcftools.vcf CHROM POS REF ALT GEN[*].DP GEN[*].AD > ${sampleId}_bcftools.tsv
   apComputePolym.R ${sampleId}_bcftools.tsv ${sampleId}_matrix.tsv ${sampleId} ${polyms}
@@ -2026,6 +2038,7 @@ process facets{
 
   output:
   file("*.{txt,pdf}") into facetsResultsCh
+  file("v_facets.txt") into facetsVersionCh
 
   when: 'facets' in tools
 
@@ -2035,6 +2048,7 @@ process facets{
 	   --name ${sampleIdTumor} \\
 	   --assembly ${params.genome} \\
 	   --normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25
+  R -e "packageVersion('facets')" > v_facets.txt
   """
  }
 
@@ -2225,17 +2239,22 @@ process getSoftwareVersions {
   publishDir path:"${params.outDir}/softwareVersions", mode: params.publishDirMode
 
   input:
-  file('v_ascat.txt') from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty('')
-  file('v_allelecount.txt') from alleleCountsVersionCh.first().ifEmpty('')
-  file('v_bcftools.txt') from bcftoolsVersionCh.first().ifEmpty('')
-  file('v_bwa.txt') from bwaVersionCh.first().ifEmpty('')
-  file('v_fastqc.txt') from fastqcVersionCh.first().ifEmpty('')
-  file('v_gatk.txt') from gatkVersionCh.first().ifEmpty('')
+  file('v_picard.txt') from picardISVersionCh.mix(picardWGSVersionCh).first().ifEmpty([])
+  file('v_bedtools.txt') from bedtoolsVersionCh.first().ifEmpty([])
+  file('v_mosdepth.txt') from mosdepthVersionCh.first().ifEmpty([])
+  file('v_sambamba.txt') from sambambaVersionCh.first().ifEmpty([])
+  file('v_ascat.txt') from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty([])
+  file('v_facets.txt') from facetsVersionCh.first().ifEmpty([])
+  file('v_allelecount.txt') from alleleCountsVersionCh.first().ifEmpty([])
+  file('v_bcftools.txt') from bcftoolsVersionCh.mix(bcftoolsIdentitoVersionCh).first().ifEmpty([])
+  file('v_bwa.txt') from bwaVersionCh.first().ifEmpty([])
+  file('v_fastqc.txt') from fastqcVersionCh.first().ifEmpty([])
+  file('v_gatk.txt') from gatkVersionCh.first().ifEmpty([])
   file 'v_preseq.txt' from preseqVersionCh.first().ifEmpty([])
-  file('v_manta.txt') from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty('')
+  file('v_manta.txt') from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty([])
   file('v_samtools.txt') from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh)
-                              .mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty('')
-  file('v_snpeff.txt') from snpeffVersionCh.first().ifEmpty('')
+                              .mix(samtoolsMergeBamMappedVersionCh).mix(samtoolsMergeBamRecalVersionCh).mix(samtoolsBamFilterVersionCh).first().ifEmpty([])
+  file('v_snpeff.txt') from snpeffVersionCh.first().ifEmpty([])
 
   output:
   file('software_versions_mqc.yaml') into yamlSoftwareVersionCh

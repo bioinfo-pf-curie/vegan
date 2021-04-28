@@ -110,7 +110,7 @@ custom_data:
               title: 'On target (%)'
               min: 0
               max: 100
-              scale: 'RdYlGn'
+              scale: 'RdYlBu'
               format: '{:,.1f}'
               suffix: '%'
               hidden: true
@@ -134,13 +134,13 @@ custom_data:
               description: 'In a read pair, reference bases covered by both R1 and R2'
               min: 0
               max: 100
-              scale: 'RdYlGn'
+              scale: 'RdYlBu'
               format: '{:,.1f}'
               suffix: '%'
               placement: 12500
             Mean_depth:
               title: 'Mean Depth'
-              scale: 'RdYlGn'
+              scale: 'RdYlBu'
               format: '{:,.1f}'
               placement: 13000
             30X_cov:
@@ -310,11 +310,18 @@ table_cond_formatting_rules:
           - gt: 25
         fail:
           - gt: 50
-    Percent_reads_after_filt:
+    Percent_reads_ontarget:
         pass:
           - gt: 70
         warn:
           - lt: 70
+        fail:
+          - lt: 50
+    Percent_reads_after_filt:
+        pass:
+          - gt: 60
+        warn:
+          - lt: 60
         fail:
           - lt: 50
     Mean_depth:
