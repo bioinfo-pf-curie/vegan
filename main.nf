@@ -925,7 +925,7 @@ process getWGSmetrics {
 process identito {
   label 'lowCpu'
   label 'medMem'
-  label 'polym'
+  label 'identito'
 
   publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
 
@@ -954,7 +954,7 @@ process identito {
 process combineIndentito {
   label 'lowCpu'
   label 'lowMem'
-  label 'polym'
+  label 'identito'
 
   publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
 
