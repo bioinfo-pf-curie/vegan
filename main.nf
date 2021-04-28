@@ -922,7 +922,7 @@ process getWGSmetrics {
  * IDENTITO MONITORING
  */
 
-process getPolym {
+process identito {
   label 'lowCpu'
   label 'medMem'
   label 'polym'
@@ -951,7 +951,7 @@ process getPolym {
   """
 }
 
-process computePolym {
+process combineIndentito {
   label 'lowCpu'
   label 'lowMem'
   label 'polym'
@@ -969,13 +969,7 @@ process computePolym {
 
   script:
   """
-  cat *matrix.tsv |awk 'NR==1{print \$0}' > clust_mat.tsv
-
-  for in_matrix in ${matrix}
-  do
-  awk 'NR>1{print \$0}' \$in_matrix >> clust_mat.tsv
-  done
-
+  (head -1 "${matrix[0]}"; tail -n +2 -q *matrix.tsv) > clust_mat.tsv
   apComputeClust.R clust_mat.tsv . clustering_plot
   """
 }

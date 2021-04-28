@@ -68,7 +68,6 @@
       "group": "Mandatory arguments"
     },
 
-
     {
       "name": "tools",
       "label": "Variant calling tools",
@@ -99,6 +98,19 @@
       "name": "noIntervals",
       "label": "No intervals",
       "usage": "Disable usage of intervals",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Main options"
+    },
+    {
+      "name": "singleEnd",
+      "label": "singleEnd",
+      "usage": "For single-end input data",
       "type": "boolean",
       "nargs": 0,
       "choices": [],

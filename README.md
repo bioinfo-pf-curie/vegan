@@ -75,6 +75,7 @@ MAIN OPTIONS:
     --noIntervals                                                                   Disable usage of intervals
     --step        STRING [mapping, recalibrate, variantcalling, annotate]           Specify starting step
     --tools       STRING [facets, ascat, haplotypecaller, manta, mutect2, snpeff]   Specify tools to use for variant calling
+    --singleEnd                                                                     For single-end input data
 
 ALIGNMENT:
     --bwaOptions               STRING    Define BWA-mem option for read mapping
