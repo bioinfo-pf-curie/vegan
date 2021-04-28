@@ -189,8 +189,8 @@ Here are a few examples of how to set the profile option.
 ```
 #### Sample Plan
 
-A sample plan is a csv file (comma separated) that list all samples with their biological IDs. The sample plan is expected to be created as below :
-
+A sample plan is a csv file (comma separated) that list all samples with their biological IDs.  
+The sample plan is expected to be created as below :
 
 Sample ID | Sample Name | Path R1 .fastq file | [Path R2 .fastq file]
 
