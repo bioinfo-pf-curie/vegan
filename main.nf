@@ -2120,13 +2120,14 @@ process computeTransition {
   label 'minCpu'
   label 'lowMem'
   label 'transition'
+  tag "$sampleID"
 
   publishDir "${params.outDir}/${variantCaller}/transition", mode: params.publishDirMode
 
   input:
   tuple val(variantCaller),
         val(sampleId),
-        file(vcf) from transitionCh.filter{it[0] == "HaplotypeCaller" || "mutect2"}.dump(tag:'transi')
+        file(vcf) from transitionCh.filter{it[0] == "HaplotypeCaller" || "mutect2"}
 
   output:
   file("*table.tsv") into transitionPerSampleCh
@@ -2317,6 +2318,8 @@ process multiQC {
  ****************/
 
 process checkDesign{
+  errorStrategy 'terminate'
+
   label 'python'
   label 'minCpu'
   label 'minMem'
