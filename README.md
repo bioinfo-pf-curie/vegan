@@ -81,7 +81,6 @@ MAIN OPTIONS:
 ALIGNMENT:
     --bwaOptions               STRING    Define BWA-mem option for read mapping
     --saveAlignedIntermediates           Save intermediates alignment files
-    --targetBED                PATH      Target BED file for targeted or whole exome sequencing
 
 FILTERING:
     --targetBED                PATH      Target BED file for targeted or whole exome sequencing
