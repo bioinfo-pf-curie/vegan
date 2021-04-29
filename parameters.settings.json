@@ -87,7 +87,7 @@
       "usage": "Specify starting step",
       "type": "string",
       "nargs": 1,
-      "choices": ["mapping", "recalibrate", "variantcalling", "annotate"],
+      "choices": ["mapping", "recalibrate", "variantcalling"],
       "default_value": "mapping",
       "pattern": ".*",
       "render": "textfield",
@@ -145,7 +145,7 @@
       "pattern": ".*",
       "render": "file",
       "arity": 0,
-      "group": "Alignment"
+      "group": "Filtering"
     },
     {
       "name": "bwaOptions",
