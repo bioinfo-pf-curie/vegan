@@ -270,7 +270,8 @@ params {
 
 Note that all these paths can be updated on the command line using for example the following parameters:
 - `--bwaIndex` - Path to Bwa index
-- `--gtf` - Path to GTF file
+- `gtf` - Path to GTF file
+- ...
 
 ## Use case
 
