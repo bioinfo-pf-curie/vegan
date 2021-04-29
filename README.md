@@ -83,7 +83,7 @@ ALIGNMENT:
     --saveAlignedIntermediates           Save intermediates alignment files
 
 FILTERING:
-    --targetBED                PATH      Target BED file for targeted or whole exome sequencing
+    --targetBED  PATH                                              Target BED file for targeted or whole exome sequencing
     --SNVFilters STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SNV
     --SVFilters  STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SV
     --mapQual    INTEGER                                           Minimum mapping quality
@@ -97,7 +97,7 @@ SKIP OPTIONS:
     --skipIdentito           Disable Identito
     --skipMultiqc            Disable MultiQC
     --skipPreseq             Disable Preseq
-    --skipQC                 Specify which QC tools to skip
+    --skipQC                 Disable all QCs
 
 REFERENCES:
     --acLoci                PATH     acLoci file

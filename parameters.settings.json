@@ -287,7 +287,7 @@
     {
       "name": "skipQC",
       "label": "Skip QC Tools",
-      "usage": "Specify which QC tools to skip",
+      "usage": "Disable all QCs",
       "type": "boolean",
       "nargs": 0,
       "choices": [],
