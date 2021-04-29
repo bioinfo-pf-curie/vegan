@@ -14,8 +14,8 @@
     * [`--singleEnd`](#--singleend)
     * [`--step`](#--step)
 * [Alignment](#alignment)
-    * [`bwaOptions`](#--bwaOptions)
-	* [`saveAlignedIntermediates`](#--saveAlignedIntermediates)
+    * [`--bwaOptions`](#--bwaOptions)
+	* [`--saveAlignedIntermediates`](#--saveAlignedIntermediates)
 * [Filtering](#filtering)
     * [`--targetBED`](#--targetBED)
     * [`--SNVFilters`](#--SNVFilters)
@@ -280,10 +280,8 @@ Here is a typical command line to analyse whole-genome analysis data.
 
 ```bash
 nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \
-                     --genome 'hg38' \
-					 --tools haplotyCaller,mutect2,snpeff,ascat,manta \
-					 -profile cluster,singularity \
-					 --outDir [RESULTS] -w [RESULTS_work]
+                     --genome 'hg38' --tools haplotyCaller,mutect2,snpeff,ascat,manta \
+					 -profile cluster,singularity --outDir [RESULTS] -w [RESULTS_work]
 ```
 
 ### Whole exome sequencing analysis
@@ -292,10 +290,8 @@ Here is a typical command line to analyse whole-exome analysis data, thus focusi
 
 ```bash
 nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \
-                     --genome 'hg38' \
-                     --tools 'haplotyCaller,mutect2,snpeff,facets' \
-                     -profile cluster,singularity \
-                     --outDir [RESULTS] -w [RESULTS/work]
+                     --genome 'hg38' --tools 'haplotyCaller,mutect2,snpeff,facets' \
+                     -profile cluster,singularity --outDir [RESULTS] -w [RESULTS/work]
 ```
 
 ### Starting from intermediates results
@@ -310,11 +306,8 @@ In order to start at the GATK recalibration step, so just after reads filtering,
 
 ```bash
 nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.filtered.csv] --design [DESIGN] \
-                     --step 'recalibrate' \
-					 --genome 'hg38' \
-					 --tools 'mutect2,ascat' \
-					 -profile cluster,singularity \
-					 --outDir [RESULTS_2] -w [RESULTS_2/work]
+                     --step 'recalibrate' --genome 'hg38' --tools 'mutect2,ascat' \
+					 -profile cluster,singularity --outDir [RESULTS_2] -w [RESULTS_2/work]
 ```
 
 The sample plan contains the following information :
@@ -329,11 +322,8 @@ In order to start at the variant calling step, so just after BAM recalibration, 
 
 ```bash
 nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.recal.csv] --design [DESIGN] \
-                     --step 'variantcalling' \
-					 --genome 'hg38' \
-					 --tools 'mutect2,ascat' \
-					 -profile cluster,singularity \
-					 --outDir [RESULTS_3] -w [RESULTS_3/work]
+                     --step 'variantcalling' --genome 'hg38' --tools 'mutect2,ascat' \
+					 -profile cluster,singularity --outDir [RESULTS_3] -w [RESULTS_3/work]
 ```
 
 The sample plan contains the following information :
