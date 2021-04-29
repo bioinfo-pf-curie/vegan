@@ -49,7 +49,7 @@ params.putAll(lint(params, paramsWithUsage))
 tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
 SVFilters = params.SVFilters ? params.SVFilters.split(',').collect{it.trim().toLowerCase()} : []
 SNVFilters = params.SNVFilters ? params.SNVFilters.split(',').collect{it.trim().toLowerCase()} : []
-annotateTools = params.annotateTools ? params.annotateTools.split(',').collect{it.trim().toLowerCase()} : []
+//annotateTools = params.annotateTools ? params.annotateTools.split(',').collect{it.trim().toLowerCase()} : []
 
 customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
@@ -172,7 +172,7 @@ checkHostname(params, workflow)
 */
 
 // Initialize channels based on params
-fastaCh = params.fasta && !('annotate' in step) ? Channel.value(file(params.fasta)) : "null"
+fastaCh = params.fasta ? Channel.value(file(params.fasta)) : "null"
 fastaFaiCh = params.fastaFai ? Channel.value(file(params.fastaFai)) : fastaFaiBuiltCh
 dictCh = params.dict ? Channel.value(file(params.dict)) : dictBuiltCh
 polymsCh = params.polyms ? Channel.value(file(params.polyms)) : "null"
@@ -233,8 +233,6 @@ process createIntervalBeds {
 
   output:
   file('*.bed') into bedIntervalsCh mode flatten
-
-  //when: (!params.noIntervals) && step != 'annotate'
 
   script:
   // If the interval file is BED format, the fifth column is interpreted to
@@ -2078,37 +2076,37 @@ vcfAnnotationCh = Channel.empty().mix(
 //  }
 )
 
-if (step == 'annotate') {
-  vcfToAnnotateCh = Channel.create()
-  vcfNoAnnotateCh = Channel.create()
+//if (step == 'annotate') {
+//  vcfToAnnotateCh = Channel.create()
+//  vcfNoAnnotateCh = Channel.create()
 
-  if (samplePlanPath == []) {
+//  if (samplePlanPath == []) {
     // By default, annotates all available vcfs that it can find in the VariantCalling directory
     // Excluding vcfs from and g.vcf from HaplotypeCaller
     // Basically it's: results/{HaplotypeCaller,Manta,Mutect2}/*.vcf.gz
     // Without *SmallIndels.vcf.gz from Manta
     // The small snippet `vcf.minus(vcf.fileName)[-2]` catches sampleId
     // This field is used to output final annotated VCFs in the correct directory
-    Channel.empty().mix(
-      Channel.fromPath("${params.outDir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
-        .flatten().map{vcf -> ['HaplotypeCaller', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-      Channel.fromPath("${params.outDir}/VariantCalling/*/Manta/*[!candidate]SV.vcf.gz")
-        .flatten().map{vcf -> ['Manta', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
-      Channel.fromPath("${params.outDir}/VariantCalling/*/Mutect2/*.vcf.gz")
-        .flatten().map{vcf -> ['Mutect2', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
-    ).choice(vcfToAnnotateCh, vcfNoAnnotateCh) {
-      annotateTools == [] || (annotateTools != [] && it[0] in annotateTools) ? 0 : 1
-    }
-  } else if (annotateTools == []) {
+//    Channel.empty().mix(
+//      Channel.fromPath("${params.outDir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
+//        .flatten().map{vcf -> ['HaplotypeCaller', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+//      Channel.fromPath("${params.outDir}/VariantCalling/*/Manta/*[!candidate]SV.vcf.gz")
+//        .flatten().map{vcf -> ['Manta', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+//      Channel.fromPath("${params.outDir}/VariantCalling/*/Mutect2/*.vcf.gz")
+//        .flatten().map{vcf -> ['Mutect2', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
+//    ).choice(vcfToAnnotateCh, vcfNoAnnotateCh) {
+//      annotateTools == [] || (annotateTools != [] && it[0] in annotateTools) ? 0 : 1
+//    }
+//  } else if (annotateTools == []) {
     // Annotate user-submitted VCFs
     // If user-submitted, assume that the sampleId should be assumed automatically
-    vcfToAnnotateCh = Channel.fromPath(samplePlanPath)
-      .map{vcf -> ['userspecified', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
-  } else exit 1, "specify only tools or files to annotate, not both"
+//    vcfToAnnotateCh = Channel.fromPath(samplePlanPath)
+//      .map{vcf -> ['userspecified', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
+//  } else exit 1, "specify only tools or files to annotate, not both"
 
-  vcfNoAnnotateCh.close()
-  vcfAnnotationCh = vcfAnnotationCh.mix(vcfToAnnotateCh)
-}
+//  vcfNoAnnotateCh.close()
+//  vcfAnnotationCh = vcfAnnotationCh.mix(vcfToAnnotateCh)
+//}
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
 

@@ -74,7 +74,7 @@ MANDATORY ARGUMENTS:
 
 MAIN OPTIONS:
     --noIntervals                                                                   Disable usage of intervals
-    --step        STRING [mapping, recalibrate, variantcalling, annotate]           Specify starting step
+    --step        STRING [mapping, recalibrate, variantcalling]                     Specify starting step
     --tools       STRING [facets, ascat, haplotypecaller, manta, mutect2, snpeff]   Specify tools to use for variant calling
     --singleEnd                                                                     For single-end input data
 
@@ -84,6 +84,7 @@ ALIGNMENT:
     --targetBED                PATH      Target BED file for targeted or whole exome sequencing
 
 FILTERING:
+    --targetBED                PATH      Target BED file for targeted or whole exome sequencing
     --SNVFilters STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SNV
     --SVFilters  STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SV
     --mapQual    INTEGER                                           Minimum mapping quality
