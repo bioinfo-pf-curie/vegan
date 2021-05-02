@@ -174,7 +174,8 @@ nextflow run main.nf -profile multiconda,cluster --input samples-WGS.tsv --tools
 By default (whithout any profile), Nextflow will excute the pipeline locally, expecting that all tools are available from your `PATH` variable.
 In addition, we set up a few profiles that should allow you i/ to use containers instead of local installation, ii/ to run the pipeline on a cluster instead of on a local architecture.
 The description of each profile is available on the help message (see above).
-Here are a few examples of how to set the profile option.
+
+Here are a few examples of how to set the profile option. See the [full documentation](docs/profiles) for details.
 
 ```
 ## Run the pipeline locally, using a global environment where all tools are installed (build by conda for instance)
@@ -189,10 +190,10 @@ Here are a few examples of how to set the profile option.
 ```
 #### Sample Plan
 
-A sample plan is a csv file (comma separated) that list all samples with their biological IDs.  
+A sample plan is a csv file (comma separated) that list all samples with their biological IDs, **with no header**.  
 The sample plan is expected to be created as below :
 
-Sample ID | Sample Name | Path R1 .fastq file | [Path R2 .fastq file]
+SAMPLE_ID | SAMPLE_NAME | PATH_TO_R1_FASTQ | [PATH_TO_R2_FASTQ]
 
 #### Design
 
@@ -204,14 +205,15 @@ Both files will be checked by the pipeline and have to be rigorously defined in 
 Note that the control is optional if not available but is highly recommanded.
 If the design file is not specified, the pipeline will run until the alignment. The variant calling and the annotation will be skipped.
 
-
 ### Full Documentation
 
 1. [Installation](docs/installation.md)
-2. [Reference genomes](docs/reference_genomes.md)
-3. [Running the pipeline](docs/usage.md)
-4. [Output and how to interpret the results](docs/output.md)
-5. [Troubleshooting](docs/troubleshooting.md)
+2. [Geniac](docs/geniac.md)
+3. [Reference genomes](docs/referenceGenomes.md)
+4. [Running the pipeline](docs/usage.md)
+5. [Profiles](docs/profiles.md)
+6. [Output and how to interpret the results](docs/output.md)
+7. [Troubleshooting](docs/troubleshooting.md)
 
 #### Credits
 
