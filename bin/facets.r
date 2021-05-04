@@ -73,7 +73,7 @@ facetsPlot <- function (x, emfit = NULL, clustered = FALSE, chromlevels = c(1:22
     abline(h = x$dipLogR, col = "magenta4")
     segments(segstart, cnlr.median, segend, cnlr.median, lwd = 1.75, col = 2)
     abline(v=cumsum(tapply(out$num.mark,out$chr,sum)),col="grey80",lty=2)
-    
+
     plot(jseg$valor[is.finite(jseg$cnlr)], pch = ".", cex = 2.5,  col = c("grey", "lightblue", "azure4", "slateblue")[chrcol], ylab = "log-odds-ratio", ylim = c(-4, 4), xaxt = "n")
     segments(segstart, sqrt(mafR), segend, sqrt(mafR), lwd = 1.75,  col = 2)
     segments(segstart, -sqrt(mafR), segend, -sqrt(mafR), lwd = 1.75,  col = 2)
@@ -108,7 +108,7 @@ facetsPlot <- function (x, emfit = NULL, clustered = FALSE, chromlevels = c(1:22
         cfcol <- cfpalette[round(10 * out$cf.em + 0.501)]
         rect(segstart, 0, segend, 1, col = cfcol, border = NA)
         abline(v=cumsum(tapply(out$num.mark,out$chr,sum)),col="grey50",lty=2)
-        
+
     }
     if (missing(chromlevels)) {
         if (length(nn) == 23) {
@@ -127,7 +127,7 @@ facetsPlot <- function (x, emfit = NULL, clustered = FALSE, chromlevels = c(1:22
     cellularfractioncol=cfcol[which(duplicated(out$cf)==F)]
     mtext(side=1,line=1.75,at=pos[1],col="black",cex=0.8,font=2,text="cell frac:")
     lc=lapply(1:length(cellularfraction),function(i){mtext(side = 1, line = 1.75, at=pos[i+1], cellularfraction[i], cex = 0.8,col=cellularfractioncol[i],font=2)})
-    
+
     if (!missing(sname))
         mtext(sname, side = 3, line = 0, outer = TRUE, cex = 0.8)
 }
@@ -142,20 +142,17 @@ facetsPlot <- function (x, emfit = NULL, clustered = FALSE, chromlevels = c(1:22
 ## Load pileup
 message("Loading pileup ...")
 rcmat <- readSnpMatrix(opt$input)
-rcmat
+
 
 xx <- preProcSample(rcmat, ndepth=opt$normalDepth, het.thresh=opt$hetThres,
                     snp.nbhd=opt$windowSize, cval=opt$cvalPreproc, deltaCN=0,
                     gbuild=opt$assembly, hetscale=TRUE, unmatched=opt$unmatch,
                     ndepthmax=opt$maxDepth)
 
-pc_het_snp <- round(nrow(xx$pmat[which(xx$pmat$het==1),])*100/nrow(xx$pmat),2)
+# pc_het_snp <- round(nrow(xx$pmat[which(xx$pmat$het==1),])*100/nrow(xx$pmat),2)
 
 oo <- suppressWarnings(procSample(xx, cval=opt$cval,
                                   min.nhet=15, dipLogR=NULL))
-
-diplogR <- oo$dipLogR
-flags <- oo$flags
 
 ## Estimate copy number and cellular fraction
 fit2 <- suppressWarnings(emcncf(oo, trace=FALSE, unif=FALSE,
@@ -164,23 +161,16 @@ fit2 <- suppressWarnings(emcncf(oo, trace=FALSE, unif=FALSE,
 fit2$cncf$purity <- fit2$purity
 fit2$cncf$ploidy <- fit2$ploidy
 
-purity <- round(unique(fit2$cncf$purity),2)
-ploidy <- round(unique(fit2$cncf$ploidy),2)
-    
 if(!is.null(fit2$emflags)){
-    title <- paste0("Allele-specific facets CNV profile of ",name, " : cellularity=",purity, ", ploidy=",ploidy, " , Warning:", fit2$emflags)
+    title <- paste0("Allele-specific facets CNV profile of ",name, " : cellularity=",round(unique(fit2$cncf$purity),2), ", ploidy=",round(unique(fit2$cncf$ploidy),2), " , Warning:", fit2$emflags)
 } else {
-    title <- paste0("Allele-specific facets CNV profile of ",name, " : cellularity=", purity, ", ploidy=", ploidy)
+    title <- paste0("Allele-specific facets CNV profile of ",name, " : cellularity=", round(unique(fit2$cncf$purity),2), ", ploidy=", round(unique(fit2$cncf$ploidy),2))
 }
 
-write.table(fit2$cncf,paste0(outDir,"/",name,"_subclonal_allele_spe_cnv_", purity, "cellularity_", ploidy,"ploidy.txt"),
+write.table(fit2$cncf,paste0(outDir,"/",name,"_cnv_segments.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
 
-pdf(paste0(outDir,"/",name,"_subclonal_allele_spe_cnv_", purity, "cellularity_", ploidy, "ploidy.pdf"), width=16, height=8)
-facetsPlot(x=oo, emfit=fit2, sname=title, chromlevels=unique(xx$pmat$chrom))
-invisible(dev.off())
-
-png(paste(outDir,"/",name,"_subclonal_allele_spe_cnv.png",sep=""), width=1200, height=800)
+pdf(paste0(outDir,"/",name,"_cnv.pdf"), width=16, height=8)
 facetsPlot(x=oo, emfit=fit2, sname=title, chromlevels=unique(xx$pmat$chrom))
 invisible(dev.off())
 
@@ -208,7 +198,7 @@ if(length(which(tab$CNt<floor(unique(tab$ploidy))))>0)
 if(length(which(tab$CNt==0))>0)
     tab[which(tab$CNt==0),"call"]="DEL"
 tab$LOH <- 0
-tab[grep("B",tab$Geno,invert=T),"LOH"] <- 1
+tab[grep("B",tab$Geno,invert=TRUE),"LOH"] <- 1
 tab$chrom <- as.character(tab$chrom)
 
 if(opt$assembly=="mm10" | opt$assembly=="mm9")
@@ -216,14 +206,6 @@ if(opt$assembly=="mm10" | opt$assembly=="mm9")
 if(opt$assembly=="hg19" | opt$assembly=="hg18")
     tab[which(tab$chrom=="23"),"chrom"]="X"
 
-write.table(tab, paste0(outDir,"/",name,"_subclonal_allele_spe_cnv_",round(unique(fit2$cncf$purity),2),"cellularity_",unique(tab$ploidy),"ploidy.transformed.txt"),
+write.table(tab, paste0(outDir,"/",name,"cnv_segments.transformed.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
-
-write.table(fit2$emflags, paste0(outDir,"/",name,"_subclonal_allele_spe_cnv_",round(unique(fit2$cncf$purity),2),"cellularity_",unique(tab$ploidy),"ploidy.flags.txt"),
-            quote=FALSE, col.names=FALSE, row.names=FALSE, sep="\t")
-
-pp<-unique(data.frame(name=name,ploidy=fit2$cncf$ploidy, purity=fit2$cncf$purity))
-write.table(pp, paste0(outDir,"/",name,"_subclonal_allele_spe_cnv_",round(unique(fit2$cncf$purity),2),"cellularity_",unique(tab$ploidy),"ploidy.optimal.txt",sep=""),
-            quote=FALSE, col.names=FALSE, row.names=FALSE, sep="\t")
-
 
