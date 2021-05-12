@@ -782,7 +782,7 @@ process getFragmentSize {
 
   script:
   """
-  echo \$(picard CollectInsertSizeMetrics --version 2>&1) &> v_picard.txt 
+  echo \$(picard CollectInsertSizeMetrics --version 2>&1) &> v_picard.txt
   picard CollectInsertSizeMetrics \
       I=${bam} \
       O=${bam.baseName}_insert_size_metrics.txt \
@@ -964,11 +964,12 @@ process combineIndentito {
 
   output:
   file("*.csv") into clustPolymResultsCh
+  file("*.png") into clustPolymPlotCh 
 
   script:
   """
   (head -1 "${matrix[0]}"; tail -n +2 -q *matrix.tsv) > clust_mat.tsv
-  apComputeClust.R clust_mat.tsv . clustering_plot
+  apComputeClust.R clust_mat.tsv . 22
   """
 }
 
@@ -1998,7 +1999,7 @@ process facetsPileup {
   input:
   tuple val(sampleIdNormal), val(sampleIdTumor), file(bamNormal), file(bamTumor), file(baiNormal), file(baiTumor) from bamPairedFacetsCh
   file(polym) from dbsnpCh
-  
+
   output:
   tuple val(sampleIdNormal), val(sampleIdTumor), file("${sampleIdNormal}_${sampleIdTumor}.csv.gz") into snppileupOutCh
 
@@ -2023,7 +2024,7 @@ process facets{
 
   tag "${sampleIdTumor}_vs_${sampleIdNormal}"
 
-  publishDir "${params.outDir}/Facets", mode: params.publishDirMode 
+  publishDir "${params.outDir}/Facets", mode: params.publishDirMode
 
   input:
   set val(sampleIdNormal), val(sampleIdTumor), file(snppileupCounts) from snppileupOutCh
