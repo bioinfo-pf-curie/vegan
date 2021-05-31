@@ -1,4 +1,19 @@
-version-0.1.1
+version-1.1.0
+
+NEW FEATURES
+
+  - Add `hg19_base` and `hg38_base` genomes
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Mutect2 fitering now reports only PASS variants
+
+BUG FIXES
+
+  - Mutect2 GetPileupSummaries - fix `-L` option for WES
+
+**********************************
+version-1.0.0
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
