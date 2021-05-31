@@ -1682,7 +1682,7 @@ process filterMutect2Calls {
   file(intervals) from intervalsCh
 
   output:
-  tuple val("Mutect2"), val(sampleId), val(sampleIdTN), file("*_filtered.vcf.gz"), file("*_filtered.vcf.gz.tbi"), file("*filteringStats.tsv") into filteredMutect2OutputCh
+  tuple val("Mutect2"), val(sampleId), val(sampleIdTN), file("*_filtered_pass.vcf.gz"), file("*_filtered_pass.vcf.gz.tbi"), file("*filteringStats.tsv") into filteredMutect2OutputCh
   file("*.mqc") into mutect2CallingMetricsMqcCh
 
   when: 'mutect2' in tools
@@ -1691,7 +1691,6 @@ process filterMutect2Calls {
   contaOpts = contaminationTable.name != 'NO_FILE' ? "--contamination-table ${contaminationTable}" : ""
   contaMetricsOpts = contaminationTable.name != 'NO_FILE' ? "-c ${contaminationTable}" : ""
   """
-  # do the actual filtering
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     FilterMutectCalls \
     -V ${unfiltered} \
@@ -1700,8 +1699,11 @@ process filterMutect2Calls {
     -R ${fasta} \
     -O ${sampleIdTN}_Mutect2_filtered.vcf.gz
 
+  awk '$0~"^#" || $7 == "PASS"{print}' <(gzip -dc ${sampleIdTN}_Mutect2_filtered.vcf.gz) | gzip > ${sampleIdTN}_Mutect2_filtered_pass.vcf.gz
+  tabix ${sampleIdTN}_Mutect2_filtered_pass.vcf.gz
+
   getCallingMetrics.sh -i ${unfiltered} \
-                       -f ${sampleIdTN}_Mutect2_filtered.vcf.gz \
+                       -f ${sampleIdTN}_Mutect2_filtered_pass.vcf.gz \
                        ${contaMetricsOpts} \
                        -n ${sampleIdTN} > ${sampleIdTN}_Mutect2_callingMetrics.mqc
   """
