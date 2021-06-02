@@ -651,7 +651,7 @@ process bamOnTarget {
   script:
   """
   echo \$(bedtools --version 2>&1) &> v_bedtools.txt
-  intersectBed -f ${params.targetFracOverlap} -abam ${bam} -b ${targetBED} > ${bam.baseName}_onTarget.bam
+  intersectBed -abam ${bam} -b ${targetBED} > ${bam.baseName}_onTarget.bam
   samtools index ${bam.baseName}_onTarget.bam
   samtools flagstat ${bam.baseName}_onTarget.bam > ${bam.baseName}_onTarget.flagstats
   """
