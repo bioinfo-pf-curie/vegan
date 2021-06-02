@@ -150,7 +150,6 @@ summary = [
   'Save GVCF': 'haplotypecaller' in tools ? params.saveGVCF ? 'Yes' : 'No' : null,
   'Sequenced by': params.sequencingCenter ? params.sequencingCenter: null,
   'Panel of normals': params.pon && 'mutect2' in tools ? params.pon: null,
-  'Save Genome Index': params.saveGenomeIndex ? 'Yes' : 'No',
   'Output dir': params.outDir,
   'Launch dir': workflow.launchDir,
   'Working dir': workflow.workDir,
@@ -652,7 +651,7 @@ process bamOnTarget {
   script:
   """
   echo \$(bedtools --version 2>&1) &> v_bedtools.txt
-  intersectBed -abam ${bam} -b ${targetBED} > ${bam.baseName}_onTarget.bam
+  intersectBed -f ${params.targetFracOverlap} -abam ${bam} -b ${targetBED} > ${bam.baseName}_onTarget.bam
   samtools index ${bam.baseName}_onTarget.bam
   samtools flagstat ${bam.baseName}_onTarget.bam > ${bam.baseName}_onTarget.flagstats
   """
@@ -1413,16 +1412,21 @@ process mutect2 {
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
   PON = params.pon ? "--panel-of-normals ${pon}" : ""
   intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+  baseQualOpts = params.baseQual ? "--min-base-quality-score ${params.baseQual}" : ""
+  mapQualOpts = params.mapQual ? "--minimum-mapping-quality ${params.maqQual}" : ""
   """
   # Get raw calls
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     Mutect2 \
     -R ${fasta}\
-    -I ${bamTumor}  -tumor ${sampleIdTumor} \
+    -I ${bamTumor} -tumor ${sampleIdTumor} \
     -I ${bamNormal} -normal ${sampleIdNormal} \
     ${intervalOpts} \
     --germline-resource ${germlineResource} \
     ${PON} \
+    ${baseQualOpts} \
+    ${mapQualOpts} \
+    ${params.mutect2Opts} \
     -O ${intervalBed.baseName}_${sampleIdTumor}_vs_${sampleIdNormal}.vcf
   """
 }
