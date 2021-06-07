@@ -1707,7 +1707,7 @@ process filterMutect2Calls {
     -R ${fasta} \
     -O ${sampleIdTN}_Mutect2_filtered.vcf.gz
 
-  awk '\$0~"^#" || \$7 == "PASS"{print}' <(gzip -dc ${sampleIdTN}_Mutect2_filtered.vcf.gz) | gzip > ${sampleIdTN}_Mutect2_filtered_pass.vcf.gz
+  awk '\$0~"^#" || \$7 == "PASS"{print}' <(bgzip -dc ${sampleIdTN}_Mutect2_filtered.vcf.gz) | bgzip > ${sampleIdTN}_Mutect2_filtered_pass.vcf.gz
   tabix ${sampleIdTN}_Mutect2_filtered_pass.vcf.gz
 
   getCallingMetrics.sh -i ${unfiltered} \
