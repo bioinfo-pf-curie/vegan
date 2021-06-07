@@ -132,7 +132,7 @@ summary = [
   'Container': workflow.containerEngine && workflow.container ? "${workflow.containerEngine} - ${workflow.container}" : null,
   'Genome': params.genome,
   'Fasta': params.fasta ?: null,
-  'Target BED': params.targetBED ?: null,
+  'Target BED': params.targetBed ?: null,
   'Intervals': params.noIntervals ? 'Do not use' : params.intervals,
   'Step': step ?: null,
   'Tools': params.tools ? tools instanceof Collection ? tools.join(', ') : tools: null,
@@ -192,7 +192,7 @@ snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 // Optional files, not defined within the params.genomes[params.genome] scope
 intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
 ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
-targetBedCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
+targetBedCh = params.targetBed ? Channel.value(file(params.targetBed)) : "null"
 ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : "null")
 
 // Print summary and genareta summary channel
@@ -623,7 +623,7 @@ process markDuplicates {
  * BAM on Target
  */
 
-bamsToTargetCh = params.targetBED ? duplicateMarkedBamsCh : Channel.empty()
+bamsToTargetCh = params.targetBed ? duplicateMarkedBamsCh : Channel.empty()
 
 process bamOnTarget {
   label 'bedtools'
@@ -637,11 +637,11 @@ process bamOnTarget {
 	                          else if (params.saveAlignedIntermediates) "$filename"}
 
   when:
-  params.targetBED
+  params.targetBed
 
   input:
   tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamsToTargetCh
-  file(targetBED) from targetBedCh
+  file(targetBed) from targetBedCh
 
   output:
   tuple val(sampleId), val(sampleName), file("*_onTarget.bam"), file("*_onTarget.bam.bai") into onTargetBamsCh
@@ -651,13 +651,13 @@ process bamOnTarget {
   script:
   """
   echo \$(bedtools --version 2>&1) &> v_bedtools.txt
-  intersectBed -abam ${bam} -b ${targetBED} > ${bam.baseName}_onTarget.bam
+  intersectBed -abam ${bam} -b ${targetBed} > ${bam.baseName}_onTarget.bam
   samtools index ${bam.baseName}_onTarget.bam
   samtools flagstat ${bam.baseName}_onTarget.bam > ${bam.baseName}_onTarget.flagstats
   """
 }
 
-procBamsCh = params.targetBED ? onTargetBamsCh : duplicateMarkedBamsCh
+procBamsCh = params.targetBed ? onTargetBamsCh : duplicateMarkedBamsCh
 
 /*
  * FILTER ALIGNED BAM FILE FOR SNV/SV
@@ -816,7 +816,7 @@ process getSeqDepth {
   file("v_mosdepth.txt") into mosdepthVersionCh
 
   script:
-  bedCmd = params.targetBED ? "--by ${bed}" : ''
+  bedCmd = params.targetBed ? "--by ${bed}" : ''
   """
   mosdepth --version &> v_mosdepth.txt 2>&1 || true
   mosdepth -t ${task.cpus} -n --quantize 0:1:10:50:100: ${bedCmd} ${bam.baseName} ${bam}
@@ -843,7 +843,7 @@ process prepareExonInfo {
   file("*exon.bed") into exonBedCh
 
   script:
-  targetCmd = params.targetBED ? " | intersectBed -a stdin -b ${bed} ": ''
+  targetCmd = params.targetBed ? " | intersectBed -a stdin -b ${bed} ": ''
   """
   awk -F"\t" -v type='gene_id' 'BEGIN{OFS="\t"} \$3=="exon" {split(\$9,annot,";");for(i=1;i<=length(annot);i++){if (annot[i]~type){anntype=annot[i]}} print \$1,\$4-1,\$5,anntype}' ${gtf} | sed -e 's/gene_id//' -e 's/"//g' | sort -u -k1,1V -k2,2n ${targetCmd} > ${gtf.baseName}_exon.bed
   """
@@ -902,8 +902,8 @@ process getWGSmetrics {
 
   script:
   memOption = "\"-Xms" +  (task.memory.toGiga() / 2).trunc() + "g -Xmx" + (task.memory.toGiga() - 1) + "g\""
-  bedTointerCmd = params.targetBED ? "picard BedToIntervalList I=${bed} O=intervals.bed SD=${dict}":""
-  bedCmd = params.targetBED ? "INTERVALS=intervals.bed" : ""
+  bedTointerCmd = params.targetBed ? "picard BedToIntervalList I=${bed} O=intervals.bed SD=${dict}":""
+  bedCmd = params.targetBed ? "INTERVALS=intervals.bed" : ""
   """
   echo \$(picard CollectWgsMetrics --version 2>&1) &> v_picard.txt
   ${bedTointerCmd}
@@ -1413,7 +1413,7 @@ process mutect2 {
   PON = params.pon ? "--panel-of-normals ${pon}" : ""
   intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
   baseQualOpts = params.baseQual ? "--min-base-quality-score ${params.baseQual}" : ""
-  mapQualOpts = params.mapQual ? "--minimum-mapping-quality ${params.maqQual}" : ""
+  mapQualOpts = params.mapQual ? "--minimum-mapping-quality ${params.mapQual}" : ""
   """
   # Get raw calls
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
@@ -1490,7 +1490,7 @@ process concatVCF {
   input:
   tuple val(variantCaller), val(sampleId), val(sampleIdTN), file(vcFiles) from vcfConcatenateVCFsCh
   file(fastaFai) from fastaFaiCh
-  file(targetBED) from targetBedCh
+  file(targetBed) from targetBedCh
 
   output:
   tuple val(variantCaller), val(sampleId), val(sampleIdTN), file("*_*.vcf.gz"), file("*_*.vcf.gz.tbi") into vcfConcatenatedCh
@@ -1506,7 +1506,7 @@ process concatVCF {
   else
     outputFile = "${sampleId}_${variantCaller}.vcf"
 
-  options = params.targetBED ? "-t ${targetBED}" : ""
+  options = params.targetBed ? "-t ${targetBed}" : ""
   intervalsOptions = params.noIntervals ? "-n" : ""
   """
   apConcatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options} ${intervalsOptions}
@@ -1569,7 +1569,7 @@ process pileupSummariesForMutect2 {
 
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
-  intervalOpts = params.noIntervals ? "-L ${germlineResource}" : "-L ${intervalBed}"
+  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${germlineResource}" : "-L ${intervalBed}"
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     GetPileupSummaries \
@@ -1654,13 +1654,17 @@ process calculateContamination {
 
 // STEP GATK MUTECT2.6 - FILTERING CALLS
 
-if (params.skipMutectContamination){
-  contaminationTableCh=file('NO_FILE')
-}
 mutect2CallsToFilterCh = vcfConcatenatedForMutect2FilterCh.map{
     variantCaller, sampleId, sampleIdTN, vcf, index ->
     [sampleId, sampleIdTN, vcf, index]
-}.join(mergedStatsFileCh, by:[0,1]).join(contaminationTableCh, by:[0,1])
+}.join(mergedStatsFileCh, by:[0,1])
+
+if (!params.skipMutectContamination){
+  mutect2CallsToFilterCh = mutect2CallsToFilterCh.join(contaminationTableCh, by:[0,1]) 
+}else{
+  mutect2CallsToFilterCh = mutect2CallsToFilterCh.combine(Channel.from('NO_FILE'))
+}
+mutect2CallsToFilterCh = mutect2CallsToFilterCh.dump(tag:'debug')
 
 process filterMutect2Calls {
   label 'gatk'
@@ -1692,8 +1696,8 @@ process filterMutect2Calls {
   when: 'mutect2' in tools
 
   script:
-  contaOpts = contaminationTable.name != 'NO_FILE' ? "--contamination-table ${contaminationTable}" : ""
-  contaMetricsOpts = contaminationTable.name != 'NO_FILE' ? "-c ${contaminationTable}" : ""
+  contaOpts = !params.skipMutectContamination ? "--contamination-table ${contaminationTable}" : ""
+  contaMetricsOpts = !params.skipMutectContamination ? "-c ${contaminationTable}" : ""
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     FilterMutectCalls \
@@ -1703,7 +1707,7 @@ process filterMutect2Calls {
     -R ${fasta} \
     -O ${sampleIdTN}_Mutect2_filtered.vcf.gz
 
-  awk '$0~"^#" || $7 == "PASS"{print}' <(gzip -dc ${sampleIdTN}_Mutect2_filtered.vcf.gz) | gzip > ${sampleIdTN}_Mutect2_filtered_pass.vcf.gz
+  awk '\$0~"^#" || \$7 == "PASS"{print}' <(gzip -dc ${sampleIdTN}_Mutect2_filtered.vcf.gz) | gzip > ${sampleIdTN}_Mutect2_filtered_pass.vcf.gz
   tabix ${sampleIdTN}_Mutect2_filtered_pass.vcf.gz
 
   getCallingMetrics.sh -i ${unfiltered} \
@@ -1735,7 +1739,7 @@ process mantaSingle {
   tuple val(sampleId), val(sampleName), file(bam), file(bai) from bamMantaSingleCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
-  file(targetBED) from targetBedCh
+  file(targetBed) from targetBedCh
 
   output:
   tuple val("Manta"), val(sampleId), val(sampleName), file("*.vcf.gz"), file("*.vcf.gz.tbi") into vcfMantaSingleCh
@@ -1744,8 +1748,8 @@ process mantaSingle {
   when: 'manta' in tools && !params.singleEnd
 
   script:
-  beforeScript = params.targetBED ? "bgzip --threads ${task.cpus} -c ${targetBED} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
-  options = params.targetBED ? "--exome --callRegions call_targets.bed.gz" : ""
+  beforeScript = params.targetBed ? "bgzip --threads ${task.cpus} -c ${targetBed} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
+  options = params.targetBed ? "--exome --callRegions call_targets.bed.gz" : ""
   status = statusMap[sampleId]
   inputbam = status == 0 ? "--bam" : "--tumorBam"
   vcftype = status == 0 ? "diploid" : "tumor"
@@ -1793,7 +1797,7 @@ process manta {
         val(sampleIdTumor), val(sampleNameTumor), file(bamTumor), file(baiTumor) from pairBamMantaCh
   file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
-  file(targetBED) from targetBedCh
+  file(targetBed) from targetBedCh
 
   output:
   tuple val("Manta"),
@@ -1807,8 +1811,8 @@ process manta {
 
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
-  beforeScript = params.targetBED ? "bgzip --threads ${task.cpus} -c ${targetBED} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
-  options = params.targetBED ? "--exome --callRegions call_targets.bed.gz" : ""
+  beforeScript = params.targetBed ? "bgzip --threads ${task.cpus} -c ${targetBed} > call_targets.bed.gz ; tabix call_targets.bed.gz" : ""
+  options = params.targetBed ? "--exome --callRegions call_targets.bed.gz" : ""
   """
     ${beforeScript}
     configManta.py \
