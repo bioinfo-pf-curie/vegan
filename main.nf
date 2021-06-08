@@ -1561,6 +1561,7 @@ process pileupSummariesForMutect2 {
         file(intervalBed) from pairBamPileupSummariesCh
   file(germlineResource) from germlineResourceCh
   file(germlineResourceIndex) from germlineResourceIndexCh
+  file(targetBed) from targetBedCh
 
   output:
   tuple val(pairName), val(sampleIdNormal), val(sampleIdTumor), file("*_pileupsummaries.table") into pileupSummariesCh
