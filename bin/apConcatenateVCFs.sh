@@ -4,12 +4,16 @@ set -euo pipefail
 # This script concatenates all VCF files that are in the local directory,
 # that were created from different intervals to make a single final VCF
 
-usage() { echo "Usage: $0 [-i genome_index_file] [-o output.file.no.gz.extension] <-t target.bed> <-c cpus> <-u> <-n>" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-g genome_fasta] [-i genome_index_file] [-o output.file.no.gz.extension] <-t target.bed> <-c cpus> <-u> <-n>" 1>&2; exit 1; }
 
 while [[ $# -gt 0 ]]
 do
   key=$1
   case $key in
+      -g)
+	  genomeFasta=$2
+	  shift # past argument
+	  shift # past value
       -i)
 	  genomeIndex=$2
 	  shift # past argument
@@ -101,8 +105,9 @@ set +u
 
 if [ ! -z ${norm+x} ]; then
     echo "Run bcftools norm..."
-    bcftools norm -Oz -m --threads ${cpus} rawcalls.vcf.gz -o rawcalls_norm.vcf.gz
-    mv rawcalls_norm.vcf.gz rawcalls.vcf.gz
+    bcftools norm -Oz -m -both --threads ${cpus} rawcalls.vcf.gz -o rawcalls_norm1.vcf.gz
+    bcftools norm -f ${fasta} -o rawcalls_norm2.vcf.gz rawcalls_norm1.vcf.gz
+    mv rawcalls_norm2.vcf.gz rawcalls.vcf.gz
 fi
 
 

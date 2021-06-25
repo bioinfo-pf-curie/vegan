@@ -1019,7 +1019,7 @@ process baseRecalibrator {
   dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
   knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
   prefix = params.noIntervals ? "${sampleId}" : "${sampleId}_${intervalBed.baseName}"
-  intervalsOptions = params.noIntervals ? "" : "-L ${intervalBed}"
+  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       BaseRecalibrator \
@@ -1104,7 +1104,7 @@ process applyBQSR {
 
   script:
   prefix = params.noIntervals ? "noInterval_" : "${intervalBed.baseName}_"
-  intervalsOptions = params.noIntervals ? "" : "-L ${intervalBed}"
+  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       ApplyBQSR \
@@ -1326,7 +1326,7 @@ process haplotypeCaller {
   when: 'haplotypecaller' in tools
 
   script:
-  intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
@@ -1360,7 +1360,7 @@ process genotypeGVCFs {
   when: 'haplotypecaller' in tools
 
   script:
-  intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
@@ -1412,7 +1412,7 @@ process mutect2 {
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
   PON = params.pon ? "--panel-of-normals ${pon}" : ""
-  intervalOpts = params.noIntervals ? "" : "-L ${intervalBed}"
+  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
   baseQualOpts = params.baseQual ? "--min-base-quality-score ${params.baseQual}" : ""
   mapQualOpts = params.mapQual ? "--minimum-mapping-quality ${params.mapQual}" : ""
   """
@@ -1490,6 +1490,7 @@ process concatVCF {
 
   input:
   tuple val(variantCaller), val(sampleId), val(sampleIdTN), file(vcFiles) from vcfConcatenateVCFsCh
+  file(fasta) from fastaCh
   file(fastaFai) from fastaFaiCh
   file(targetBed) from targetBedCh
 
@@ -1510,7 +1511,7 @@ process concatVCF {
   targetOpts = params.targetBed ? "-t ${targetBed}" : ""
   intervalsOpts = params.noIntervals ? "-u" : ""
   """
-  apConcatenateVCFs.sh -n -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${targetOpts} ${intervalsOpts}
+  apConcatenateVCFs.sh -n -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${targetOpts} ${intervalsOpts}
   bcftools --version &> v_bcftools.txt 2>&1 || true
   """
 }
