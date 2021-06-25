@@ -1507,10 +1507,10 @@ process concatVCF {
   else
     outputFile = "${sampleId}_${variantCaller}.vcf"
 
-  options = params.targetBed ? "-t ${targetBed}" : ""
-  intervalsOptions = params.noIntervals ? "-n" : ""
+  targetOpts = params.targetBed ? "-t ${targetBed}" : ""
+  intervalsOpts = params.noIntervals ? "-u" : ""
   """
-  apConcatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options} ${intervalsOptions}
+  apConcatenateVCFs.sh -n -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${targetOpts} ${intervalsOpts}
   bcftools --version &> v_bcftools.txt 2>&1 || true
   """
 }
@@ -1523,8 +1523,7 @@ vcfConcatenatedCh
     other: true
   }.set { vcfConcatenatedForks }
 (vcfConcatenatedForMutect2FilterCh, vcfConcatenatedHaplotypeCallerGVCFCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfMutect2, vcfConcatenatedForks.gvcf, vcfConcatenatedForks.other]
-(transitionCh, vcfForMqcStatsCh, vcfForAnnotationCh) = vcfConcatenatedCh.into(3)
-
+(vcfForMqcStatsCh, vcfForAnnotationCh) = vcfConcatenatedCh.into(3)
 
 /*
  * VCF STATS BEFORE VARIANTS FILTERING
@@ -1546,6 +1545,12 @@ process collectVCFmetrics {
                        -n ${sampleId} > ${sampleId}_${variantCaller}_callingMetrics.mqc
   """
 }
+
+/*
+================================================================================
+                            VARIANT FILTERING 
+================================================================================
+*/
 
 // STEP GATK MUTECT2.3 - GENERATING PILEUP SUMMARIES
 
