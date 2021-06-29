@@ -963,12 +963,12 @@ process combineIndentito {
   file(matrix) from clustPolymCh.collect()
 
   output:
-  file("*.csv") into clustPolymResultsCh
+  file("*.csv") optional true into clustPolymResultsCh
 
   script:
   """
   (head -1 "${matrix[0]}"; tail -n +2 -q *matrix.tsv) > clust_mat.tsv
-  apComputeClust.R clust_mat.tsv . clustering_plot
+  apComputeClust.R clust_mat.tsv . 
   """
 }
 

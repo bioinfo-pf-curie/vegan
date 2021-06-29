@@ -1,4 +1,4 @@
-name: polym
+name: identito
 channels:
   - conda-forge
   - bioconda
@@ -12,4 +12,5 @@ dependencies:
   - conda-forge::r-vegan=2.5_7=r36h52d45c5_0
   - conda-forge::r-pheatmap=1.0.12=r36h6115d3f_2
   - conda-forge::r-rcolorbrewer=1.1_2=r36h6115d3f_1003
+  - conda-forge::r-proxy=0.4_25=r36hcfec24a_0
 
