@@ -925,8 +925,6 @@ process identito {
   label 'medMem'
   label 'identito'
 
-  publishDir "${params.outDir}/preprocessing/metrics/identito", mode: params.publishDirMode
-
   when:
   !params.skipIdentito && !params.skipQC
 
@@ -963,7 +961,7 @@ process combineIndentito {
   file(matrix) from clustPolymCh.collect()
 
   output:
-  file("*.csv") into clustPolymResultsCh
+  file("*.tsv") into clustPolymResultsCh
   file("*.png") into clustPolymPlotCh 
 
   script:
