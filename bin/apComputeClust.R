@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 args<-commandArgs(trailingOnly = TRUE)
-if (length(args) < 3) {
-    stop("Usage: compute_clust.r <inputTable> <outputDir> <figureName>", call.=FALSE)
+if (length(args) < 2) {
+    stop("Usage: compute_clust.r <inputTable> <outputDir> [<minSNPsNumber>]", call.=FALSE)
 }
 
 # Load arguments
@@ -51,9 +51,9 @@ if (length(toRemove) > 0){
 
 if (is.null(dim(clust_mat)) || nrow(clust_mat) == 0){
     warning("Not enough samples to run the clustering")
-    file.create(outputMatrix)
-    df <- data.frame()
-    write.csv(df, outputMatrix)
+    #file.create(outputMatrix)
+    #df <- data.frame()
+    #write.csv(df, outputMatrix)
     quit(save="no", status = 0)
 }
 

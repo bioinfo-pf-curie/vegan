@@ -969,7 +969,7 @@ process combineIndentito {
   script:
   """
   (head -1 "${matrix[0]}"; tail -n +2 -q *matrix.tsv) > clust_mat.tsv
-  apComputeClust.R clust_mat.tsv . 22
+  apComputeClust.R clust_mat.tsv . 20
   """
 }
 
