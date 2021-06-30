@@ -1,7 +1,7 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from collections import OrderedDict
 import re
-import os
 
 regexes = {
     'Pipeline': ['v_pipeline.txt', r"(\S+)"],
@@ -28,12 +28,14 @@ results = OrderedDict({
 
 # Search each file using its regex
 for k, v in regexes.items():
-    if os.path.exists(v[0]):
+    try:
         with open(v[0]) as x:
             versions = x.read()
             match = re.search(v[1], versions)
             if match:
                 results[k] = "v{}".format(match.group(1))
+    except IOError:
+        results[k] = False
 
 # Remove software set to false in results
 for k in results:
