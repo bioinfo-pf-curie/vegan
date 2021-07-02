@@ -60,7 +60,7 @@
       "usage": "Name of the reference genome.",
       "type": "string",
       "nargs": "1",
-      "choices": ["hg19", "hg38"],
+      "choices": ["hg19", "hg19_base", "hg38", "hg38_base"],
       "default_value": [],
       "pattern": ".*",
       "render": "textfield",

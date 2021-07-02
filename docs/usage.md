@@ -17,7 +17,7 @@
     * [`--bwaOptions`](#--bwaOptions)
 	* [`--saveAlignedIntermediates`](#--saveAlignedIntermediates)
 * [Filtering](#filtering)
-    * [`--targetBED`](#--targetBED)
+    * [`--targetBed`](#--targetBed)
     * [`--SNVFilters`](#--SNVFilters)
     * [`--SVFilters`](#--SVFilters)
 * [Variant calling](#variant_calling)
@@ -169,12 +169,12 @@ Note that activating this option usually consumes a large amount of disk space.
 
 ## `Filtering`
 
-### `--targetBED`
+### `--targetBed`
 
 Specify a target BED file for targeted or whole exome sequencing
 
 ```bash
---targetBED
+--targetBed
 ```
 
 ### `--SNVFilters`
@@ -287,7 +287,7 @@ nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \
 
 ### Whole exome sequencing analysis
 
-Here is a typical command line to analyse whole-exome analysis data, thus focusing the analysis on a targetBED file.
+Here is a typical command line to analyse whole-exome analysis data, thus focusing the analysis on a targetBed file.
 
 ```bash
 nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \

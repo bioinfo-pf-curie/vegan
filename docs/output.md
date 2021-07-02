@@ -63,7 +63,7 @@ The results are presented in the `General Metrics` table.
 
 ### Reads on target
 
-In the context of WES analysis, the aligned reads are intersected with their targets, defined with the `--targetBED` parameter.
+In the context of WES analysis, the aligned reads are intersected with their targets, defined with the `--targetBed` parameter.
 The percentage of reads on targets are presented in the `General Metrics` table.
 
 **Output directory: `preprocessing/bams/onTarget`** 
