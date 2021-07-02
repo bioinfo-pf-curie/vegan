@@ -882,7 +882,7 @@ process genesCoverage {
 
 process getWGSmetrics {
   tag "${sampleId}"
-  label 'picard'
+  label 'gatk'
   label 'minCpu'
   label 'lowMem'
 
@@ -899,19 +899,25 @@ process getWGSmetrics {
 
   output:
   file("*metrics.txt") into wgsMetricsOutputCh
-  file("v_picard.txt") into picardWGSVersionCh
+  file("v_gatk.txt") into collectWGSVersionCh
 
   script:
-  memOption = "\"-Xms" +  (task.memory.toGiga() / 2).trunc() + "g -Xmx" + (task.memory.toGiga() - 1) + "g\""
-  bedTointerCmd = params.targetBED ? "picard BedToIntervalList I=${bed} O=intervals.bed SD=${dict}":""
-  bedCmd = params.targetBED ? "INTERVALS=intervals.bed" : ""
+  bedTointerCmd = params.targetBED ? "gatk BedToIntervalList -I ${bed} -O intervals.bed -SD ${dict}":""
+  bedCmd = params.targetBED ? "--INTERVALS intervals.bed" : ""
   """
-  echo \$(picard CollectWgsMetrics --version 2>&1) &> v_picard.txt
   ${bedTointerCmd}
-  picard ${memOption} CollectWgsMetrics \
-       I=${bam} \
-       O=${bam.baseName}_collect_wgs_metrics.txt \
-       R=${reference} \
+  gatk CollectWgsMetrics --help &> v_gatk.txt 2>&1 || true
+  gatk --java-options -Xmx${task.memory.toGiga()}g \
+       ReorderSam \
+       -I ${bam} \
+       -O ${bam.baseName}_reorder.bam \
+       -SD ${dict}
+
+  gatk --java-options -Xmx${task.memory.toGiga()}g \
+       CollectWgsMetrics \
+       -I ${bam.baseName}_reorder.bam \
+       -O ${bam.baseName}_collect_wgs_metrics.txt \
+       -R ${reference} \
        ${bedCmd}
   """
 }
@@ -962,7 +968,7 @@ process combineIndentito {
 
   output:
   file("*.tsv") into clustPolymResultsCh
-  file("*.png") into clustPolymPlotCh 
+  file("*.png") optional true into clustPolymPlotCh 
 
   script:
   """
@@ -1442,12 +1448,12 @@ process mergeMutect2Stats {
 
   input:
   tuple val(pairName), val(sampleIdTumor), val(sampleIdNormal), file(statsFiles) from mutect2StatsCh
-  file(dict) from dictCh
-  file(fasta) from fastaCh
-  file(fastaFai) from fastaFaiCh
-  file(germlineResource) from germlineResourceCh
-  file(germlineResourceIndex) from germlineResourceIndexCh
-  file(intervals) from intervalsCh
+  //file(dict) from dictCh
+  //file(fasta) from fastaCh
+  //file(fastaFai) from fastaFaiCh
+  //file(germlineResource) from germlineResourceCh
+  //file(germlineResourceIndex) from germlineResourceIndexCh
+  //file(intervals) from intervalsCh
 
   output:
   tuple val(pairName), val("${sampleIdTumor}_vs_${sampleIdNormal}"), file("${sampleIdTumor}_vs_${sampleIdNormal}.vcf.gz.stats") into mergedStatsFileCh
@@ -2231,7 +2237,7 @@ process getSoftwareVersions {
   publishDir path:"${params.outDir}/softwareVersions", mode: params.publishDirMode
 
   input:
-  file('v_picard.txt') from picardISVersionCh.mix(picardWGSVersionCh).first().ifEmpty([])
+  file('v_picard.txt') from picardISVersionCh.first().ifEmpty([])
   file('v_bedtools.txt') from bedtoolsVersionCh.first().ifEmpty([])
   file('v_mosdepth.txt') from mosdepthVersionCh.first().ifEmpty([])
   file('v_sambamba.txt') from sambambaVersionCh.first().ifEmpty([])
@@ -2241,7 +2247,7 @@ process getSoftwareVersions {
   file('v_bcftools.txt') from bcftoolsVersionCh.mix(bcftoolsIdentitoVersionCh).first().ifEmpty([])
   file('v_bwa.txt') from bwaVersionCh.first().ifEmpty([])
   file('v_fastqc.txt') from fastqcVersionCh.first().ifEmpty([])
-  file('v_gatk.txt') from gatkVersionCh.first().ifEmpty([])
+  file('v_gatk.txt') from gatkVersionCh.mix(collectWGSVersionCh).first().ifEmpty([])
   file 'v_preseq.txt' from preseqVersionCh.first().ifEmpty([])
   file('v_manta.txt') from mantaVersionCh.mix(mantaSingleVersionCh).first().ifEmpty([])
   file('v_samtools.txt') from samtoolsIndexBamFileVersionCh.mix(samtoolsIndexBamRecalVersionCh).mix(samtoolsMapReadsVersionCh)
