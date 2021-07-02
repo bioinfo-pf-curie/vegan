@@ -1,5 +1,9 @@
 version-1.0.1
 
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Update of the libraries to be less stringent with input parameters
+
 BUG FIXES
 
   - Fix missing conda dependancies in identito
