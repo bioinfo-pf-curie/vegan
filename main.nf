@@ -42,7 +42,6 @@ welcome()
 */
 
 // Use lintedParams as default params object
-colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
 paramsWithUsage = readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
 params.putAll(lint(params, paramsWithUsage))
 
@@ -197,7 +196,7 @@ targetBedCh = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : "null")
 
 // Print summary and genareta summary channel
-workflowSummaryCh = summarize(params, summary, workflow)
+workflowSummaryCh = summarize(summary)
 metadataCh = params.metadata ? Channel.fromPath(params.metadata) : "null"
 outputDocsCh = file("$projectDir/docs/output.md", checkIfExists: true)
 outputDocsImagesCh = file("$projectDir/docs/images/", checkIfExists: true)
@@ -214,7 +213,7 @@ if (params.bwaIndex){
     .dump(tag :'bwaindexch')
     .set { bwaIndexCh }
 } else {
-  exit 1, "BWA index file not found: ${params.bwaIndex}"
+  exit(1, "BWA index file not found: ${params.bwaIndex}")
 }
 
 /*
@@ -2322,7 +2321,7 @@ process multiQC {
  * Sub-routines *
  ****************/
 
-process checkDesign{
+process checkDesign {
   errorStrategy 'terminate'
 
   label 'python'
