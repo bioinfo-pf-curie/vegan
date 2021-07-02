@@ -1,4 +1,12 @@
-version-0.1.1
+version-1.0.1
+
+BUG FIXES
+
+  - Fix missing conda dependancies in identito
+  - collectWGSmetrics: use GATK instead of Picard (#98)
+
+**********************************
+version-1.0.0
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
