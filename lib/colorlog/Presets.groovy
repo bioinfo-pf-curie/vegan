@@ -61,7 +61,7 @@ abstract class Presets {
     abstract String getRedBoldBright()
     abstract String getRedBackgroundBright()
 
-    Map palette(String args) {
+    Map palette() {
         return this.getProperties()
                 .findAll{ key,value ->
                     key != 'class' && key != 'map' && key != 'empty' && key != 'map'}

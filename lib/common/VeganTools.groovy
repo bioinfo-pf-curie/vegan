@@ -15,7 +15,7 @@ abstract class VeganTools extends NFTools {
    *
    * @return customRunName
    */
-  static String checkRunName(workflowRunName, runName) {
+  def checkRunName(workflowRunName, runName) {
     return workflowRunName ==~ /[a-z]+_[a-z]+/ && runName ?
       runName : workflowRunName
   }
@@ -25,7 +25,7 @@ abstract class VeganTools extends NFTools {
    *
    * @return step
    */
-  static String getStep(input, step) {
+  def getStep(input, step) {
     return input && ["vcf", "vcf.gz"].collect { hasExtension(input, it) }.any() ? "annotate" : step ? step.toLowerCase() : ''
   }
 
@@ -35,7 +35,7 @@ abstract class VeganTools extends NFTools {
    *
    * @return inputPath
    */
-  static Object getPath(step, inputParam, outDir) {
+  def getPath(step, inputParam, outDir) {
     def inputPath = inputParam && ["tsv", "csv", "vcf", "vcf.gz"].collect { hasExtension(inputParam, it) }.any() ?
       inputParam : null
     if (!inputParam && !['mapping', 'annotate'].contains(step)) {
@@ -143,7 +143,7 @@ abstract class VeganTools extends NFTools {
    * @param inputFile
    * @return
    */
-  static def extractFastqOrBam(inputFile, sep, singleEnd, reads, readPaths) {
+  def extractFastqOrBam(inputFile, sep, singleEnd, reads, readPaths) {
     if (inputFile) {
       return Channel.of(inputFile)
         .splitCsv(sep: sep, header: false)
@@ -202,7 +202,7 @@ abstract class VeganTools extends NFTools {
       }
   }
 
-  static def getDesign(Object designPath) {
+  def getDesign(Object designPath) {
     def designFile = designPath ? Nextflow.file(designPath) : null
     def designExt = designPath ? getExtension(designPath, ["tsv", "csv"]) : ""
     def separator = (designExt == 'tsv') ? '\t' : (designExt == 'csv') ? ',' : ''
@@ -221,32 +221,37 @@ abstract class VeganTools extends NFTools {
    * @return inputSample
    */
   def getSamplePlan(String inputPath, String step, Boolean singleEnd, String reads, List readPaths) {
-    inputSample = Channel.empty()
+    def inputSample = Channel.empty()
     def input = inputPath ? Nextflow.file(inputPath) : null
     if (inputPath || reads) {
-      inputExt = getExtension(inputPath, ['csv', 'tsv'])
-      sep = (inputExt == 'tsv') ? '\t' : (inputExt == 'csv') ? ',' : ''
+      def inputExt = getExtension(inputPath, ['csv', 'tsv'])
+      // Define csv as the default separator
+      def sep = (inputExt == 'tsv') ? '\t' : (inputExt == 'csv') ? ',' : ','
       switch (step) {
       // idSample,sampleName,pathToFastq1,[pathToFastq2]
       // idSample,sampleName,pathToBam
-        case 'mapping': return extractFastqOrBam(input, sep, singleEnd, reads, readPaths); break
+        case 'mapping':
+          return extractFastqOrBam(input, sep, singleEnd, reads, readPaths);
       // idSample,sampleName,pathToBam,pathToBai,pathToRecalTable
       // [sampleID, sampleName, bamFile, baiFile, recalTable]
-        case 'recalibrate': return extractRecal(input, sep); break
+        case 'recalibrate':
+          return extractRecal(input, sep)
       // idSample,sampleName,pathToBam,pathToBai
       // [sampleID, sampleName, bamFile, baiFile]
-        case 'variantcalling': return extractBam(input, sep); break
-        case 'annotate': break
+        case 'variantcalling':
+          return extractBam(input, sep)
+        case 'annotate':
+          break
         default:
-          Nextflow.exit(1, "Unknown step ${step}");
+          Nextflow.exit(1, "Unknown step ${step}")
       }
     } else if (inputPath && input.isDirectory()) {
       if (step != 'mapping') {
         Nextflow.exit(1, 'No other step than "mapping" support a dir as an input')
       }
       log.info "Reading $inputPath directory"
-      inputSample = extractFastqFromDir(inputPath, singleEnd)
-      (inputSample, fastqTMP) = inputSample.into(2)
+      def fastqTMP
+      (inputSample, fastqTMP) = extractFastqFromDir(inputPath, singleEnd).into(2)
       fastqTMP.toList().subscribe onNext: {
         if (it.size() == 0) {
           Nextflow.exit(1, "No FASTQ files found in --input directory '${params.input}'")
@@ -269,7 +274,7 @@ If this is single-end data, please specify --singleEnd on the command line.""");
     } else {
       Nextflow.exit(1, 'No sample were defined, see --help');
     }
-    return inputSample
+    return inputSample ?: Channel.empty()
   }
 
   /**
@@ -305,15 +310,13 @@ If this is single-end data, please specify --singleEnd on the command line.""");
    */
   def forkMappingSamplePlan(Object mappingSamplePlanCh) {
     def runIds = [:]
-    mappingSamplePlanCh.map {
+    def samplePlanForks = mappingSamplePlanCh.map {
       runIds[it[0]] = runIds.containsKey(it[0]) ? runIds[it[0]] + 1 : 0
       return it[0, 1] + [[it[0], runIds[it[0]].toString()].join("_")] + it[2..-1]
     }.branch {
-      bam:
-      it[3] =~ /.*bam$/
-      pair:
-      it[3] =~ /.*(fastq.gz|fq.gz|fastq|fq)$/
-    }.set { samplePlanForks }
+      bam: it[3] =~ /.*bam$/
+      pair: it[3] =~ /.*(fastq.gz|fq.gz|fastq|fq)$/
+    }
     return [samplePlanForks.bamCh, samplePlanForks.pairCh]
   }
 
@@ -322,7 +325,7 @@ If this is single-end data, please specify --singleEnd on the command line.""");
    *
    * @return Integer
    */
-  Integer returnStatus(it) {
+  def returnStatus(it) {
     if (!(it in [0, 1])) exit 1, "Status is not recognized in TSV file: ${it}, see --help for more information"
     return it
   }
@@ -333,7 +336,7 @@ If this is single-end data, please specify --singleEnd on the command line.""");
    * @param file
    * @return
    */
-  String reduceVCF(file) {
+  def reduceVCF(file) {
     return file.fileName.toString().minus(".ann").minus(".vcf").minus(".gz")
   }
 
