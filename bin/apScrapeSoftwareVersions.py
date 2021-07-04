@@ -38,9 +38,10 @@ for k, v in regexes.items():
         results[k] = False
 
 # Remove software set to false in results
+results_clean=results.copy()
 for k in results:
     if not results[k]:
-        del(results[k])
+        del results_clean[k]
 
 # Dump to YAML
 yaml_output = '''
@@ -53,11 +54,11 @@ data: |
     <dl class="dl-horizontal">
 '''
 
-for k, v in results.items():
+for k, v in results_clean.items():
     yaml_output += "        <dt>{}</dt><dd><samp>{}</samp></dd>".format(k, v)
 print(yaml_output + "    </dl>")
 
 # Write out regexes as csv file:
 with open('software_versions.csv', 'w') as f:
-    for k, v in results.items():
+    for k, v in results_clean.items():
         f.write("{}\t{}\n".format(k, v))
