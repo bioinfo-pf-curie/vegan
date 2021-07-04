@@ -14,6 +14,7 @@ do
 	  genomeFasta=$2
 	  shift # past argument
 	  shift # past value
+	  ;;
       -i)
 	  genomeIndex=$2
 	  shift # past argument
@@ -105,9 +106,9 @@ set +u
 
 if [ ! -z ${norm+x} ]; then
     echo "Run bcftools norm..."
-    bcftools norm -Oz -m -both --threads ${cpus} rawcalls.vcf.gz -o rawcalls_norm1.vcf.gz
-    bcftools norm -f ${fasta} -o rawcalls_norm2.vcf.gz rawcalls_norm1.vcf.gz
-    mv rawcalls_norm2.vcf.gz rawcalls.vcf.gz
+    bcftools norm -Oz -m -both -f ${genomeFasta} --threads ${cpus} rawcalls.vcf.gz -o rawcalls_norm1.vcf.gz
+    mv rawcalls_norm1.vcf.gz rawcalls.vcf.gz
+    tabix rawcalls.vcf.gz
 fi
 
 

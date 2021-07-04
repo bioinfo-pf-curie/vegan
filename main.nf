@@ -900,14 +900,8 @@ process getWGSmetrics {
   file("v_gatk.txt") into collectWGSVersionCh
 
   script:
-<<<<<<< HEAD
-  bedTointerCmd = params.targetBED ? "gatk BedToIntervalList -I ${bed} -O intervals.bed -SD ${dict}":""
-  bedCmd = params.targetBED ? "--INTERVALS intervals.bed" : ""
-=======
-  memOption = "\"-Xms" +  (task.memory.toGiga() / 2).trunc() + "g -Xmx" + (task.memory.toGiga() - 1) + "g\""
-  bedTointerCmd = params.targetBed ? "picard BedToIntervalList I=${bed} O=intervals.bed SD=${dict}":""
-  bedCmd = params.targetBed ? "INTERVALS=intervals.bed" : ""
->>>>>>> ewok
+  bedTointerCmd = params.targetBed ? "gatk BedToIntervalList -I ${bed} -O intervals.bed -SD ${dict}":""
+  bedCmd = params.targetBed ? "--INTERVALS intervals.bed" : ""
   """
   ${bedTointerCmd}
   gatk CollectWgsMetrics --help &> v_gatk.txt 2>&1 || true
@@ -1520,7 +1514,7 @@ process concatVCF {
   targetOpts = params.targetBed ? "-t ${targetBed}" : ""
   intervalsOpts = params.noIntervals ? "-u" : ""
   """
-  apConcatenateVCFs.sh -n -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${targetOpts} ${intervalsOpts}
+  apConcatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${targetOpts} ${intervalsOpts}
   bcftools --version &> v_bcftools.txt 2>&1 || true
   """
 }
@@ -2080,14 +2074,14 @@ process facets{
 
 // Remapping channels for QC and annotation
 
-vcfAnnotationCh = Channel.empty().mix(
+finalVcfCh = Channel.empty().mix(
   filteredMutect2OutputCh.map{
     variantcaller, sampleId, sampleName, vcf, tbi, tsv ->
-      [variantcaller, sampleId, vcf]
+      [variantcaller, sampleId, vcf, tbi]
   },
   vcfForAnnotationCh.map{
     variantcaller, sampleId, sampleName, vcf, tbi ->
-      [variantcaller, sampleId, vcf]
+      [variantcaller, sampleId, vcf, tbi]
   }
 //  vcfMantaSingleCh.map {
 //    variantcaller, sampleId, sampleName, vcf, tbi ->
@@ -2136,25 +2130,56 @@ vcfAnnotationCh = Channel.empty().mix(
 //}
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
+(transitionCh, vcfToNormCh) = finalVcfCh.into(2)
+
+/*
+ * NORMALIZE VCF
+ */
+
+process bcftoolsNorm {
+  label 'bcftools'
+  label 'medCpu'
+  label 'medMem'
+  tag "${sampleId}"
+
+  publishDir "${params.outDir}/${variantCaller}/", mode:params.publishDirMode
+
+  input:
+  tuple val(variantCaller), val(sampleId), file(vcf), file(tbi) from vcfToNormCh
+  file(reference) from fastaCh
+
+  output:
+  tuple val(variantCaller), val(sampleId), file("*_norm.vcf.gz"), file("*_norm.vcf.gz.tbi") into vcfAnnotationCh
+  file ("v_bcftools.txt") into bcftoolsNormVersionCh
+ 
+  when:
+  !params.skipNormVcf
+
+  script:
+  prefix = vcf.toString() - ~/(.vcf)?(.gz)?$/
+  """
+  bcftools norm -Oz -m -both -f ${reference} --threads ${task.cpus} ${vcf} -o ${prefix}_norm.vcf.gz
+  tabix ${prefix}_norm.vcf.gz
+  bcftools --version &> v_bcftools.txt 2>&1 || true
+  """
+}
 
 /*
  * TRANSITION/TRANSVERSION RATIO
  */
 
- (transitionCh, vcfAnnotationCh) = vcfAnnotationCh.into(2)
-
 process computeTransition {
   label 'minCpu'
   label 'lowMem'
   label 'transition'
-  tag "$sampleID"
+  tag "$sampleId"
 
   publishDir "${params.outDir}/${variantCaller}/transition", mode: params.publishDirMode
 
   input:
   tuple val(variantCaller),
         val(sampleId),
-        file(vcf) from transitionCh.filter{it[0] == "HaplotypeCaller" || "mutect2"}
+        file(vcf), file(tbi) from transitionCh.filter{it[0] == "HaplotypeCaller" || "mutect2"}
 
   output:
   file("*table.tsv") into transitionPerSampleCh
@@ -2185,7 +2210,7 @@ process snpEff {
                        else "reports/${it}" }
 
   input:
-  tuple val(variantCaller), val(sampleId), file(vcf) from vcfAnnotationCh
+  tuple val(variantCaller), val(sampleId), file(vcf), file(tbi) from vcfAnnotationCh
   file(dataDir) from snpeffCacheCh
   val(snpeffDb) from snpeffDbCh
 
@@ -2266,7 +2291,7 @@ process getSoftwareVersions {
   file('v_ascat.txt') from ascatVersionCh.mix(convertAlleleCountsVersionCh).first().ifEmpty([])
   file('v_facets.txt') from facetsVersionCh.first().ifEmpty([])
   file('v_allelecount.txt') from alleleCountsVersionCh.first().ifEmpty([])
-  file('v_bcftools.txt') from bcftoolsVersionCh.mix(bcftoolsIdentitoVersionCh).first().ifEmpty([])
+  file('v_bcftools.txt') from bcftoolsVersionCh.mix(bcftoolsIdentitoVersionCh).mix(bcftoolsNormVersionCh).first().ifEmpty([])
   file('v_bwa.txt') from bwaVersionCh.first().ifEmpty([])
   file('v_fastqc.txt') from fastqcVersionCh.first().ifEmpty([])
   file('v_gatk.txt') from gatkVersionCh.mix(collectWGSVersionCh).first().ifEmpty([])
