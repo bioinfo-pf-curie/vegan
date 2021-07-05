@@ -4,6 +4,7 @@ version-1.1.0
 NEW FEATURES
 
   - Add `hg19_base` and `hg38_base` genomes
+  - Add bcftools norm process
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
