@@ -1405,6 +1405,7 @@ process mutect2 {
   file(germlineResourceIndex) from germlineResourceIndexCh
   file(intervals) from intervalsCh
   file(ponIndex) from ponIndexCh
+  file(targetBed) from targetBedCh
 
   output:
   tuple val("Mutect2"), val(pairName), val("${sampleIdTumor}_vs_${sampleIdNormal}"), file("${intervalBed.baseName}_${sampleIdTumor}_vs_${sampleIdNormal}.vcf") into mutect2OutputCh
