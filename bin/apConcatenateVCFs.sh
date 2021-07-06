@@ -4,7 +4,7 @@ set -euo pipefail
 # This script concatenates all VCF files that are in the local directory,
 # that were created from different intervals to make a single final VCF
 
-usage() { echo "Usage: $0 [-g genome_fasta] [-i genome_index_file] [-o output.file.no.gz.extension] <-t target.bed> <-c cpus> <-u> <-n>" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-g genome_fasta] [-i genome_index_file] [-o output.file.no.gz.extension] <-t target.bed> <-c cpus> <-n>" 1>&2; exit 1; }
 
 while [[ $# -gt 0 ]]
 do
@@ -36,10 +36,6 @@ do
 	  shift # past value
 	  ;;
       -n)
-	  norm=1
-	  shift
-	  ;;
-      -u)
 	  noInt=1
 	  shift # past argument
 	  ;;
@@ -103,14 +99,6 @@ else
 fi
 
 set +u
-
-if [ ! -z ${norm+x} ]; then
-    echo "Run bcftools norm..."
-    bcftools norm -Oz -m -both -f ${genomeFasta} --threads ${cpus} rawcalls.vcf.gz -o rawcalls_norm1.vcf.gz
-    mv rawcalls_norm1.vcf.gz rawcalls.vcf.gz
-    tabix rawcalls.vcf.gz
-fi
-
 
 # Now we have the concatenated VCF file, check for WES/panel targets, and generate a subset if there is a BED provided
 if [ ! -z ${targetBED+x} ]; then

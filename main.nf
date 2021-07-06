@@ -1513,7 +1513,7 @@ process concatVCF {
     outputFile = "${sampleId}_${variantCaller}.vcf"
 
   targetOpts = params.targetBed ? "-t ${targetBed}" : ""
-  intervalsOpts = params.noIntervals ? "-u" : ""
+  intervalsOpts = params.noIntervals ? "-n" : ""
   """
   apConcatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${targetOpts} ${intervalsOpts}
   bcftools --version &> v_bcftools.txt 2>&1 || true
