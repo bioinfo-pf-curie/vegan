@@ -376,7 +376,7 @@ process fastQC {
   file("v_fastqc.txt") into fastqcVersionCh
 
   when:
-  !params.skipQC
+  !params.skipFastqc && !params.skipQC
 
   script:
   """
