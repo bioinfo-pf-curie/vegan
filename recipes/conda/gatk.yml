@@ -1,4 +1,4 @@
-name: gatk-4.1.6.0
+name: gatk-4.1.9.0
 channels:
   - conda-forge
   - bioconda

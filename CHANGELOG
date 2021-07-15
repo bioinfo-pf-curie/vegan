@@ -8,6 +8,7 @@ NEW FEATURES
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Move to GATK 4.1.9.0
   - Mutect2 fitering now reports only PASS variant (#95)
   - Update of the libraries to be less stringent with input parameters
   - Update -L option for all GATK process when --targetBed is specified (#95)

@@ -246,6 +246,19 @@
       "group": "Skip options"
     },
     {
+      "name": "skipFastqc",
+      "label": "Skip Fastqc",
+      "usage": "Disable Fastqc",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Skip options"
+    },
+    {
       "name": "skipBQSR",
       "label": "Skip BQSR",
       "usage": "Disable BQSR",
@@ -286,7 +299,7 @@
     },
     {
       "name": "skipQC",
-      "label": "Skip QC Tools",
+      "label": "Skip all QCs",
       "usage": "Disable all QCs",
       "type": "boolean",
       "nargs": 0,
