@@ -15,6 +15,7 @@ SIGNIFICANT USER-VISIBLE CHANGES
 
 BUG FIXES
 
+  - Fix bug in apComputePolym.R (#101)
   - Mutect2 GetPileupSummaries - fix `-L` option for WES (#95)
   - Fix missing conda dependancies in identito
   - collectWGSmetrics: use GATK instead of Picard (#98)
