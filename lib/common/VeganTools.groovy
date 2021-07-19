@@ -272,7 +272,7 @@ NB: Path requires at least one * wildcard!
 If this is single-end data, please specify --singleEnd on the command line.""");
         }.map { row -> singleEnd ? [row[0], row[0], [row[1][0]]] : [row[0], row[0], [row[1][0], row[1][1]]] }
     } else {
-      Nextflow.exit(1, 'No sample were defined, see --help');
+      Nextflow.exit(1, 'No sample were defined, see --help')
     }
     return inputSample ?: Channel.empty()
   }
