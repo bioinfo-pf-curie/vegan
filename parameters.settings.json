@@ -135,9 +135,9 @@
       "group": "Alignment"
     },
     {
-      "name": "targetBED",
-      "label": "Target BED file",
-      "usage": "Target BED file for targeted or whole exome sequencing",
+      "name": "targetBed",
+      "label": "Target Bed file",
+      "usage": "Target Bed file for targeted or whole exome sequencing",
       "type": "path",
       "nargs": 1,
       "choices": [],
