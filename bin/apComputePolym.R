@@ -45,9 +45,9 @@ for (i in 1:nrow(polym_table)){
         }
     }
 }
-polym_table$VAF <- VAF
+polym_table$VAF <- VAF*100
 
 # Create matrix for clustering:
 clust_mat <- as.data.frame(t(polym_table[,c(5,12)]))
-rownames(clust_mat) <- c("rs",sampleName)
+rownames(clust_mat) <- c(" ", sampleName)
 write.table(clust_mat, outputFile, quote=FALSE, col.names=FALSE, row.names=TRUE, sep="\t")
