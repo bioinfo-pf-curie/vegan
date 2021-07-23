@@ -179,6 +179,7 @@ custom_data:
             title: 'Reads Alignment'
             id: 'bwalogs'
             scale: 'Set1'
+
     genes_cov:
         file_format: 'tsv'
         section_name: 'Genes Coverage'
@@ -192,6 +193,7 @@ custom_data:
             ylab: 'Cumulative Genes Fraction (%)'
             xlab: 'Mean coverage (X)'
             xmax: 1000
+
     identito:
         file_format: 'csv'
         section_name: 'Identito Vigilance'
@@ -201,6 +203,23 @@ custom_data:
             title: 'Identito Vigilance heatmap'
             namescape: 'identito'
             id: 'identito'
+
+    identitoPolym:
+        file_format: 'tsv'
+        section_name: 'Identito Monitoring'
+        description: ' from a list of know polymorphisms.'
+        plot_type: 'table'
+        pconfig:
+            title: 'Polymorphisms'
+            id: 'polym'
+            scale: 'RdYlBu'
+            format: '{:,.2f}'
+            save_file: true
+
+    identitoClustering:
+        section_name: 'Identito Clustering'
+        description: ' from a list of know polymorphisms.'
+
     mutect2:
         file_format: 'csv'
         section_name: 'Mutect2'
@@ -239,6 +258,7 @@ custom_data:
               scale: false
               format: '{:,.2f}'
               placement: 5000
+
     hccaller:
         file_format: 'csv'
         section_name: 'HaplotypeCaller'
@@ -262,6 +282,7 @@ custom_data:
               scale: false
               format: '{:,.0f}'
               placement: 3000
+
     transition:
         file_format: 'tsv'
         section_name: 'Transition/Transversion'
@@ -282,13 +303,17 @@ sp:
       fn: '*covdensity.mqc'
   identito:
       fn: '*_identito.csv'
+  identitoPolym:
+      fn: '*_polym.tsv'
+  identitoClustering:
+      fn: '*_mqc.png'
   mutect2:
       fn: '*_Mutect2_callingMetrics.mqc'
   hccaller:
       fn: '*_HaplotypeCaller_callingMetrics.mqc'
   transition:
       fn: '*.table.tsv'
-
+ignore_images: false
 
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
@@ -370,6 +395,8 @@ report_section_order:
     order: 200
   identito:
     order: 100
+  identitoPolym:
+    order: 90
   mutect2:
     order: 50
   transition:

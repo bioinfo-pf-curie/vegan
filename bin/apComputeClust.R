@@ -2,31 +2,23 @@
 
 args<-commandArgs(trailingOnly = TRUE)
 if (length(args) < 2) {
-    stop("Usage: compute_clust.r <inputTable> <outputDir> [<minSNPsNumber>]", call.=FALSE)
+    stop("Usage: compute_clust.r <inputTable> <outputDir> <distance> [<minSNPsNumber>]", call.=FALSE)
 }
 
 # Load arguments
 inputTable <- args[1]
 outputDir <- args[2]
-minSNPsNumber <- ifelse(is.na(args[3]),22,as.numeric(as.character(args[3])))
+distance <- args[3]
+minSNPsNumber <- ifelse(is.na(args[4]),22,as.numeric(as.character(args[4])))
 
 # Handle path & Output Names
-outputPlot <- paste0(outputDir,"/clustering_identito.png")
+outputPlot <- paste0(outputDir,"/clustering_identito_mqc.png")
 outputMatrix <- paste0(outputDir,"/clustering_identito.csv")
 
 # Load libraries
-library(pheatmap)
+#library(pheatmap)
 library(proxy)
-
-# Saving function
-save_pheatmap_png <- function(x, filename, width=1000, height=1000) {
-    stopifnot(!missing(x))
-    stopifnot(!missing(filename))
-    png(filename, width=width, height=height)
-    grid::grid.newpage()
-    grid::grid.draw(x$gtable)
-    dev.off()
-}
+library(dendextend)
 
 #Load data
 d <- read.table(inputTable, header=TRUE, stringsAsFactors=FALSE, row.names=1)
@@ -57,36 +49,42 @@ if (is.null(dim(clust_mat)) || nrow(clust_mat) == 0){
     quit(save="no", status = 0)
 }
 
-jacdist <- as.matrix(dist(clust_mat, method="eJaccard"))
-
-## remove NA values in Jaccard distances
-naToRemove <- which(apply(jacdist, 1, function(x){length(which(is.na(x)))}) >= 1)
-
-if (length(naToRemove) > 0){
-    jacmat <- jacdist[-naToRemove, -naToRemove]
-}else {
-    jacmat=jacdist
+if (distance == "ejaccard"){
+    dt <- as.matrix(dist(clust_mat, method="eJaccard"))
+}else if (distance == "euclidean"){
+    dt <- as.matrix(dist(clust_mat, method="Euclidean"))
+}else{
+    stop("Undefined distance metric")
 }
 
-if (!is.null(dim(jacmat)) && dim(jacmat)[1]>1){
-    clust <- pheatmap(jacmat,
-                      method = "ward.D2",
-                      clustering_distance_rows=as.dist(jacdist),
-                      clustering_distance_cols=as.dist(jacdist),
-                      show_rownames = TRUE,
-                      show_colnames = TRUE,
-                      display_numbers = TRUE,
-                      legend = TRUE ,
-                      fontsize = 20,
-                      silent = TRUE)
+
+## remove NA values in Jaccard distances
+naToRemove <- which(apply(dt, 1, function(x){length(which(is.na(x)))}) >= 1)
+
+if (length(naToRemove) > 0){
+    dmat <- dt[-naToRemove, -naToRemove]
+}else {
+    dmat <- dt
+}
+
+if (!is.null(dim(dmat)) && dim(dmat)[1]>1){
+    clust <- hclust(as.dist(dmat), "ward.D2")
+    clust_order <- clust$order
     
-    clust_order <- clust$tree_col$order
-    save_pheatmap_png(clust, outputPlot)
-    write.csv(round(jacmat[clust_order,clust_order],3), outputMatrix, quote=TRUE, row.names=TRUE)
+    png(outputPlot, width=1400, height=600)
+    par(mar=c(8,5,2,2))
+    clust %>%
+        as.dendrogram() %>%
+        set("branches_col", "darkgrey") %>% set("branches_lwd", 2) %>%
+        set("labels_cex", .9) %>%
+        set("leaves_pch", 16)  %>% set("leaves_col", "orange") %>%
+        plot()
+    dev.off()
+    
+    write.csv(round(dmat[clust_order,clust_order],3), outputMatrix, quote=TRUE, row.names=TRUE)
 }else{
     warning("Not enough samples to run the clustering")
     write.csv(round(jacdist,3), outputMatrix, quote=TRUE, row.names=TRUE)
 }
 
-# End message + Path:
 print("script ended successfully")
