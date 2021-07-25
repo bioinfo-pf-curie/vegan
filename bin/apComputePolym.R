@@ -40,12 +40,12 @@ for (i in 1:nrow(polym_table)){
             VAF[i] <- "0"
         }else{
             polym_AD <- as.numeric(unlist(strsplit(as.character(polym_table[i,"AD"]),","))[polym_indice])
-            compute_vaf=round(polym_AD/polym_table[i,"DP"],3)
+            compute_vaf <- round(polym_AD/polym_table[i,"DP"]*100,3)
             VAF[i] <- compute_vaf
         }
     }
 }
-polym_table$VAF <- VAF*100
+polym_table$VAF <- VAF
 
 # Create matrix for clustering:
 clust_mat <- as.data.frame(t(polym_table[,c(5,12)]))
