@@ -909,7 +909,8 @@ process getWGSmetrics {
        ReorderSam \
        -I ${bam} \
        -O ${bam.baseName}_reorder.bam \
-       -SD ${dict}
+       -SD ${dict} \
+       --TMP_DIR ${params.gatkTmpDir} \
 
   gatk --java-options -Xmx${task.memory.toGiga()}g \
        CollectWgsMetrics \
@@ -1028,7 +1029,7 @@ process baseRecalibrator {
       BaseRecalibrator \
       -I ${bam} \
       -O ${prefix}.recal.table \
-      --tmp-dir ${params.baseRecalibratorTmpDir} \
+      --tmp-dir ${params.gatkTmpDir} \
       -R ${fasta} \
       ${intervalsOptions} \
       ${dbsnpOptions} \
