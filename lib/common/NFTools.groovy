@@ -126,11 +126,9 @@ abstract class NFTools extends BaseScript {
         }
 
         def colors = binding.getVariable("colors")
-
-        log.info """\
-        ${colors.red}[WARNING] Input file has no extension (.csv or .tsv) to guess field separator. 
-        Trying with the default one (.csv)${colors.reset}
-        """.stripIndent()
+        log.warn """\
+        Can't guess field separator with the actual input file extension. Trying with the default one (.csv)
+        """.stripIndent().toString()
         return ""
     }
 
