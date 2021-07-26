@@ -36,10 +36,13 @@ abstract class VeganTools extends NFTools {
    * @return inputPath
    */
   def getPath(step, inputParam, outDir) {
-    def inputPath = inputParam && ["tsv", "csv", "vcf", "vcf.gz"].collect { hasExtension(inputParam, it) }.any() ?
-      inputParam : null
+    if (!(inputParam && ["tsv", "csv", "vcf", "vcf.gz"].collect { hasExtension(inputParam, it) }.any())) {
+      log.warn "Input file $inputParam extension is actually not supported (tsv, csv, vcf, vcf.gz)"
+    }
     if (!inputParam && !['mapping', 'annotate'].contains(step)) {
       inputPath = step == 'recalibrate' ? "$outDir/Preprocessing/CSV/samplePlan.recal.csv" : "$outDir/Preprocessing/TSV/recalibrated.tsv"
+    } else {
+      inputPath = inputParam
     }
     return inputPath
   }
