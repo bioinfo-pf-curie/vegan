@@ -1,0 +1,8 @@
+name: tabix-0.2.6
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::tabix=0.2.6=ha92aebf_0
+

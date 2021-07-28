@@ -1,0 +1,9 @@
+name: gatk-4.1.9.0
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::tabix=0.2.6=ha92aebf_0
+  - bioconda::gatk4=4.1.9.0=py39_0
+

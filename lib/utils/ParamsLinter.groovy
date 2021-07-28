@@ -23,7 +23,7 @@ class ParamsLinter {
         def newParams = this.params.each {param ->
             def usage = this.paramsWithUsage.find{us -> us.name == param.key}
             if (param.value && usage && usage.choices ) {
-                this.params[param.key] = param.value.toString().contains(',') ? formatParamList(param.value) : param.value == "all" ? usage.choices: formatParam(param.value)
+                this.params[param.key] = param.value.toString().contains(',') ? formatParamList(param.value) : param.value == "all" ? usage.choices: param.value
             }
         } as LinkedHashMap
         checkUsage(newParams, this.paramsWithUsage)

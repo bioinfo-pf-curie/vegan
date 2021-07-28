@@ -1,0 +1,7 @@
+name: preseq-2.0.3
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::preseq=2.0.3=hc216eb9_5
