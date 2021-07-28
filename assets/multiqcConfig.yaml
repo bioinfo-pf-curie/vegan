@@ -85,6 +85,7 @@ custom_data:
               scale: 'RdYlGn'
               format: '{:,.1f}'
               suffix: '%'
+              hidden: true
               placement: 8000
             Number_of_duplicates:
               title: 'Duplicates'
@@ -113,7 +114,6 @@ custom_data:
               scale: 'RdYlBu'
               format: '{:,.1f}'
               suffix: '%'
-              hidden: true
               placement: 10600
             Number_reads_after_filt:
               title: 'After Filtering'
@@ -194,15 +194,15 @@ custom_data:
             xlab: 'Mean coverage (X)'
             xmax: 1000
 
-    identito:
-        file_format: 'csv'
-        section_name: 'Identito Vigilance'
-        description: 'heatmap is created from a defined list of SNPs. Using those SNPs, the similarity metric is calculated as 1- the Jaccard distance between all pairs of samples. Samples from the same patient are expected to have a high similarity score.'
-        plot_type: 'heatmap'
-        pconfig:
-            title: 'Identito Vigilance heatmap'
-            namescape: 'identito'
-            id: 'identito'
+#    identito:
+#        file_format: 'csv'
+#        section_name: 'Identito Vigilance'
+#        description: 'heatmap is created from a defined list of SNPs. Using those SNPs, the similarity metric is calculated as 1- the Jaccard distance between all pairs of samples. Samples from# the same patient are expected to have a high similarity score.'
+#        plot_type: 'heatmap'
+#        pconfig:
+#            title: 'Identito Vigilance heatmap'
+#            namescape: 'identito'
+#            id: 'identito'
 
     identitoPolym:
         file_format: 'tsv'
@@ -218,7 +218,7 @@ custom_data:
 
     identitoClustering:
         section_name: 'Identito Clustering'
-        description: ' from a list of know polymorphisms.'
+        description: ' from a list of know polymorphisms. Samples from the same patient are expected to be clustered together.'
 
     mutect2:
         file_format: 'csv'
@@ -301,8 +301,8 @@ sp:
       fn: '*bwa.mqc'
   genes_cov:
       fn: '*covdensity.mqc'
-  identito:
-      fn: '*_identito.csv'
+#  identito:
+#      fn: '*_identito.csv'
   identitoPolym:
       fn: '*_polym.tsv'
   identitoClustering:
