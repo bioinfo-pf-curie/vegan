@@ -154,17 +154,21 @@ abstract class VeganTools extends NFTools {
           def sampleID = row[0]
           def sampleName = row[1]
           def inputFile1 = returnFile(row[2])
-          def inputFile2 = "null"
-          if ((!singleEnd) && (hasExtension(inputFile1, "fastq.gz") || hasExtension(inputFile1, "fq.gz"))) {
+          def inputFile2 = 'null'
+
+          if ((!singleEnd) && (hasExtension(inputFile1, 'fastq.gz') || hasExtension(inputFile1, 'fq.gz') || hasExtension(inputFile1, 'fastq'))) {
             checkNumberOfItem(row, 4)
             inputFile2 = returnFile(row[3])
-            if (!hasExtension(inputFile2, "fastq.gz") && !hasExtension(inputFile2, "fq.gz")) {
+            if (!hasExtension(inputFile2, 'fastq.gz') && !hasExtension(inputFile2, 'fq.gz') && !hasExtension(inputFile2, 'fastq')) {
               Nextflow.exit(1, "File: ${inputFile2} has the wrong extension. See --help for more information")
             }
-          } else if (hasExtension(inputFile1, "bam")) checkNumberOfItem(row, 3)
-          else "No recognisable extention for input file: ${inputFile1}"
+          } else if (hasExtension(inputFile1, 'bam')) {
+            checkNumberOfItem(row, 3)
+          } else {
+            log.warn "No recognisable extention for input file: ${inputFile1}"
+          }
           // ["sampleID": sampleID, "sampleName": sampleName, "inputFile1": inputFile1, "inputFile2": inputFile2]
-          singleEnd ? [sampleID, sampleName, [inputFile1]] : [sampleID, sampleName, [inputFile1, inputFile2]]
+          return singleEnd ? [sampleID, sampleName, [inputFile1]] : [sampleID, sampleName, [inputFile1, inputFile2]]
         }
     } else if (readPaths) {
       return Channel.of(readPaths)
