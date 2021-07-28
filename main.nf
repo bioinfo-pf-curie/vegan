@@ -966,7 +966,7 @@ process combineIndentito {
   file(matrix) from clustPolymCh.collect()
 
   output:
-  file("*.{png,tsv,csv}") into clustPolymResultsCh
+  file("*.{tsv,csv}") into clustPolymResultsCh
   file("*.png") optional true into clustPolymPlotCh 
 
   script:
