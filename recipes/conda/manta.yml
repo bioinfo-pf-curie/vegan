@@ -1,0 +1,9 @@
+name: manta-1.6.0
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::htslib=1.9=ha228f0b_7
+  - bioconda::manta=1.6.0=py27_0
+  - bioconda::tabix=0.2.6=ha92aebf_0

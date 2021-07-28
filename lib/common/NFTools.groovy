@@ -9,7 +9,6 @@ import utils.ParamsLinter
 import utils.ParamsReader
 import org.slf4j.LoggerFactory
 import org.slf4j.Logger
-import groovy.util.logging.Slf4j
 import nextflow.Nextflow
 import nextflow.Channel
 
@@ -20,16 +19,18 @@ import nextflow.Channel
 // CF https://github.com/nf-core/tools/blob/dev/nf_core/pipeline-template/%7B%7Bcookiecutter.name_noslash%7D%7D/nextflow_schema.json
 abstract class NFTools extends BaseScript {
 
-    private static LinkedHashMap generateLogColors(Boolean monochromeLogs) {
-        Map colors = monochromeLogs ? new MonoChrome().palette() : new PolyChrome().palette()
-        return colors as LinkedHashMap
-    }
+    static final Logger log = LoggerFactory.getLogger(Nextflow.class)
 
-    private static Map formatParameterHelpData(param) {
+    private static LinkedHashMap generateLogColors(Boolean monochromeLogs = false) {
+         Map colors = monochromeLogs ? new MonoChrome().palette() : new PolyChrome().palette()
+         return colors as LinkedHashMap
+     }
 
-        Map result = [name: param.get('name'), value: '', usage: param.get('usage')]
+    private static Map formatParameterHelpData(params) {
+
+        Map result = [name: params.get('name'), value: '', usage: params.get('usage')]
         // value describes the expected input for the param
-        result.value =  [param.type == boolean.toString() ? '' : param.type.toUpperCase(), param.choices ?: ''].join(' ')
+        result.value =  [params.type == boolean.toString() ? '' : params.type.toString().toUpperCase(), params.choices ?: ''].join(' ')
         return result
     }
 
@@ -79,8 +80,22 @@ abstract class NFTools extends BaseScript {
         return paramsWithUsage
     }
 
-    static final Logger log = LoggerFactory.getLogger(Nextflow.class)
+    /**
+     * Check if path has the correct file extension
+     * @param it
+     * @param extension
+     * @return
+     */
+    static boolean hasExtension(it, String extension) {
+        it.toString().toLowerCase().endsWith(extension.toLowerCase())
+    }
 
+    /**
+     * Generate Help message
+     * @param paramsWithUsage
+     * @param workflow
+     * @return
+     */
     static String helpMessage(paramsWithUsage, workflow) {
         def CLIHelpMsg = []
         paramsWithUsage.each {it.group == "Mandatory arguments" ? CLIHelpMsg << "--" + it.name << it.type.toUpperCase() : ""}
@@ -96,27 +111,24 @@ abstract class NFTools extends BaseScript {
             """.stripIndent(), prettyFormatParamsWithPaddingAndIndent(paramsWithUsage, 2, 4))
     }
 
-    void nfHeader(params, WorkflowMetadata workflow) {
+    /**
+     * Check if file extension from input path is defined in allowed extensions list
+     * @param path
+     * @param extensions
+     * @return
+     */
+    String getExtension(path, List extensions) {
 
-        LinkedHashMap colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
-        colors << workflow.properties
-
-        def engine = new GStringTemplateEngine()
-        def txtTemplate = engine.createTemplate(new File("${workflow.projectDir}/assets/nfHeader.txt")).make(colors)
-        log.info txtTemplate.toString()
-
-    }
-
-    static boolean hasExtension(it, String extension) {
-        it.toString().toLowerCase().endsWith(extension.toLowerCase())
-    }
-
-    static String getExtension(path, List extensions) {
         for (extension in extensions) {
             if (hasExtension(path, extension)) {
                 return extension
             }
         }
+
+        def colors = binding.getVariable("colors")
+        log.warn """\
+        Can't guess field separator with the actual input file extension. Trying with the default one (.csv)
+        """.stripIndent().toString()
         return ""
     }
 
@@ -127,8 +139,15 @@ abstract class NFTools extends BaseScript {
      * @param number
      * @return Boolean
      */
-    static boolean checkNumberOfItem(row, number) {
-        if (row.size() != number) Nextflow.exit 1, "Malformed row in input file: ${row}, see --help for more information"
+    boolean checkNumberOfItem(row, Integer number) {
+        def colors = binding.getVariable("colors")
+        if (row.size() != number) {
+            def message = """\
+                ${colors.red}[WARNING] Malformed row in input file: ${row}
+                Input file should have ${number} but have ${row.size()} items. see --help for more information${colors.reset}
+                """.stripIndent()
+            log.info message.toString()
+        }
         return true
     }
 
@@ -137,23 +156,55 @@ abstract class NFTools extends BaseScript {
      *
      * @return Nextflow.file Object
      */
-    static returnFile(it) {
-        if (it =~ /(http|ftp)/) {return Nextflow.file(it)}
-        else if (!Nextflow.file(it).exists()) Nextflow.exit(1, "Missing file in input file: ${it}, see --help for more information")
-        else return Nextflow.file(it)
+    def returnFile(String it) {
+        def colors = binding.getVariable("colors")
+        if (it =~ /(http|ftp)/) {
+            return Nextflow.file(it)
+        } else if (!Nextflow.file(it).exists()) {
+            Nextflow.exit(
+              "${colors.red}[WARNING] Input file does not exists: ${it}, see --help for more information${colors.reset}"
+            )
+        } else {
+            return Nextflow.file(it)
+        }
     }
 
-    static summarize(params, summary, workflow) {
-        LinkedHashMap colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
+    /**
+     * Print Header in assets in the log
+     * @param params
+     * @param workflow
+     * @return
+     */
+    def nfHeader(params, WorkflowMetadata workflow) {
+
+        LinkedHashMap context = binding.getVariable('colors')
+        context << workflow.properties
+
+        def engine = new GStringTemplateEngine()
+        def txtTemplate = engine.createTemplate(
+          new File("${workflow.projectDir}/assets/nfHeader.txt")
+        ).make(context)
+        log.info txtTemplate.toString()
+    }
+
+    /**
+     * Print summary dict with the logger and return formatted channel
+     * @param summary
+     * @param workflow
+     * @return
+     */
+    def summarize(summary) {
+        def colors = binding.getVariable("colors")
+        def workflow = binding.getVariable("workflow")
         log.info summary.collect { k, v -> "${k.padRight(18)}: $v" }.join("\n") +
                 "\n${colors.dim}" + "-"*80 + "${colors.reset}"
-        return Channel.from(summary.collect{ [it.key, it.value] })
-                .map { k,v -> "<dt>$k</dt><dd><samp>${v ?: '<span style=\"color:#999999;\">N/A</a>'}</samp></dd>" }
+        return Channel.fromList(summary.collect{ [it.key, it.value] })
+          .map { k,v -> "<dt>$k</dt><dd><samp>${v ?: '<span style=\"color:#999999;\">N/A</a>'}</samp></dd>" }
                 .reduce { a, b -> return [a, b].join("\n            ") }
                 .map { x -> """
-    id: '$workflow.manifest.name-summary'
+    id: 'summary'
     description: " - this information is collected when the pipeline is started."
-    section_name: '$workflow.manifest.name Workflow Summary'
+    section_name: 'Workflow Summary'
     section_href: '$workflow.manifest.homePage'
     plot_type: 'html'
     data: |
@@ -163,27 +214,43 @@ abstract class NFTools extends BaseScript {
     """.stripIndent() }
     }
 
-    static void checkHostname(params, WorkflowMetadata workflow) {
-        LinkedHashMap colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
+    /**
+     * Check if params.hostnames is valid
+     * @param params
+     * @param workflow
+     * @return
+     */
+    def checkHostname(params, WorkflowMetadata workflow) {
+        def colors = binding.getVariable("colors")
+        //def colors = binding.getVariable("colors")
         if (params.hostnames) {
             def hostname = "hostname".execute().text.trim()
             params.hostnames.each { prof, hosts ->
                 hosts.each { host ->
                     if (hostname.contains(host) && !workflow.profile.contains(prof)) {
-                        log.error "====================================================\n" +
-                                "  ${colors.red}WARNING!${colors.reset} You are running with `-profile $workflow.profile`\n" +
-                                "  but your machine hostname is ${colors.white}'$hostname'${colors.reset}\n" +
-                                "  ${colors.yellowBold}It's highly recommended that you use `-profile $prof${colors.reset}`\n" +
-                                "============================================================"
+                        Nextflow.exit(1, """\
+============================================================
+  ${colors.red}WARNING!${colors.reset} You are running with `-profile $workflow.profile`
+  but your machine hostname is ${colors.white}'$hostname'${colors.reset}
+  ${colors.yellowBold}It's highly recommended that you use `-profile $prof${colors.reset}
+============================================================""")
                     }
                 }
             }
         }
 }
 
-    static void makeReports(workflow, params, reportFields, multiQCOutCh) {
+    /**
+     * Generate reports at the end of the workflow
+     * @param workflow
+     * @param params
+     * @param reportFields
+     * @param multiQCOutCh
+     * @return
+     */
+    def makeReports(workflow, params, reportFields, multiQCOutCh) {
 
-        LinkedHashMap colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
+        def colors = binding.getVariable("colors")
 
         def engine = new groovy.text.GStringTemplateEngine()
 
@@ -197,11 +264,11 @@ abstract class NFTools extends BaseScript {
         def htmlReport = htmlTemplate.toString()
 
         // Write summary e-mail HTML to a file
-        def outputDir = new File("${params.outputDir}/PipelineInfo/")
-        if (!outputDir.exists()) outputDir.mkdirs()
-        def output_hf = new File(outputDir, "pipelineReport.html")
+        def outDir = new File("${params.outDir}")
+        if (!outDir.exists()) outDir.mkdirs()
+        def output_hf = new File(outDir, "pipelineReport.html")
         output_hf.withWriter { w -> w << htmlReport }
-        def output_tf = new File(outputDir, "pipelineReport.txt")
+        def output_tf = new File(outDir, "pipelineReport.txt")
         output_tf.withWriter { w -> w << txtReport }
 
         // On success try attach the multiqc report
@@ -233,6 +300,20 @@ abstract class NFTools extends BaseScript {
             log.info "[$workflow.manifest.name] Sent summary e-mail to $params.email (sendmail)"
         }
 
+        // workflowOnComplete file
+        File woc = new File(outDir, "workflowOnComplete.txt")
+        def endSummary = [
+            'Completed on': workflow.complete,
+            'Duration': workflow.duration,
+            'Success': workflow.success,
+            'Exit status': workflow.exitStatus,
+            'Error report': workflow.errorReport ?: '-'
+        ]
+        
+        String endWfSummary = endSummary.collect { k,v -> "${k.padRight(30, '.')}: $v" }.join("\n")
+        String execInfo = "Execution summary\n${endWfSummary}\n"
+        woc.withWriter { w -> w << execInfo }
+
         def endMessage = workflow.success ? workflow.stats.ignoredCount > 0 ? """\
             ${colors.purple}Warning, pipeline completed, but with errored process(es)${colors.reset}
             ${colors.red}Number of ignored errored process(es) : ${workflow.stats.ignoredCountFmt}${colors.reset}
@@ -242,19 +323,30 @@ abstract class NFTools extends BaseScript {
         log.info endMessage.toString()
     }
 
-    static LinkedHashMap lint(params, paramsWithUsage) {
+    /**
+     * Lint params scope with usage from the nf-core json
+     * @param params
+     * @param paramsWithUsage
+     * @return
+     */
+    def lint(params, paramsWithUsage) {
         def linter = new ParamsLinter(params, paramsWithUsage, log)
         return linter.lint()
     }
 
-    void welcome() {
+    /**
+     * Welcome method which should be launch at the beginning of the workflow
+     * @return
+     */
+    def welcome() {
 
         def sessionParams = binding.getParams()
         def sessionWorkflow = binding.getVariable('workflow')
+        binding.setVariable('colors', generateLogColors(sessionParams.get("monochromeLogs", false) as Boolean))
 
         nfHeader(sessionParams, sessionWorkflow as WorkflowMetadata)
-        if ("${sessionWorkflow.manifest.version}" =~ /dev/ ){
-            File devMessageFile = new File("${workflow.projectDir}/assets/devMessage.txt")
+        if ("${sessionWorkflow.manifest.version}" =~ /dev/ ) {
+            def devMessageFile = new File("${sessionWorkflow.projectDir}/assets/devMessage.txt")
             log.info devMessageFile.text
         }
         if (sessionParams.help) {

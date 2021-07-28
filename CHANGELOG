@@ -1,9 +1,47 @@
-version-0.0.0
+***********************************
+version-1.1.0
 
-    NEW FEATURES
-        - add description with related issue numbers
-    SIGNIFICANT USER-VISIBLE CHANGES
-        - add description with related issue numbers
-    BUG FIXES
-        - add description with related issue numbers
+NEW FEATURES
+
+  - Add `hg19_base` and `hg38_base` genomes
+  - Add bcftools norm process
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Move to GATK 4.1.9.0
+  - Mutect2 fitering now reports only PASS variant (#95)
+  - Update of the libraries to be less stringent with input parameters
+  - Update -L option for all GATK process when --targetBed is specified (#95)
+
+BUG FIXES
+
+  - Fix bug in apComputePolym.R (#101)
+  - Mutect2 GetPileupSummaries - fix `-L` option for WES (#95)
+  - Fix missing conda dependancies in identito
+  - collectWGSmetrics: use GATK instead of Picard (#98)
+
+**********************************
+version-1.0.0
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Move to dbSNP-149 for hg19
+  - add Facets for CNV calling
+  - add `--reads` parameter
+  - add `--singleEnd` option
+  - Update ressources
+  - Run BQSR for SNV calling only
+  - Report reads overlap from picard
+  - Report insert size distribution with picard
+  - Add coverage stats with mosdepth
+  - The design file is now optional
+  - Update the multiQC report
+  - Replace --outputDir by --outDir
+
+*********************************
+version-0.1.0
+
+NEW FEATURES
+
+  - First version of the vegan pipeline
 

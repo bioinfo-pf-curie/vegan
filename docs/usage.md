@@ -5,36 +5,43 @@
 * [Introduction](#general-nextflow-info)
 * [Running the pipeline](#running-the-pipeline)
 * [Main arguments](#main-arguments)
-    * [`-profile`](#-profile-single-dash)
-        * [`conda`](#conda)
-        * [`toolsPath`](#toolsPath)
-        * [`singularity`](#singularity)
-        * ['cluster'](#cluster)
-        * [`test`](#test)
     * [`--reads`](#--reads)
 	* [`--samplePlan`](#--samplePlan)
-	* [`--singleEnd`](#--singleend)
-	* [`--stranded`](#--stranded)
-	* [`--aligner`](#--aligner)
-	* [`--counts`](#--counts)
+    * [`--design`](#--design)
+	* [`--noIntervals`](#--noIntervals)
+	* [`--tools`](#--tools)
+* [Inputs](#inputs)
+    * [`--singleEnd`](#--singleend)
+    * [`--step`](#--step)
+* [Alignment](#alignment)
+    * [`--bwaOptions`](#--bwaOptions)
+	* [`--saveAlignedIntermediates`](#--saveAlignedIntermediates)
+* [Filtering](#filtering)
+    * [`--targetBed`](#--targetBed)
+    * [`--SNVFilters`](#--SNVFilters)
+    * [`--SVFilters`](#--SVFilters)
+* [Variant calling](#variant_calling)
+    * [`--baseQual`](#--baseQual)
+	* [`--saveGVF`](#--saveGVCF)
 * [Reference genomes](#reference-genomes)
     * [`--genome`](#--genome)
-* [Tools parameters](#tools-parameters)
+* [Use case](#use-case)
+    * [Whole genome sequencing analysis](#whole-genome-sequencing-analysis)
+    * [Whole exome sequencing analysis](#whole-exome-sequencing-analysis)
+	* [Starting from intermediates results](#starting-from-intermediates-results)
+* [Nextflow profiles](#nextflow-profiles) 
 * [Job resources](#job-resources)
 * [Automatic resubmission](#automatic-resubmission)
-* [Custom resource requests](#custom-resource-requests)
 * [Other command line parameters](#other-command-line-parameters)
     * [`--skip*`](#--skip*)
-	* [`--metadata`](#--metadta)
-	* [`--outputDir`](#--outputDir)
-    * [`--email`](#--email)
+	* [`--outDir`](#--outDir)
     * [`-name`](#-name-single-dash)
     * [`-resume`](#-resume-single-dash)
     * [`-c`](#-c-single-dash)
-    * [`--max_memory`](#--max_memory)
-    * [`--max_time`](#--max_time)
-    * [`--max_cpus`](#--max_cpus)
-    * [`--multiqc_config`](#--multiqc_config)
+    * [`--maxMemory`](#--maxMemory)
+    * [`--maxTime`](#--maxTime)
+    * [`--maxCpus`](#--maxCpus)
+    * [`--multiqcConfig`](#--multiqcConfig)
 
 ## General Nextflow info
 
@@ -47,9 +54,10 @@ NXF_OPTS='-Xms1g -Xmx4g'
 ```
 
 ## Running the pipeline
+
 The typical command for running the pipeline is as follows:
 ```bash
-nextflow run main.nf --reads '*_R{1,2}.fastq.gz' -profile 'singularity'
+nextflow run main.nf --reads '*_R{1,2}.fastq.gz' -profile 'singularity' --genome 'hg19'
 ```
 
 This will launch the pipeline with the `singularity` configuration profile. See below for more information about profiles.
@@ -63,30 +71,9 @@ results         # Finished results (configurable, see below)
 # Other nextflow hidden files, eg. history of pipeline runs and old logs.
 ```
 
-You can change the output director using the `--outputDir/-w` options.
+You can change the output director using the `--outDir/-w` options.
 
 ## Main arguments
-
-### `-profile`
-
-Use this parameter to choose a configuration profile. Profiles can give configuration presets for different compute environments. Note that multiple profiles can be loaded, for example: `-profile singularity` - the order of arguments is important!
-
-If `-profile` is not specified at all the pipeline will be run locally and expects all software to be installed and available on the `PATH`.
-
-* `conda`
-    * A generic configuration profile to be used with [conda](https://conda.io/docs/)
-    * Pulls most software from [Bioconda](https://bioconda.github.io/)
-* `toolsPath`
-    * A generic configuration profile to be used with [conda](https://conda.io/docs/)
-    * Use the conda images available on the cluster
-* `singularity`
-    * A generic configuration profile to be used with [Singularity](http://singularity.lbl.gov/)
-    * Use the singularity images available on the cluster
-* `cluster`
-    * Run the workflow on the computational cluster
-* `test`
-    * A profile with a complete configuration for automated testing
-    * Includes links to test data so needs no other parameters
 
 ### `--reads`
 
@@ -109,12 +96,40 @@ If left unspecified, a default pattern is used: `data/*{1,2}.fastq.gz`
 Use this to specify a sample plan file instead of a regular expression to find fastq files. For example :
 
 ```bash
---samplePlan 'path/to/data/sample_plan.csv
+--samplePlan 'path/to/data/sample_plan.csv'
 ```
 
 The sample plan is a csv file with the following information :
 
-Sample ID | Sample Name | Path to R1 fastq file | Path to R2 fastq file
+SAMPLE_ID | SAMPLE_NAME | PATH_TO_R1_FASTQ_FILE | PATH_TO_R2_FASTQ_FILE
+
+### `--design`
+
+Use this to specify a design file to list all experimental samples, their IDs, the associated germinal sample, the sex of the patient and the status (tumor / normal). For example :
+
+```bash
+--design 'path/to/design.csv'
+```
+
+The design file is a csv file with the following information :
+
+SAMPLE_ID | GERMLINE ID | SAMPLE_NAME | SEX | STATUS
+
+### `--noIntervals`
+Disable usage of intervals file, and disable automatic generation of intervals file when none are provided.
+
+For WGS samples, splitting in interval is advised to reduce running time.
+
+>**NB:** Running the pipeline with or without intervals can results in small differences in the variant calling due to some heuristics in the algorithms
+
+### `--tools`
+
+Specify the tools to use for variant calling and downstream steps.
+
+**Available:** facets, ascat, haplotypecaller, manta, mutect2, snpeff
+
+
+## `Inputs`
 
 ### `--singleEnd`
 
@@ -126,51 +141,89 @@ By default, the pipeline expects paired-end data. If you have single-end data, y
 
 It is not possible to run a mixture of single-end and paired-end files in one run.
 
-### `--stranded`
+### `--step`
 
-Several parts of the RNA-seq data analysis rely on the strandness information.
-If you already have the information, you should specifiy the strandness using either `forward` (ie. stranded), `no`, (ie. unstranded), `reverse` (ie. reverse stranded), as follows:
+This parameter specify the starting step of the pipeline. Several entry point are available. Each step requires a specific sample_plan.
+
+**Available:** mapping, recalibrate, variantcalling, annotate.
+
+## `Alignment`
+
+### `--bwaOptions`
+
+Change default BWA-mem options ("-k 19 -T 30 -M") for reads alignment.
 
 ```bash
---stranded 'reverse'
+--bwaOptions "[NEW OPTIONS]"
 ```
 
-If you do not have the information, you can the automatic detection mode (default mode) as follows:
+### `--saveAlignedIntermediates`
+
+By default, only alignment files in BAM format after filtering are saved in the `--outDir` directory.  
+Using this option, all intermediate BAM files are saved, including BWA-mem outputs, sambambam outputs, intersection with targets (for WES).
+Note that activating this option usually consumes a large amount of disk space.
 
 ```bash
---stranded 'auto'
+--saveAlignedIntermediates
 ```
 
-In the case, the pipeline will the run the [`rseqc`](http://rseqc.sourceforge.net/) tool to automatically detect the strandness parameter.
+## `Filtering`
 
-### `--aligner`
+### `--targetBed`
 
-The current version of the pipeline supports three different aligners;
-- [`STAR`](https://github.com/alexdobin/STAR). Default value.
-- [`tophat2`](http://ccb.jhu.edu/software/tophat/index.shtml)
-- [`hisat2`](http://ccb.jhu.edu/software/hisat2/index.shtml)
-
-By default, the `STAR` mapper is run. You can specify the tool to use as follows:
+Specify a target BED file for targeted or whole exome sequencing
 
 ```bash
---aligner 'STAR'
+--targetBed
 ```
 
-### `--counts`
+### `--SNVFilters`
 
-The raw count table for all samples can be generated using one of the following tool:
-- [`STAR`](https://github.com/alexdobin/STAR). Require `--aligner 'STAR'`. Default value.
-- [`featureCounts`](http://bioinf.wehi.edu.au/featureCounts/)
-- [`HTSeqCounts`](https://htseq.readthedocs.io/en/release_0.11.1/count.html)
+Specify which filters to apply on aligned reads before SNV calling (comma separated)
 
-You can specify one of these tools using:
+**Available:** mapq,duplicates,singleton,multihits
+
+**Default:** mapq,duplicates
+
 ```bash
---counts 'featureCounts`
+--SNVFilters 'mapq,duplicates'
+```
+
+### `--SVFilters`
+
+Specify which filters to apply on aligned reads before SV calling (comma separated).
+
+**Available:** mapq,duplicates,singleton,multihits
+
+**Default:** duplicates
+
+```bash
+--SVFilters 'duplicates'
+```
+
+## Variants calling
+
+### `--baseQual`
+
+Define the base quality for `Facets` copy number analyis.
+
+**Default:** 13
+
+```bash
+--baseQual 13
+```
+
+### `--saveGVCF`
+
+Save intermediate gvcf file generated by `HaplotyCaller`
+
+```bash
+--saveGVCF
 ```
 
 ## Reference genomes
 
-The pipeline config files come bundled with paths to the genomes reference files. 
+The pipeline config files come bundled with paths to the genomes reference files.
 
 ### `--genome`
 
@@ -179,13 +232,12 @@ There are different species supported in the genomes references file. To run the
 You can find the keys to specify the genomes in the [genomes config file](../conf/genomes.config). Common genomes that are supported are:
 
 * Human
+  * `--genome hg19`
   * `--genome hg38`
 * Mouse
   * `--genome mm10`
 
-> There are numerous others - check the config file for more.
-
-Note that you can use the same configuration setup to save sets of reference files for your own use, even if they are not part of the genomes resource. 
+Note that you can use the same configuration setup to save sets of reference files for your own use, even if they are not part of the genomes resource.
 See the [Nextflow documentation](https://www.nextflow.io/docs/latest/config.html) for instructions on where to save such a file.
 
 The syntax for this reference configuration is as follows:
@@ -194,36 +246,102 @@ The syntax for this reference configuration is as follows:
 params {
   genomes {
     'hg19' {
-      star     = '<path to the STAR index files>'
-      bowtiee2 = '<path to the bowtie index files>'
-      hisat2   = '<path to the HiSat2 index files>'
-      rrna     = '<path to bowtie1 mapping on rRNA reference>'
-      bed12    = '<path to Bed12 annotation file>'
-      gtf      = '<path to GTF annotation file>'
+      bwaIndex              = "/path/to/bwaIndex"
+      chrLength             = "/path/to/chrom_hg19.sizes"
+      dict                  = "/path/to/hg19.dict"
+      fasta                 = "/path/to/hg19.fa"
+      fastaFai              = "/path/to/hg19.fa.fai"
+      gtf                   = "/path/to/gencode.v19.annotation_proteinCoding.gtf"
+      dbsnp                 = "/path/to/dbsnp_138.hg19.vcf.gz"
+      dbsnpIndex            = "/path/to/dbsnp_138.hg19.vcf.gz.tbi"
+      acLoci                = "/path/to/1000G_phase3_20130502_SNP_maf0.3.loci"
+      acLociGC              = "/path/to/1000G_phase3_20130502_SNP_maf0.3.loci.gc"
+      polyms                = "/path/to/44polyms.bed"
+      germlineResource      = "/path/to/af-only-gnomad_modified.raw.sites.vcf.gz"
+      germlineResourceIndex = "/path/to/af-only-gnomad_modified.raw.sites.vcf.gz.tbi"
+      intervals             = "/path/to/wgs_calling_regions.grch37.list.txt"
+      knownIndels           = "/path/to/{1000G_phase1,Mills_and_1000G_gold_standard}.indels.hg19.sites.vcf.gz"
+      knownIndelsIndex      = "/path/to/{1000G_phase1,Mills_and_1000G_gold_standard}.indels.hg19.sites.vcf.gz.tbi"
+      snpeffDb              = "hg19"
+      snpeffCache           = "/path/to/snpEff_v4_3"
     }
-    // Any number of additional genomes, key is used with --genome
-  }
 }
 ```
 
-Note that these paths can be updated on command line using the following parameters:
-- `--star_index` - Path to STAR index
-- `--hisat2_index` - Path to HiSAT2 index
-- `--tophat2_index` - Path to TopHat2 index
-- `--gtf` - Path to GTF file
-- `--bed12` - Path to gene bed12 file
-- `--saveAlignedIntermediates` - Save the BAM files from the Aligment step  - not done by default
+Note that all these paths can be updated on the command line using for example the following parameters:
+- `--bwaIndex` - Path to Bwa index
+- `gtf` - Path to GTF file
+- ...
 
-## Tools parameters
+## Use case
 
-The `conf/tools.conf` configuration file can be used to specify some of the tools options.
-Note that these options can also be genome dependent. So far, only the `STAR` options can be changed from an organism to another.
+### Whole genome sequencing analysis
+
+Here is a typical command line to analyse whole-genome analysis data.
+
+```bash
+nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \
+                     --genome 'hg38' --tools haplotyCaller,mutect2,snpeff,ascat,manta \
+                     -profile cluster,singularity --outDir [RESULTS] -w [RESULTS_work]
+```
+
+### Whole exome sequencing analysis
+
+Here is a typical command line to analyse whole-exome analysis data, thus focusing the analysis on a targetBed file.
+
+```bash
+nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \
+                     --genome 'hg38' --tools 'haplotyCaller,mutect2,snpeff,facets' \
+                     -profile cluster,singularity --outDir [RESULTS] -w [RESULTS/work]
+```
+
+### Starting from intermediates results
+
+`VEGAN` offers the possibility to start the pipeline from intermediate files.
+In this case, the sample plan must be adapted. When it runs, `VEGAN` generates intermediate sample plan files in the `resume` output directory, 
+which can then be reused as starting point of another analysis.
+
+#### Starting at GATK recalibration step
+
+In order to start at the GATK recalibration step, so just after reads filtering, you can use the option `--step 'recalibrate'` as follow :
+
+```bash
+nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.filtered.csv] --design [DESIGN] \
+                     --step 'recalibrate' --genome 'hg38' --tools 'mutect2,ascat' \
+                     -profile cluster,singularity --outDir [RESULTS_2] -w [RESULTS_2/work]
+```
+
+The sample plan contains the following information :
+
+SAMPLE_ID | SAMPLE_NAME | VARIANT_TYPE | PATH_TO_BAM_FILE | PATH_TO_BAM_INDEX
+
+The `VARIANT_TYPE` must be either `SV` or `SNV` to define which BAM files as to be used for which type of analysis
+
+#### Starting at variant calling step
+
+In order to start at the variant calling step, so just after BAM recalibration, you can use the option `--step 'variantcalling'` as follow : 
+
+```bash
+nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.recal.csv] --design [DESIGN] \
+                     --step 'variantcalling' --genome 'hg38' --tools 'mutect2,ascat' \
+                     -profile cluster,singularity --outDir [RESULTS_3] -w [RESULTS_3/work]
+```
+
+The sample plan contains the following information :
+
+SAMPLE_ID | SAMPLE_NAME | VARIANT_TYPE | PATH_TO_BAM_FILE | PATH_TO_BAM_INDEX
+
+The `VARIANT_TYPE` must be either `SV` or `SNV` to define which BAM files as to be used for which type of analysis
+
+## Nextflow profiles
+
+Different Nextflow profiles can be used. See [Profiles](profiles.md) for details.
 
 ## Job resources
 
 ### Automatic resubmission
 
-Each step in the pipeline has a default set of requirements for number of CPUs, memory and time (see the `conf/base.conf` file). 
+Each step in the pipeline has a default set of requirements for number of CPUs, memory and time (see the `conf/process.conf` file).
 For most of the steps in the pipeline, if the job exits with an error code of `143` (exceeded requested resources) it will automatically resubmit with higher requests (2 x original, then 3 x original). If it still fails after three times then the pipeline is stopped.
 
 ## Other command line parameters
@@ -232,27 +350,17 @@ For most of the steps in the pipeline, if the job exits with an error code of `1
 
 The pipeline is made with a few *skip* options that allow to skip optional steps in the workflow.
 The following options can be used:
-- `--skip_qc` - Skip all QC steps apart from MultiQC
-- `--skip_rrna` - Skip rRNA mapping
-- `--skip_fastqc` - Skip FastQC
-- '--skip_genebody_coverage' - Skip genebody coverage step
-- `--skip_saturation` - Skip Saturation qc
-- `--skip_dupradar` - Skip dupRadar (and Picard MarkDups)
-- `--skip_readdist` - Skip read distribution steps
-- `--skip_expan` - Skip exploratory analysis
-- `--skip_multiqc` - Skip MultiQC
-				
-### `--metadata`
 
-Specify a two-columns (tab-delimited) metadata file to diplay in the final Multiqc report.
+- `--skipBQSR`  Disable BQSR
+- `--skipIdentito` Disable Identito vigilance
+- `--skipMultiqc` Disable MultiQC
+- `--skipPreseq` Disable Preseq
+- `--skipQC` Specify which QC tools to skip from bamqc, fastqc, multiqc, samtoolsstats, versions
+- `--skipMutectContamination` Disable mutect2 `CalculateContamination` step
 
-### `--outputDir`
+### `--outDir`
 
 The output directory where the results will be saved.
-
-### `--email`
-
-Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits. If set in your user config file (`~/.nextflow/config`) then you don't need to specify this on the command line for every run.
 
 ### `-name`
 
@@ -277,21 +385,21 @@ Specify the path to a specific config file (this is a core NextFlow command).
 
 Note - you can use this to override pipeline defaults.
 
-### `--max_memory`
+### `--maxMemory`
 
 Use to set a top-limit for the default memory requirement for each process.
 Should be a string in the format integer-unit. eg. `--max_memory '8.GB'`
 
-### `--max_time`
+### `--maxTime`
 
 Use to set a top-limit for the default time requirement for each process.
 Should be a string in the format integer-unit. eg. `--max_time '2.h'`
 
-### `--max_cpus`
+### `--maxCpus`
 
 Use to set a top-limit for the default CPU requirement for each process.
 Should be a string in the format integer-unit. eg. `--max_cpus 1`
 
-### `--multiqc_config`
+### `--multiqcConfig`
 
 Specify a path to a custom MultiQC configuration file.
