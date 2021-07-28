@@ -83,7 +83,7 @@ ALIGNMENT:
     --saveAlignedIntermediates           Save intermediates alignment files
 
 FILTERING:
-    --targetBED  PATH                                              Target BED file for targeted or whole exome sequencing
+    --targetBed  PATH                                              Target Bed file for targeted or whole exome sequencing
     --SNVFilters STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SNV
     --SVFilters  STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SV
     --mapQual    INTEGER                                           Minimum mapping quality
@@ -153,7 +153,7 @@ nextflow run main.nf -profile test,multiconda --genomeAnnotationPath ANNOTATION_
 #### Run the pipeline for WES analysis using singularity containers
 
 ```
-nextflow run main.nf -profile singularity,cluster --input samples-WES.tsv --targetBED capture.bed --tools mutect2,snpeff --genome hg19 -resume
+nextflow run main.nf -profile singularity,cluster --input samples-WES.tsv --targetBed capture.bed --tools mutect2,snpeff --genome hg19 -resume
 ```
 
 #### Run the pipeline from a sample plan with specified tools and genome on the cluster, using the Singularity containers
