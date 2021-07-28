@@ -1,7 +1,15 @@
 /build/*
 /work/*
 /results/*
-/conf/containers.config
-/conf/genomes.config
-/conf/cluster.config
-/conf/tools-path.config
+utils/docs/_build/
+.idea/
+.vscode/
+
+# Nextflow output
+main.test.nf
+.nextflow*
+work
+results
+test.nf
+*.iml
+/.gradle/
