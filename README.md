@@ -190,16 +190,16 @@ Here are a few examples of how to set the profile option. See the [full document
 ```
 #### Sample Plan
 
-A sample plan is a csv file (comma separated) that list all samples with their biological IDs, **with no header**.  
+A sample plan is a **csv** file (comma separated) that list all samples with their biological IDs, **with no header**.  
 The sample plan is expected to be created as below :
 
 SAMPLE_ID | SAMPLE_NAME | PATH_TO_R1_FASTQ | [PATH_TO_R2_FASTQ]
 
 #### Design
 
-A design file is a csv file that list all experimental samples, their IDs, the associated germinal sample, the sex of the patient and the status (tumor / normal). The design control is expected to be created as below :
+A design file is a **csv** file that list all experimental samples, their IDs, the associated germinal sample, the sex of the patient and the status (tumor / normal). The design control is expected to have **the following header** :
 
-SAMPLE_ID | GERMLINE ID | SAMPLE_NAME | SEX | STATUS
+GERMLINE_ID | TUMOR_ID | PAIR_ID | SEX
 
 Both files will be checked by the pipeline and have to be rigorously defined in order to make the pipeline work.
 Note that the control is optional if not available but is highly recommanded.
