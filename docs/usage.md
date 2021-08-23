@@ -99,7 +99,7 @@ Use this to specify a sample plan file instead of a regular expression to find f
 --samplePlan 'path/to/data/sample_plan.csv'
 ```
 
-The sample plan is a csv file with the following information :
+The sample plan is a csv file with the following information (no header):
 
 SAMPLE_ID | SAMPLE_NAME | PATH_TO_R1_FASTQ_FILE | PATH_TO_R2_FASTQ_FILE
 
@@ -111,9 +111,9 @@ Use this to specify a design file to list all experimental samples, their IDs, t
 --design 'path/to/design.csv'
 ```
 
-The design file is a csv file with the following information :
+The design file is a csv file with the following header :
 
-SAMPLE_ID | GERMLINE ID | SAMPLE_NAME | SEX | STATUS
+GERMLINE_ID | TUMOR_ID | PAIR_ID | SEX
 
 ### `--noIntervals`
 Disable usage of intervals file, and disable automatic generation of intervals file when none are provided.
