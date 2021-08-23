@@ -1,4 +1,11 @@
 ***********************************
+version-1.2.0
+
+BUG FIXES
+
+  - bug in facet with test profile (#102)
+
+***********************************
 version-1.1.0
 
 NEW FEATURES

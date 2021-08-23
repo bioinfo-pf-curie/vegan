@@ -142,13 +142,10 @@ facetsPlot <- function (x, emfit = NULL, clustered = FALSE, chromlevels = c(1:22
 ## Load pileup
 message("Loading pileup ...")
 rcmat <- readSnpMatrix(opt$input)
-
-
 xx <- preProcSample(rcmat, ndepth=opt$normalDepth, het.thresh=opt$hetThres,
                     snp.nbhd=opt$windowSize, cval=opt$cvalPreproc, deltaCN=0,
                     gbuild=opt$assembly, hetscale=TRUE, unmatched=opt$unmatch,
                     ndepthmax=opt$maxDepth)
-
 # pc_het_snp <- round(nrow(xx$pmat[which(xx$pmat$het==1),])*100/nrow(xx$pmat),2)
 
 oo <- suppressWarnings(procSample(xx, cval=opt$cval,
@@ -169,9 +166,9 @@ if(!is.null(fit2$emflags)){
 
 write.table(fit2$cncf,paste0(outDir,"/",name,"_cnv_segments.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
-
 pdf(paste0(outDir,"/",name,"_cnv.pdf"), width=16, height=8)
-facetsPlot(x=oo, emfit=fit2, sname=title, chromlevels=unique(xx$pmat$chrom))
+#facetsPlot(x=oo, emfit=fit2, sname=title, chromlevels=unique(xx$pmat$chrom))
+facetsPlot(x=oo, emfit=fit2, sname=title, chromlevels=oo$chromlevels)
 invisible(dev.off())
 
 ## Summarize results in a table
