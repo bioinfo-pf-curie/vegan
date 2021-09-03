@@ -47,31 +47,6 @@ abstract class VeganTools extends NFTools {
     return inputPath
   }
 
-  /**
-   * Channeling the input file containing BAM.
-   * Format is: "subject gender status sample bam bai"
-   *
-   * @param inputFile
-   * @return
-   */
-  def extractBam(inputFile, sep = '\t') {
-    Channel.of(inputFile)
-      .splitCsv(sep: sep)
-      .map { row ->
-        checkNumberOfItem(row, 5)
-        def sampleId = row[0]
-        def sampleName = row[1]
-        def sampleType = row[2]
-        def bamFile = returnFile(row[3])
-        def baiFile = returnFile(row[4])
-
-        if (!hasExtension(bamFile, "bam")) exit 1, "File: ${bamFile} has the wrong extension. See --help for more information"
-        if (!hasExtension(baiFile, "bai")) exit 1, "File: ${baiFile} has the wrong extension. See --help for more information"
-
-//                    return [idPatient, gender, status, idSample, bamFile, baiFile]
-        return [sampleId, sampleName, sampleType, bamFile, baiFile]
-      }
-  }
 
   /**
    * Parse first line of a FASTQ file, return the flowcell id and lane number.
@@ -105,37 +80,41 @@ abstract class VeganTools extends NFTools {
     [fcid, lane]
   }
 
+
   /**
-   * Create a channel of germline FASTQs from a directory pattern: "my_samples/*"
+   * Create a channel of germline FASTQs from a directory dirPath: "my_samples/*"
    * All FASTQ files in subdirectories are collected and emitted
    * they must have _R1_ and _R2_ in their names.
    *
-   * @param pattern
+   * @param dirPath
    * @return
    */
   // TODO: Use Channel.fromFilePairs
-  def extractFastqFromDir(pattern, singleEnd) {
+  def extractFastqFromDir(dirPath, singleEnd) {
     def fastq = Channel.create()
     // a temporary channel does all the work
-    Channel
-      .fromPath(pattern, type: 'dir')
-      .ifEmpty { error "No directories found matching pattern '${pattern}'" }
-      .subscribe onNext: { sampleDir ->
-      // the last name of the sampleDir is assumed to be a unique sample id
-      sampleID = sampleDir.getFileName().toString()
+    if (dirPath) {
+      Channel
+        .fromPath(dirPath, type: 'dir')
+        .ifEmpty { error "No directories found matching dirPath '${dirPath}'" }
+        .subscribe onNext: { 
+          sampleDir ->
+          // the last name of the sampleDir is assumed to be a unique sample id
+          sampleID = sampleDir.getFileName().toString()
 
-      for (path1 in file("${sampleDir}/**_R1_*.fastq.gz")) {
-        assert path1.getName().contains('_R1_')
-        path2 = file(path1.toString().replace('_R1_', '_R2_'))
-        if (!path2.exists()) error "Path '${path2}' not found"
-        (flowcell, lane) = flowcellLaneFromFastq(path1)
-        sampleName = sampleID
-        rgId = "${flowcell}.${sampleName}.${lane}"
-        result = singleEnd ? [sampleID, sampleName, [path1]] : [sampleID, sampleName, [path1, path2]]
-        fastq.bind(result)
-      }
-    }, onComplete: { fastq.close() }
-    fastq
+          for (path1 in file("${sampleDir}/**_R1_*.fastq.gz")) {
+            assert path1.getName().contains('_R1_')
+            path2 = file(path1.toString().replace('_R1_', '_R2_'))
+            if (!path2.exists()) error "Path '${path2}' not found"
+            (flowcell, lane) = flowcellLaneFromFastq(path1)
+            sampleName = sampleID
+            rgId = "${flowcell}.${sampleName}.${lane}"
+            result = singleEnd ? [sampleID, sampleName, [path1]] : [sampleID, sampleName, [path1, path2]]
+            fastq.bind(result)
+          }
+        }, onComplete: { fastq.close() }
+    }
+    return fastq
   }
 
   /**
@@ -143,12 +122,13 @@ abstract class VeganTools extends NFTools {
    * Format is: "idSample,sampleName,pathToFastq1,[pathToFastq2]"
    * or: "idSample,sampleName,pathToBam"
    *
-   * @param inputFile
+   * @param inputPath
    * @return
    */
-  def extractFastqOrBam(inputFile, sep, singleEnd, reads, readPaths) {
-    if (inputFile) {
-      return Channel.of(inputFile)
+  def extractFastqOrBam(inputPath, sep, singleEnd, reads, readPaths) {
+    if (inputPath) {
+      return Channel
+        .fromPath(inputPath)
         .splitCsv(sep: sep, header: false)
         .map { row ->
           def sampleID = row[0]
@@ -171,16 +151,20 @@ abstract class VeganTools extends NFTools {
           return singleEnd ? [sampleID, sampleName, [inputFile1]] : [sampleID, sampleName, [inputFile1, inputFile2]]
         }
     } else if (readPaths) {
-      return Channel.of(readPaths)
+      return Channel
+        .fromList(readPaths)
         .map { row ->
           def sampleId = row[0]
           def inputFile1 = returnFile(row[1][0])
-          def inputFile2 = returnFile(row[1][1])
+          def inputFile2 = singleEnd ? null: returnFile(row[1][1])
           singleEnd ? [sampleId, sampleId, [inputFile1]] : [sampleId, sampleId, [inputFile1, inputFile2]]
-        }.ifEmpty { Nextflow.exit 1, "params.readPaths was empty - no input files supplied" }
+        }
+        .ifEmpty { Nextflow.exit 1, "params.readPaths was empty - no input files supplied" }
     } else {
-      return Channel.fromFilePairs(reads, size: singleEnd ? 1 : 2)
+      return Channel
+        .fromFilePairs(reads, size: singleEnd ? 1 : 2)
         .ifEmpty { Nextflow.exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nNB: Path requires at least one * wildcard!\nIf this is single-end data, please specify --singleEnd on the command line." }
+        .map { row -> singleEnd ? [row[0], row[0], [row[1][0]]] : [row[0], row[0], [row[1][0], row[1][1]]] }
     }
   }
 
@@ -188,11 +172,12 @@ abstract class VeganTools extends NFTools {
    * Channeling the input file containing Filtered Bams
    * Format is: "sampleID sampleName vCType bam bai"
    *
-   * @param inputFile
+   * @param inputPath
    * @return
    */
-  def extractRecal(inputFile, sep = '\t') {
-    Channel.of(inputFile)
+  def extractRecal(inputPath, sep = '\t') {
+    return inputPath ? Channel
+      .fromPath(inputPath)
       .splitCsv(sep: sep)
       .map { row ->
         checkNumberOfItem(row, 5)
@@ -206,7 +191,33 @@ abstract class VeganTools extends NFTools {
         if (!hasExtension(baiFile, "bai")) exit 1, "File: ${baiFile} has the wrong extension. See --help for more information"
 
         [sampleID, sampleName, vCType, bamFile, baiFile]
-      }
+      } : Channel.empty()
+  }
+
+  /**
+   * Channeling the input file containing BAM.
+   * Format is: "subject gender status sample bam bai"
+   *
+   * @param inputPath
+   * @return
+   */
+  def extractBam(inputPath, sep = '\t') {
+    return inputPath ? Channel
+      .fromPath(inputPath)
+      .splitCsv(sep: sep)
+      .map { row ->
+        checkNumberOfItem(row, 5)
+        def sampleId = row[0]
+        def sampleName = row[1]
+        def sampleType = row[2]
+        def bamFile = returnFile(row[3])
+        def baiFile = returnFile(row[4])
+
+        if (!hasExtension(bamFile, "bam")) exit 1, "File: ${bamFile} has the wrong extension. See --help for more information"
+        if (!hasExtension(baiFile, "bai")) exit 1, "File: ${baiFile} has the wrong extension. See --help for more information"
+
+        return [sampleId, sampleName, sampleType, bamFile, baiFile]
+      } : Channel.empty()
   }
 
   def getDesign(Object designPath) {
@@ -219,6 +230,8 @@ abstract class VeganTools extends NFTools {
         checkNumberOfItem(row, 4)
         [row.germlineId, row.tumorId, row.pairId, row.sex]
       }
+    } else {
+      return Channel.empty()
     }
   }
 
