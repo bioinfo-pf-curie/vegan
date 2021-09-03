@@ -225,12 +225,17 @@ abstract class VeganTools extends NFTools {
   /**
    * Extract information from inputPath
    *
-   * @return inputSample
+   * @return samplePlanCh, samplePlanPathCh
    */
   def getSamplePlan(String inputPath, String step, Boolean singleEnd, String reads, List readPaths) {
-    def inputSample = Channel.empty()
-    def input = inputPath ? Nextflow.file(inputPath) : null
-    if (inputPath || reads) {
+    
+    def samplePlanPathCh = inputPath ? Channel.fromPath(inputPath) : null
+
+    def samplePlanCh
+    def samplePlanPathTmpCh
+    
+    // if inputPath is a valid path or reads is a valid string
+    if (inputPath || reads || readPaths) {
       def inputExt = getExtension(inputPath, ['csv', 'tsv'])
       // Define csv as the default separator
       def sep = (inputExt == 'tsv') ? '\t' : (inputExt == 'csv') ? ',' : ','
@@ -238,38 +243,56 @@ abstract class VeganTools extends NFTools {
       // idSample,sampleName,pathToFastq1,[pathToFastq2]
       // idSample,sampleName,pathToBam
         case 'mapping':
-          return extractFastqOrBam(input, sep, singleEnd, reads, readPaths);
+          (samplePlanPathTmpCh, samplePlanCh) = extractFastqOrBam(inputPath, sep, singleEnd, reads, readPaths).into(2)
+          
+          if (!samplePlanPathCh) {
+            samplePlanPathCh = samplePlanPathTmpCh
+              .collectFile() {
+                item -> singleEnd ? ["samplePlan.csv", item[0] + ',' + item[1] + ',' + item[2][0] + '\n'] : ["samplePlan.csv", item[0] + ',' + item[1] + ',' + item[2][0] + ',' + item[2][1] + '\n']
+              }
+          }
+          break
       // idSample,sampleName,pathToBam,pathToBai,pathToRecalTable
       // [sampleID, sampleName, bamFile, baiFile, recalTable]
         case 'recalibrate':
-          return extractRecal(input, sep)
+          samplePlanCh = extractRecal(inputPath, sep)
+          break
       // idSample,sampleName,pathToBam,pathToBai
       // [sampleID, sampleName, bamFile, baiFile]
         case 'variantcalling':
-          return extractBam(input, sep)
+          samplePlanCh = extractBam(inputPath, sep)
+          break
         case 'annotate':
           break
         default:
           Nextflow.exit(1, "Unknown step ${step}")
       }
-    } else if (inputPath && input.isDirectory()) {
+    } else if (inputPath && Nextflow.file(inputPath).isDirectory()) {
       if (step != 'mapping') {
         Nextflow.exit(1, 'No other step than "mapping" support a dir as an input')
       }
       log.info "Reading $inputPath directory"
       def fastqTMP
-      (inputSample, fastqTMP) = extractFastqFromDir(inputPath, singleEnd).into(2)
-      fastqTMP.toList().subscribe onNext: {
-        if (it.size() == 0) {
-          Nextflow.exit(1, "No FASTQ files found in --input directory '${params.input}'")
+      (samplePlanCh, fastqTMP) = extractFastqFromDir(inputPath, singleEnd).into(2)
+      fastqTMP
+        .toList()
+        .tap{ samplePlanPathTmpCh }
+        .subscribe onNext: {
+          if (it.size() == 0) {
+            Nextflow.exit(1, "No FASTQ files found in --input directory '${params.input}'")
+          }
         }
-      }
+      samplePlanPathCh = samplePlanPathTmpCh
+        .collectFile(){
+          item -> singlEnd ? ["samplePlan.csv", item[0] + ',' + item[1] + ',' + item[2][0] + '\n'] : ["samplePlan.csv", item[0] + ',' + item[1] + ',' + item[2][0] + ',' + item[2][1] + '\n']
+        }
     } else if (inputPath && step == 'annotate') {
       log.info "Annotating ${inputPath}"
     } else if (step == 'annotate') {
       log.info "Trying automatic annotation on file in the VariantCalling directory"
     } else if (reads) {
-      return Channel
+      // TODO: probably useless since it's already done with extractFastqOrBam function (same for readsPaths)
+      (samplePlanCh, samplePlanPathTmpCh) = Channel
         .fromFilePairs(reads, size: singleEnd ? 1 : 2)
         .ifEmpty {
           Nextflow.exit(1, """\
@@ -277,11 +300,17 @@ Cannot find any reads matching: ${reads}
 NB: Path needs to be enclosed in quotes!
 NB: Path requires at least one * wildcard!
 If this is single-end data, please specify --singleEnd on the command line.""");
-        }.map { row -> singleEnd ? [row[0], row[0], [row[1][0]]] : [row[0], row[0], [row[1][0], row[1][1]]] }
+        }
+        .map { row -> singleEnd ? [row[0], row[0], [row[1][0]]] : [row[0], row[0], [row[1][0], row[1][1]]] }.into(2)
+      samplePlanPathCh = samplePlanPathTmpCh
+        .collectFile(){
+          item -> singlEnd ? ["samplePlan.csv", item[0] + ',' + item[0] + ',' + item[1][0] + '\n'] : ["samplePlan.csv", item[0] + ',' + item[0] + ',' + item[1][0] + ',' + item[1][1] + '\n']
+        }
     } else {
-      Nextflow.exit(1, 'No sample were defined, see --help')
+      Nextflow.exit(1, 'No input data were defined, see --help')
     }
-    return inputSample ?: Channel.empty()
+    
+    return samplePlanCh && samplePlanPathCh ? [samplePlanCh, samplePlanPathCh]: samplePlanCh ? [samplePlanCh, channel.empty()] : samplePlanPathCh ? [Channel.empty(), samplePlanPathCh] : [Channel.empty(), Channel.empty()]
   }
 
   /**

@@ -53,7 +53,8 @@ SNVFilters = params.SNVFilters ? params.SNVFilters.split(',').collect{it.trim().
 customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
 samplePlanPath = getPath(step, params.samplePlan, params.outDir)
-samplePlanCh = getSamplePlan(samplePlanPath, step, params.singleEnd, params.reads, params.readPaths).dump(tag: 'samplePlanCh')
+samplePlanPathCh = Channel.value(samplePlanPath ? file(samplePlanPath) : "").dump(tag: "samplePlanPathCh")
+(samplePlanCh, samplePlanPathCh) = getSamplePlan(samplePlanPath, step, params.singleEnd, params.reads, params.readPaths)
 samplePlanCheckCh = params.samplePlan ? Channel.fromPath(samplePlanPath) : Channel.empty()
 (designCh, designCheckCh) = params.design ? [getDesign(params.design), Channel.fromPath(params.design)] : [Channel.empty(), Channel.empty()]
 
@@ -301,7 +302,7 @@ if (!params.noIntervals){
 
 if (step == "mapping") {
   runIds = [:]
-  samplePlanCh.map {
+  samplePlanCh.dump(tag: "samplePlanCh").map {
     // Sample Plan
     // platformID - biologicalName - fastq1 - fastq2
     // Design
