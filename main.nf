@@ -2325,7 +2325,7 @@ process multiQC {
   when: !(params.skipMultiqc)
 
   input:
-  file(splan) from Channel.value(samplePlanPath ? file(samplePlanPath) : "")
+  file(splan) from samplePlanPathCh.collect()
   file(metadata) from metadataCh.ifEmpty([])
   file(multiqcConfig) from Channel.value(params.multiqcConfig ? file(params.multiqcConfig) : "")
   file(workflowSummary) from workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml")
@@ -2348,6 +2348,7 @@ process multiQC {
   file('Transition/*') from transitionPerSampleCh.collect().ifEmpty([])
 
   output:
+  file(splan)
   file("*multiqc_report.html") into multiQCOutCh
   file("*_data")
 
