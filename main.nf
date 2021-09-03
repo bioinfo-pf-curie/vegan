@@ -575,7 +575,7 @@ process preseq {
   file("v_preseq.txt") into preseqVersionCh
 
   script:
-  defectMode = params.preseqDefect ? '-D' : ''
+  defectMode = params.preseqDefect || task.attempt > 1 ? '-D' : ''
   """
   preseq &> v_preseq.txt
   preseq lc_extrap -v $defectMode -output ${bam.baseName}.ccurve.txt -bam ${bam} -e 500e+06
