@@ -52,10 +52,12 @@ SNVFilters = params.SNVFilters ? params.SNVFilters.split(',').collect{it.trim().
 
 customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
+
 samplePlanPath = getPath(step, params.samplePlan, params.outDir)
-samplePlanPathCh = Channel.value(samplePlanPath ? file(samplePlanPath) : "").dump(tag: "samplePlanPathCh")
+//samplePlanPathCh = Channel.value(samplePlanPath ? file(samplePlanPath) : "").dump(tag: "samplePlanPathCh")
 (samplePlanCh, samplePlanPathCh) = getSamplePlan(samplePlanPath, step, params.singleEnd, params.reads, params.readPaths)
-samplePlanCheckCh = params.samplePlan ? Channel.fromPath(samplePlanPath) : Channel.empty()
+(samplePlanCheckCh, samplePlanIdentitoCh, samplePlanPathCh) = samplePlanPathCh.into(3)
+//samplePlanCheckCh = params.samplePlan ? Channel.fromPath(samplePlanPath) : Channel.empty()
 (designCh, designCheckCh) = params.design ? [getDesign(params.design), Channel.fromPath(params.design)] : [Channel.empty(), Channel.empty()]
 
 if (params.design){
@@ -403,7 +405,7 @@ inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT MAP READS')
 process bwaMem {
   label 'bwa'
   label 'highCpu'
-  label 'extraMem'
+  label 'highMem'
 
   tag "${sampleId}"
 
@@ -965,6 +967,7 @@ process combineIndentito {
 
   input:
   file(matrix) from clustPolymCh.collect()
+  file(splan) from samplePlanIdentitoCh.collect()
 
   output:
   file("*.{tsv,csv}") into clustPolymResultsCh
@@ -973,7 +976,7 @@ process combineIndentito {
   script:
   """
   (head -1 "${matrix[0]}"; tail -n +2 -q *matrix.tsv) > identito_polym.tsv
-  apComputeClust.R identito_polym.tsv . ejaccard 20
+  apComputeClust.R -i identito_polym.tsv -d ejaccard -s ${splan}
   """
 }
 
@@ -1394,7 +1397,7 @@ process mutect2 {
   tag "${sampleIdNormal}_vs_${sampleIdTumor}-${intervalBed.baseName}"
   label 'gatk'
   label 'minCpu'
-  label 'medMem'
+  label 'highMem'
 
   input:
   tuple val(sampleIdNormal), val(sampleNameNormal), file(bamNormal), file(baiNormal),
