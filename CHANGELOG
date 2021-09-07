@@ -1,6 +1,11 @@
 ***********************************
 version-1.2.0
 
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Update mem for Mutect2/bwa-mem
+  - Update identito output
+
 BUG FIXES
 
   - bug in facet with test profile (#102)
