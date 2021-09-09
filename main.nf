@@ -970,13 +970,13 @@ process combineIndentito {
   file(splan) from samplePlanIdentitoCh.collect()
 
   output:
-  file("*.{tsv,csv}") into clustPolymResultsCh
+  file("*.{tsv,csv,png}") into clustPolymResultsCh
   file("*.png") optional true into clustPolymPlotCh 
 
   script:
   """
   (head -1 "${matrix[0]}"; tail -n +2 -q *matrix.tsv) > identito_polym.tsv
-  apComputeClust.R -i identito_polym.tsv -d ejaccard -s ${splan}
+  apComputeClust.R --input identito_polym.tsv --dist ejaccard --splan ${splan}
   """
 }
 
