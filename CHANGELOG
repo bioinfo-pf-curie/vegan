@@ -5,9 +5,12 @@ SIGNIFICANT USER-VISIBLE CHANGES
 
   - Update mem for Mutect2/bwa-mem
   - Update identito output
+  - Export unfiltered bam files by default
 
 BUG FIXES
 
+  - Fix mm10 genome
+  - Update conda identito recipes
   - bug in facet with test profile (#102)
 
 ***********************************
