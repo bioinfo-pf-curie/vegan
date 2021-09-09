@@ -3,6 +3,7 @@ version-1.2.0
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Updata genome conf
   - Update mem for Mutect2/bwa-mem
   - Update identito output
   - Export unfiltered bam files by default
