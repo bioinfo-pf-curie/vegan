@@ -410,7 +410,7 @@ process bwaMem {
   tag "${sampleId}"
 
   publishDir "${params.outDir}/preprocessing/bams/bwa", mode: params.publishDirMode,
-               saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
+               saveAs: {filename ->  if (filename.endsWith(".bam")) filename}
 
   input:
   tuple val(sampleId), val(sampleName), val(runId), file(reads), file(index), val(genomeBase) from inputPairReadsCh.combine(bwaIndexCh)
@@ -502,7 +502,7 @@ process indexBamFile {
   tag "${sampleId}"
 
   publishDir "${params.outDir}/preprocessing/bams/bwa", mode: params.publishDirMode,
-               saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
+               saveAs: {filename ->  if (filename.endsWith("bai")) filename}
 
   input:
   tuple val(sampleId), val(sampleName), file(bam) from mergedBamToIndexCh
