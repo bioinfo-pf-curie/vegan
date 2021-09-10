@@ -173,11 +173,11 @@ checkHostname(params, workflow)
 */
 
 // Initialize channels based on params
-fastaCh = params.fasta ? Channel.value(file(params.fasta)) : "null"
+fastaCh = params.fasta ? Channel.value(file(params.fasta)) : Channel.empty()
 fastaFaiCh = params.fastaFai ? Channel.value(file(params.fastaFai)) : fastaFaiBuiltCh
 dictCh = params.dict ? Channel.value(file(params.dict)) : dictBuiltCh
-polymsCh = params.polyms ? Channel.value(file(params.polyms)) : "null"
-gtfCh = params.gtf ? Channel.value(file(params.gtf)) : "null"
+polymsCh = params.polyms ? Channel.value(file(params.polyms)) : Channel.empty()
+gtfCh = params.gtf ? Channel.value(file(params.gtf)) : Channel.empty()
 
 // databases
 acLociCh = params.acLoci ? Channel.value(file(params.acLoci)) : "null"
@@ -193,7 +193,6 @@ snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
 intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
-ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
 targetBedCh = params.targetBed ? Channel.value(file(params.targetBed)) : "null"
 ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : "null")
 
