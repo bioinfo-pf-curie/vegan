@@ -120,25 +120,43 @@ params.putAll([
   summaryDir: params.summaryDir ? file(params.summaryDir).toAbsolutePath() : "${params.outDir}/summary",
 ])
 
+
 /*
-===============================================================================
-                              INTERVALS
-=============================================================================== 
+================================================================================
+                               CHECKING VARIABLES
+================================================================================
 */
 
-//intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
-if (params.noIntervals || !params.intervals){
-  intervalsCh = "null"
-  doNotUseIntervals = true
-  if (!params.noIntervals && !params.intervals){
-    log.info """\
+//if (!params.intervals && !params.noIntervals){
+//  exit 1, "No intervals file specified for '${params.genome}': Please use '--noIntervals'"
+//}
+
+if (!params.skipBQSR && (!params.dbsnp || !params.knownIndels || !params.dbsnpIndex || !params.knowIndelsIndex)){
+  exit 1, "Missing annotation file(s) for GATK Base Recalibrator (dbSNP, knowIndels): Please use '--skipBQSR'"
+}
+
+if (tools && ('ascat' in tools) && (!params.acLoci || !params.acLociGC)) {
+  log.info """\
 ========================================================================
-  ${colors.redBold}WARNING${colors.reset}: No intervals file detected: Option '--noIntervals' is forced
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for ASCAT (acLoci, acLociGC).
 ========================================================================"""
-  }
-}else{
-  doNotUseIntervals = false
-  intervalsCh = params.intervals ? Channel.value(file(params.intervals)) : Channel.empty()
+  tools.removeAll(["ascat"])
+}
+
+if (tools && ('mutect2' in tools) && (!params.germlineResource)) {
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for Mutect2 (germlineResource).
+========================================================================"""
+  tools.removeAll(["mutect2"])
+}
+
+if (tools && ('facets' in tools) && (!params.dbsnp)) {
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for Facets (dbsnp).
+========================================================================"""
+  tools.removeAll(["facets"])
 }
 
 /*
@@ -156,7 +174,7 @@ summary = [
   'Genome': params.genome,
   'Fasta': params.fasta ?: null,
   'Target BED': params.targetBed ?: null,
-  'Intervals': doNotUseIntervals ? 'Do not use' : params.intervals,
+  'Intervals': params.noIntervals ? 'Do not use' : params.intervals,
   'Step': step ?: null,
   'Tools': params.tools ? tools instanceof Collection ? tools.join(', ') : tools: null,
   'QC tools skip': params.skipQC ? 'Yes' : 'No',
@@ -213,6 +231,7 @@ snpeffCacheCh = params.snpeffCache ? Channel.value(file(params.snpeffCache)) : "
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
+//intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
 targetBedCh = params.targetBed ? Channel.value(file(params.targetBed)) : "null"
 ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : "null")
 
@@ -245,8 +264,35 @@ if (params.bwaIndex){
 
 // STEP 0: CREATING INTERVALS FOR PARALLELIZATION (PREPROCESSING AND VARIANT CALLING)
 
+process buildIntervals {
+  label 'onlyLinux'
+  label 'minCpu'
+  label 'lowMem'
+
+  input:
+  file(fastaFai) from fastaFaiCh
+
+  output:
+  file("${fastaFai.baseName}.bed") into intervalsBuildCh
+
+  when: !params.intervals
+
+  script:
+  """
+  awk -v FS='\t' -v OFS='\t' '{ print \$1, \"0\", \$2 }' ${fastaFai} > ${fastaFai.baseName}.bed
+  """
+}
+
+if (!params.intervals){
+  intervalsCh = intervalsBuildCh
+}else{
+  intervalsCh = Channel.value(file(params.intervals))
+}
+
 process createIntervalBeds {
   label 'onlyLinux'
+  label 'minCpu'
+  label	  'lowMem'
 
   input:
   file(intervals) from intervalsCh
@@ -257,7 +303,7 @@ process createIntervalBeds {
   script:
   // If the interval file is BED format, the fifth column is interpreted to
   // contain runtime estimates, which is then used to combine short-running jobs
-  if (doNotUseIntervals)
+  if (params.noIntervals)
     """
     echo "noIntervals\n" > noIntervals.bed
     """
@@ -297,7 +343,7 @@ process createIntervalBeds {
     """
 }
 
-if (!doNotUseIntervals){
+if (!params.noIntervals){
   bedIntervalsCh = bedIntervalsCh
     .map { intervalFile ->
       duration = 0.0
@@ -419,7 +465,6 @@ process fastQC {
  */
 
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
-inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT MAP READS')
 
 process bwaMem {
   label 'bwa'
@@ -1023,7 +1068,7 @@ process baseRecalibrator {
   tag "${sampleId}"
 
   publishDir "${params.bqsrBamDir}", mode: params.publishDirMode,
-             saveAs: {filename ->  if (doNotUseIntervals) filename}
+             saveAs: {filename ->  if (params.noIntervals) filename}
 
   input:
   tuple val(sampleId), val(sampleName), file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh.dump(tag:'bambqsr')
@@ -1045,8 +1090,8 @@ process baseRecalibrator {
   script:
   dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
   knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
-  prefix = doNotUseIntervals ? "${sampleId}" : "${sampleId}_${intervalBed.baseName}"
-  intervalsOptions = doNotUseIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
+  prefix = params.noIntervals ? "${sampleId}" : "${sampleId}_${intervalBed.baseName}"
+  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       BaseRecalibrator \
@@ -1065,7 +1110,7 @@ process baseRecalibrator {
  * MERGE BQSR TABLES PER INTERVALS
  */
 
-if (!doNotUseIntervals) {
+if (!params.noIntervals) {
   tableGatherBQSRReportsCh = tableGatherBQSRReportsCh.groupTuple(by:[0, 1])
 }else{
   (tableGatherBQSRReportsCh, recalTableCh) = tableGatherBQSRReportsCh.into(2)
@@ -1090,7 +1135,7 @@ process gatherBQSRReports {
     val(sampleName),
     file("${sampleId}.recal.table") into recalTableCh
 
-  when: !(doNotUseIntervals)
+  when: !(params.noIntervals)
 
   script:
   input = recal.collect{"-I ${it}"}.join(' ')
@@ -1130,8 +1175,8 @@ process applyBQSR {
   file("v_gatk.txt") into gatkVersionCh
 
   script:
-  prefix = doNotUseIntervals ? "noInterval_" : "${intervalBed.baseName}_"
-  intervalsOptions = doNotUseIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
+  prefix = params.noIntervals ? "noInterval_" : "${intervalBed.baseName}_"
+  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       ApplyBQSR \
@@ -1171,7 +1216,7 @@ process mergeAndIndexBamRecal {
     file("*recal.bam.bai") into bamRecalCh
   file('v_samtools.txt') into samtoolsMergeBamRecalVersionCh
 
-  when: !(doNotUseIntervals)
+  when: !(params.noIntervals)
 
   script:
   """
@@ -1204,7 +1249,7 @@ process indexBamRecal {
     file("*bam.bai") into bamRecalNoIntCh
   file('v_samtools.txt') into samtoolsIndexBamRecalVersionCh
 
-  when: doNotUseIntervals
+  when: params.noIntervals
 
   script:
   """
@@ -1353,7 +1398,7 @@ process haplotypeCaller {
   when: 'haplotypecaller' in tools
 
   script:
-  intervalOpts = doNotUseIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
+  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
@@ -1387,7 +1432,7 @@ process genotypeGVCFs {
   when: 'haplotypecaller' in tools
 
   script:
-  intervalOpts = doNotUseIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
+  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
@@ -1440,7 +1485,7 @@ process mutect2 {
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
   PON = params.pon ? "--panel-of-normals ${pon}" : ""
-  intervalOpts = doNotUseIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
+  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
   baseQualOpts = params.baseQual ? "--min-base-quality-score ${params.baseQual}" : ""
   mapQualOpts = params.mapQual ? "--minimum-mapping-quality ${params.mapQual}" : ""
   """
@@ -1537,7 +1582,7 @@ process concatVCF {
     outputFile = "${sampleId}_${variantCaller}.vcf"
 
   targetOpts = params.targetBed ? "-t ${targetBed}" : ""
-  intervalsOpts = doNotUseIntervals ? "-n" : ""
+  intervalsOpts = params.noIntervals ? "-n" : ""
   """
   apConcatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${targetOpts} ${intervalsOpts}
   bcftools --version &> v_bcftools.txt 2>&1 || true
@@ -1605,7 +1650,7 @@ process pileupSummariesForMutect2 {
 
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
-  intervalOpts = doNotUseIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${germlineResource}" : "-L ${intervalBed}"
+  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${germlineResource}" : "-L ${intervalBed}"
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     GetPileupSummaries \
