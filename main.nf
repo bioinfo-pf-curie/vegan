@@ -121,6 +121,27 @@ params.putAll([
 ])
 
 /*
+===============================================================================
+                              INTERVALS
+=============================================================================== 
+*/
+
+//intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
+if (params.noIntervals || !params.intervals){
+  intervalsCh = "null"
+  doNotUseIntervals = true
+  if (!params.noIntervals && !params.intervals){
+    log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: No intervals file detected: Option '--noIntervals' is forced
+========================================================================"""
+  }
+}else{
+  doNotUseIntervals = false
+  intervalsCh = params.intervals ? Channel.value(file(params.intervals)) : Channel.empty()
+}
+
+/*
 ================================================================================
                                 SUMMARY
 ================================================================================
@@ -135,7 +156,7 @@ summary = [
   'Genome': params.genome,
   'Fasta': params.fasta ?: null,
   'Target BED': params.targetBed ?: null,
-  'Intervals': params.noIntervals ? 'Do not use' : params.intervals,
+  'Intervals': doNotUseIntervals ? 'Do not use' : params.intervals,
   'Step': step ?: null,
   'Tools': params.tools ? tools instanceof Collection ? tools.join(', ') : tools: null,
   'QC tools skip': params.skipQC ? 'Yes' : 'No',
@@ -192,7 +213,6 @@ snpeffCacheCh = params.snpeffCache ? Channel.value(file(params.snpeffCache)) : "
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
-intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
 targetBedCh = params.targetBed ? Channel.value(file(params.targetBed)) : "null"
 ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : "null")
 
@@ -237,7 +257,7 @@ process createIntervalBeds {
   script:
   // If the interval file is BED format, the fifth column is interpreted to
   // contain runtime estimates, which is then used to combine short-running jobs
-  if (params.noIntervals)
+  if (doNotUseIntervals)
     """
     echo "noIntervals\n" > noIntervals.bed
     """
@@ -277,7 +297,7 @@ process createIntervalBeds {
     """
 }
 
-if (!params.noIntervals){
+if (!doNotUseIntervals){
   bedIntervalsCh = bedIntervalsCh
     .map { intervalFile ->
       duration = 0.0
@@ -933,7 +953,7 @@ process identito {
   label 'identito'
 
   when:
-  !params.skipIdentito && !params.skipQC
+  !params.skipIdentito && !params.skipQC && params.polyms
 
   input:
   file(fasta) from fastaCh
@@ -1003,7 +1023,7 @@ process baseRecalibrator {
   tag "${sampleId}"
 
   publishDir "${params.bqsrBamDir}", mode: params.publishDirMode,
-             saveAs: {filename ->  if (params.noIntervals) filename}
+             saveAs: {filename ->  if (doNotUseIntervals) filename}
 
   input:
   tuple val(sampleId), val(sampleName), file(bam), file(bai), file(intervalBed) from bamBaseRecalibratorCh.dump(tag:'bambqsr')
@@ -1025,8 +1045,8 @@ process baseRecalibrator {
   script:
   dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
   knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
-  prefix = params.noIntervals ? "${sampleId}" : "${sampleId}_${intervalBed.baseName}"
-  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
+  prefix = doNotUseIntervals ? "${sampleId}" : "${sampleId}_${intervalBed.baseName}"
+  intervalsOptions = doNotUseIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       BaseRecalibrator \
@@ -1045,7 +1065,7 @@ process baseRecalibrator {
  * MERGE BQSR TABLES PER INTERVALS
  */
 
-if (!params.noIntervals) {
+if (!doNotUseIntervals) {
   tableGatherBQSRReportsCh = tableGatherBQSRReportsCh.groupTuple(by:[0, 1])
 }else{
   (tableGatherBQSRReportsCh, recalTableCh) = tableGatherBQSRReportsCh.into(2)
@@ -1070,7 +1090,7 @@ process gatherBQSRReports {
     val(sampleName),
     file("${sampleId}.recal.table") into recalTableCh
 
-  when: !(params.noIntervals)
+  when: !(doNotUseIntervals)
 
   script:
   input = recal.collect{"-I ${it}"}.join(' ')
@@ -1110,8 +1130,8 @@ process applyBQSR {
   file("v_gatk.txt") into gatkVersionCh
 
   script:
-  prefix = params.noIntervals ? "noInterval_" : "${intervalBed.baseName}_"
-  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
+  prefix = doNotUseIntervals ? "noInterval_" : "${intervalBed.baseName}_"
+  intervalsOptions = doNotUseIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       ApplyBQSR \
@@ -1151,7 +1171,7 @@ process mergeAndIndexBamRecal {
     file("*recal.bam.bai") into bamRecalCh
   file('v_samtools.txt') into samtoolsMergeBamRecalVersionCh
 
-  when: !(params.noIntervals)
+  when: !(doNotUseIntervals)
 
   script:
   """
@@ -1184,7 +1204,7 @@ process indexBamRecal {
     file("*bam.bai") into bamRecalNoIntCh
   file('v_samtools.txt') into samtoolsIndexBamRecalVersionCh
 
-  when: params.noIntervals
+  when: doNotUseIntervals
 
   script:
   """
@@ -1333,7 +1353,7 @@ process haplotypeCaller {
   when: 'haplotypecaller' in tools
 
   script:
-  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
+  intervalOpts = doNotUseIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
@@ -1367,7 +1387,7 @@ process genotypeGVCFs {
   when: 'haplotypecaller' in tools
 
   script:
-  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
+  intervalOpts = doNotUseIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   dbsnpOpts = params.dbsnp ? "--D ${dbsnp}" : ""
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
@@ -1420,7 +1440,7 @@ process mutect2 {
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
   PON = params.pon ? "--panel-of-normals ${pon}" : ""
-  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
+  intervalOpts = doNotUseIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
   baseQualOpts = params.baseQual ? "--min-base-quality-score ${params.baseQual}" : ""
   mapQualOpts = params.mapQual ? "--minimum-mapping-quality ${params.mapQual}" : ""
   """
@@ -1517,7 +1537,7 @@ process concatVCF {
     outputFile = "${sampleId}_${variantCaller}.vcf"
 
   targetOpts = params.targetBed ? "-t ${targetBed}" : ""
-  intervalsOpts = params.noIntervals ? "-n" : ""
+  intervalsOpts = doNotUseIntervals ? "-n" : ""
   """
   apConcatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${targetOpts} ${intervalsOpts}
   bcftools --version &> v_bcftools.txt 2>&1 || true
@@ -1585,7 +1605,7 @@ process pileupSummariesForMutect2 {
 
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
-  intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${germlineResource}" : "-L ${intervalBed}"
+  intervalOpts = doNotUseIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${germlineResource}" : "-L ${intervalBed}"
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     GetPileupSummaries \
