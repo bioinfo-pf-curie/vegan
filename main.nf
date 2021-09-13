@@ -1040,7 +1040,7 @@ process combineIndentito {
   script:
   """
   (head -1 "${matrix[0]}"; tail -n +2 -q *matrix.tsv) > identito_polym.tsv
-  apComputeClust.R --input identito_polym.tsv --dist ejaccard --splan ${splan}
+  apComputeClust.R --input identito_polym.tsv --dist ejaccard
   """
 }
 
