@@ -2421,7 +2421,7 @@ process multiQC {
 
   script:
   rtitle = customRunName ? "--title \"$customRunName\"" : ''
-  rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_report" : ''
+  rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_vegan_report" : ''
   metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
   designOpts= params.design ? "-d ${params.design}" : ""
   isPE = params.singleEnd ? "" : "-p"
