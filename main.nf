@@ -131,8 +131,8 @@ params.putAll([
 //  exit 1, "No intervals file specified for '${params.genome}': Please use '--noIntervals'"
 //}
 
-if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!params.dbsnp || !params.knownIndels || !params.dbsnpIndex || !params.knowIndelsIndex)){
-  exit 1, "Missing annotation file(s) for GATK Base Recalibrator (dbSNP, knowIndels): Please use '--skipBQSR'"
+if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!params.dbsnp || !params.knownIndels || !params.dbsnpIndex || !params.knownIndelsIndex)){
+  exit 1, "Missing annotation file(s) for GATK Base Recalibrator (dbSNP, knownIndels): Please use '--skipBQSR'"
 }
 
 if (tools && ('ascat' in tools) && (!params.acLoci || !params.acLociGC)) {
