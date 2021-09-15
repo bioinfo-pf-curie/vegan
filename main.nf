@@ -2416,12 +2416,12 @@ process multiQC {
 
   output:
   file(splan)
-  file("*multiqc_report.html") into multiQCOutCh
+  file("*_report.html") into multiQCOutCh
   file("*_data")
 
   script:
   rtitle = customRunName ? "--title \"$customRunName\"" : ''
-  rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+  rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_report" : ''
   metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
   designOpts= params.design ? "-d ${params.design}" : ""
   isPE = params.singleEnd ? "" : "-p"
