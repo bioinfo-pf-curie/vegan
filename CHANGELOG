@@ -10,6 +10,7 @@ SIGNIFICANT USER-VISIBLE CHANGES
 
 BUG FIXES
 
+  - Fix bug in 30X coverage for WGS
   - Fix mm10 genome
   - Update conda identito recipes
   - bug in facet with test profile (#102)
