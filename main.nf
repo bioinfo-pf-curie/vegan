@@ -1091,7 +1091,7 @@ process baseRecalibrator {
   dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
   knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
   prefix = params.noIntervals ? "${sampleId}" : "${sampleId}_${intervalBed.baseName}"
-  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
+  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       BaseRecalibrator \
