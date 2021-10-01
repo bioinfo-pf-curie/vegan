@@ -1,4 +1,22 @@
 ***********************************
+version-1.2.0
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Updata genome conf
+  - Update mem for Mutect2/bwa-mem
+  - Update identito output
+  - Export unfiltered bam files by default
+
+BUG FIXES
+
+  - Fix bug in BQSR with targetBed
+  - Fix bug in 30X coverage for WGS
+  - Fix mm10 genome
+  - Update conda identito recipes
+  - bug in facet with test profile (#102)
+
+***********************************
 version-1.1.0
 
 NEW FEATURES

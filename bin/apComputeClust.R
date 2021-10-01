@@ -1,24 +1,34 @@
 #!/usr/bin/env Rscript
 
-args<-commandArgs(trailingOnly = TRUE)
-if (length(args) < 2) {
-    stop("Usage: compute_clust.r <inputTable> <outputDir> <distance> [<minSNPsNumber>]", call.=FALSE)
-}
+## Load libraries
+library(proxy)
+library(dendextend)
+library(optparse)
+
+option_list <- list(make_option(c("-i", "--input"), type="character", default=NULL, help="Input file with SNPs allelic frequencies", metavar="path"),
+                    make_option(c("-s", "--splan"), type="character", default=NULL, help="Sample plan", metavar="path"),
+                    make_option(c("-o", "--odir"), type="character", default="./", help="Output director", metavar="path"),
+                    make_option(c("-d", "--dist"), type="character", default='ejaccard', help="Clustering distance", metavar="character"),
+                    make_option(c("-m", "--minsnp"), type="integer", default='22', help="Minimum SNPs number to consider a sample", metavar="int"))
+
+opt_parser <- OptionParser(option_list=option_list)
+opt <- parse_args(opt_parser)
+
+#args<-commandArgs(trailingOnly = TRUE)
+#if (length(args) < 2) {
+#    stop("Usage: compute_clust.r <inputTable> <outputDir> <distance> [<minSNPsNumber>]", call.=FALSE)
+#}
 
 # Load arguments
-inputTable <- args[1]
-outputDir <- args[2]
-distance <- args[3]
-minSNPsNumber <- ifelse(is.na(args[4]),22,as.numeric(as.character(args[4])))
+inputTable <- opt$input
+samplePlan <- opt$splan
+outputDir <- opt$odir
+distance <- opt$dist
+minSNPsNumber <- opt$minsnp
 
 # Handle path & Output Names
 outputPlot <- paste0(outputDir,"/clustering_identito_mqc.png")
 outputMatrix <- paste0(outputDir,"/clustering_identito.csv")
-
-# Load libraries
-#library(pheatmap)
-library(proxy)
-library(dendextend)
 
 #Load data
 d <- read.table(inputTable, header=TRUE, stringsAsFactors=FALSE, row.names=1)
@@ -27,6 +37,15 @@ d[which(d == "NEC")] <- NA
 
 clust_mat <- matrix(as.numeric(d), ncol=ncol(d),
                     dimnames=list(rownames(d),colnames(d)))
+
+# Update sample name with sample plan
+if (!is.null(samplePlan)){
+    splan <- read.csv(samplePlan, header=FALSE, row.names=1)
+    if (length(setdiff(rownames(clust_mat), rownames(splan))) == 0){
+        splan <- splan[rownames(clust_mat),]
+        rownames(clust_mat) <- splan[,1]
+    }
+}
 
 # Handle sample full of NA
 toRemove <- c()
@@ -76,7 +95,7 @@ if (!is.null(dim(dmat)) && dim(dmat)[1]>1){
     clust %>%
         as.dendrogram() %>%
         set("branches_col", "darkgrey") %>% set("branches_lwd", 2) %>%
-        set("labels_cex", .9) %>%
+        set("labels_cex", 1) %>%
         set("leaves_pch", 16)  %>% set("leaves_col", "orange") %>%
         plot()
     dev.off()

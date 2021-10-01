@@ -121,7 +121,7 @@ for sample in $all_samples; do
     cov50=$(awk 'BEGIN{cov=0}$1=="total" && $2=="50"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
     cov100=$(awk 'BEGIN{cov=0}$1=="total" && $2=="100"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.filtered.SNV.mosdepth.region.dist.txt)
   elif [[ -e coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt ]]; then
-    cov30=$(awk 'BEGIN{cov=0}$1=="total" && $2=="30"{cov=$3x100}END{printf "%.*f",2,cov}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
+    cov30=$(awk 'BEGIN{cov=0}$1=="total" && $2=="30"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
     cov50=$(awk 'BEGIN{cov=0}$1=="total" && $2=="50"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
     cov100=$(awk 'BEGIN{cov=0}$1=="total" && $2=="100"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.filtered.SNV.mosdepth.global.dist.txt)
   else

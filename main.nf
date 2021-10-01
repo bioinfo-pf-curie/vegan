@@ -52,9 +52,12 @@ SNVFilters = params.SNVFilters ? params.SNVFilters.split(',').collect{it.trim().
 
 customRunName = checkRunName(workflow.runName, params.name)
 step = getStep(params.samplePlan, params.step)
+
 samplePlanPath = getPath(step, params.samplePlan, params.outDir)
-samplePlanCh = getSamplePlan(samplePlanPath, step, params.singleEnd, params.reads, params.readPaths).dump(tag: 'samplePlanCh')
-samplePlanCheckCh = params.samplePlan ? Channel.fromPath(samplePlanPath) : Channel.empty()
+//samplePlanPathCh = Channel.value(samplePlanPath ? file(samplePlanPath) : "").dump(tag: "samplePlanPathCh")
+(samplePlanCh, samplePlanPathCh) = getSamplePlan(samplePlanPath, step, params.singleEnd, params.reads, params.readPaths)
+(samplePlanCheckCh, samplePlanIdentitoCh, samplePlanPathCh) = samplePlanPathCh.into(3)
+//samplePlanCheckCh = params.samplePlan ? Channel.fromPath(samplePlanPath) : Channel.empty()
 (designCh, designCheckCh) = params.design ? [getDesign(params.design), Channel.fromPath(params.design)] : [Channel.empty(), Channel.empty()]
 
 if (params.design){
@@ -117,6 +120,45 @@ params.putAll([
   summaryDir: params.summaryDir ? file(params.summaryDir).toAbsolutePath() : "${params.outDir}/summary",
 ])
 
+
+/*
+================================================================================
+                               CHECKING VARIABLES
+================================================================================
+*/
+
+//if (!params.intervals && !params.noIntervals){
+//  exit 1, "No intervals file specified for '${params.genome}': Please use '--noIntervals'"
+//}
+
+if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!params.dbsnp || !params.knownIndels || !params.dbsnpIndex || !params.knownIndelsIndex)){
+  exit 1, "Missing annotation file(s) for GATK Base Recalibrator (dbSNP, knownIndels): Please use '--skipBQSR'"
+}
+
+if (tools && ('ascat' in tools) && (!params.acLoci || !params.acLociGC)) {
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for ASCAT (acLoci, acLociGC).
+========================================================================"""
+  tools.removeAll(["ascat"])
+}
+
+if (tools && ('mutect2' in tools) && (!params.germlineResource)) {
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for Mutect2 (germlineResource).
+========================================================================"""
+  tools.removeAll(["mutect2"])
+}
+
+if (tools && ('facets' in tools) && (!params.dbsnp)) {
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for Facets (dbsnp).
+========================================================================"""
+  tools.removeAll(["facets"])
+}
+
 /*
 ================================================================================
                                 SUMMARY
@@ -170,11 +212,11 @@ checkHostname(params, workflow)
 */
 
 // Initialize channels based on params
-fastaCh = params.fasta ? Channel.value(file(params.fasta)) : "null"
+fastaCh = params.fasta ? Channel.value(file(params.fasta)) : Channel.empty()
 fastaFaiCh = params.fastaFai ? Channel.value(file(params.fastaFai)) : fastaFaiBuiltCh
 dictCh = params.dict ? Channel.value(file(params.dict)) : dictBuiltCh
-polymsCh = params.polyms ? Channel.value(file(params.polyms)) : "null"
-gtfCh = params.gtf ? Channel.value(file(params.gtf)) : "null"
+polymsCh = params.polyms ? Channel.value(file(params.polyms)) : Channel.empty()
+gtfCh = params.gtf ? Channel.value(file(params.gtf)) : Channel.empty()
 
 // databases
 acLociCh = params.acLoci ? Channel.value(file(params.acLoci)) : "null"
@@ -189,8 +231,7 @@ snpeffCacheCh = params.snpeffCache ? Channel.value(file(params.snpeffCache)) : "
 snpeffDbCh = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
-intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
-ponCh = params.pon ? Channel.value(file(params.pon)) : "null"
+//intervalsCh = params.intervals && !params.noIntervals ? Channel.value(file(params.intervals)) : "null"
 targetBedCh = params.targetBed ? Channel.value(file(params.targetBed)) : "null"
 ponIndexCh = Channel.value(params.ponIndex ? file(params.ponIndex) : "null")
 
@@ -223,8 +264,35 @@ if (params.bwaIndex){
 
 // STEP 0: CREATING INTERVALS FOR PARALLELIZATION (PREPROCESSING AND VARIANT CALLING)
 
+process buildIntervals {
+  label 'onlyLinux'
+  label 'minCpu'
+  label 'lowMem'
+
+  input:
+  file(fastaFai) from fastaFaiCh
+
+  output:
+  file("${fastaFai.baseName}.bed") into intervalsBuildCh
+
+  when: !params.intervals
+
+  script:
+  """
+  awk -v FS='\t' -v OFS='\t' '{ print \$1, \"0\", \$2 }' ${fastaFai} > ${fastaFai.baseName}.bed
+  """
+}
+
+if (!params.intervals){
+  intervalsCh = intervalsBuildCh
+}else{
+  intervalsCh = Channel.value(file(params.intervals))
+}
+
 process createIntervalBeds {
   label 'onlyLinux'
+  label 'minCpu'
+  label	  'lowMem'
 
   input:
   file(intervals) from intervalsCh
@@ -301,7 +369,7 @@ if (!params.noIntervals){
 
 if (step == "mapping") {
   runIds = [:]
-  samplePlanCh.map {
+  samplePlanCh.dump(tag: "samplePlanCh").map {
     // Sample Plan
     // platformID - biologicalName - fastq1 - fastq2
     // Design
@@ -397,17 +465,16 @@ process fastQC {
  */
 
 inputPairReadsCh = inputPairReadsCh.mix(inputBamCh)
-inputPairReadsCh = inputPairReadsCh.dump(tag:'INPUT MAP READS')
 
 process bwaMem {
   label 'bwa'
   label 'highCpu'
-  label 'extraMem'
+  label 'highMem'
 
   tag "${sampleId}"
 
   publishDir "${params.outDir}/preprocessing/bams/bwa", mode: params.publishDirMode,
-               saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
+               saveAs: {filename ->  if (filename.endsWith(".bam")) filename}
 
   input:
   tuple val(sampleId), val(sampleName), val(runId), file(reads), file(index), val(genomeBase) from inputPairReadsCh.combine(bwaIndexCh)
@@ -499,7 +566,7 @@ process indexBamFile {
   tag "${sampleId}"
 
   publishDir "${params.outDir}/preprocessing/bams/bwa", mode: params.publishDirMode,
-               saveAs: {filename ->  if (params.saveAlignedIntermediates) filename}
+               saveAs: {filename ->  if (filename.endsWith("bai")) filename}
 
   input:
   tuple val(sampleId), val(sampleName), file(bam) from mergedBamToIndexCh
@@ -574,7 +641,7 @@ process preseq {
   file("v_preseq.txt") into preseqVersionCh
 
   script:
-  defectMode = params.preseqDefect ? '-D' : ''
+  defectMode = params.preseqDefect || task.attempt > 1 ? '-D' : ''
   """
   preseq &> v_preseq.txt
   preseq lc_extrap -v $defectMode -output ${bam.baseName}.ccurve.txt -bam ${bam} -e 500e+06
@@ -844,7 +911,7 @@ process prepareExonInfo {
   script:
   targetCmd = params.targetBed ? " | intersectBed -a stdin -b ${bed} ": ''
   """
-  awk -F"\t" -v type='gene_id' 'BEGIN{OFS="\t"} \$3=="exon" {split(\$9,annot,";");for(i=1;i<=length(annot);i++){if (annot[i]~type){anntype=annot[i]}} print \$1,\$4-1,\$5,anntype}' ${gtf} | sed -e 's/gene_id//' -e 's/"//g' | sort -u -k1,1V -k2,2n ${targetCmd} > ${gtf.baseName}_exon.bed
+  awk -F"\t" -v type='gene_id' 'BEGIN{OFS="\t"} \$3=="exon" {split(\$9,annot,";");for(i=1;i<=length(annot);i++){if (annot[i]~type){anntype=annot[i]}} print \$1,\$4-1,\$5,anntype}' ${gtf} | sed -e 's/gene_id//' -e 's/"//g' | sort -T './' -u -k1,1V -k2,2n ${targetCmd} > ${gtf.baseName}_exon.bed
   """
 }
 
@@ -931,7 +998,7 @@ process identito {
   label 'identito'
 
   when:
-  !params.skipIdentito && !params.skipQC
+  !params.skipIdentito && !params.skipQC && params.polyms
 
   input:
   file(fasta) from fastaCh
@@ -964,15 +1031,16 @@ process combineIndentito {
 
   input:
   file(matrix) from clustPolymCh.collect()
+  file(splan) from samplePlanIdentitoCh.collect()
 
   output:
-  file("*.{tsv,csv}") into clustPolymResultsCh
+  file("*.{tsv,csv,png}") into clustPolymResultsCh
   file("*.png") optional true into clustPolymPlotCh 
 
   script:
   """
   (head -1 "${matrix[0]}"; tail -n +2 -q *matrix.tsv) > identito_polym.tsv
-  apComputeClust.R identito_polym.tsv . ejaccard 20
+  apComputeClust.R --input identito_polym.tsv --dist ejaccard
   """
 }
 
@@ -1023,7 +1091,7 @@ process baseRecalibrator {
   dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
   knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
   prefix = params.noIntervals ? "${sampleId}" : "${sampleId}_${intervalBed.baseName}"
-  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
+  intervalsOptions = params.noIntervals ? params.targetBed ? "-L ${params.targetBed}" : "" : "-L ${intervalBed}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       BaseRecalibrator \
@@ -1393,7 +1461,7 @@ process mutect2 {
   tag "${sampleIdNormal}_vs_${sampleIdTumor}-${intervalBed.baseName}"
   label 'gatk'
   label 'minCpu'
-  label 'medMem'
+  label 'highMem'
 
   input:
   tuple val(sampleIdNormal), val(sampleNameNormal), file(bamNormal), file(baiNormal),
@@ -2324,7 +2392,7 @@ process multiQC {
   when: !(params.skipMultiqc)
 
   input:
-  file(splan) from Channel.value(samplePlanPath ? file(samplePlanPath) : "")
+  file(splan) from samplePlanPathCh.collect()
   file(metadata) from metadataCh.ifEmpty([])
   file(multiqcConfig) from Channel.value(params.multiqcConfig ? file(params.multiqcConfig) : "")
   file(workflowSummary) from workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml")
@@ -2347,12 +2415,13 @@ process multiQC {
   file('Transition/*') from transitionPerSampleCh.collect().ifEmpty([])
 
   output:
-  file("*multiqc_report.html") into multiQCOutCh
+  file(splan)
+  file("*_report.html") into multiQCOutCh
   file("*_data")
 
   script:
   rtitle = customRunName ? "--title \"$customRunName\"" : ''
-  rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+  rfilename = customRunName ? "--filename " + customRunName.replaceAll('\\W','_').replaceAll('_+','_') + "_vegan_report" : ''
   metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
   designOpts= params.design ? "-d ${params.design}" : ""
   isPE = params.singleEnd ? "" : "-p"
