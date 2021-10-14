@@ -281,7 +281,7 @@ Here is a typical command line to analyse whole-genome analysis data.
 
 ```bash
 nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \
-                     --genome 'hg38' --tools haplotyCaller,mutect2,snpeff,ascat,manta \
+                     --genome 'hg38' --tools 'mutect2,snpeff,ascat,manta' \
                      -profile cluster,singularity --outDir [RESULTS] -w [RESULTS_work]
 ```
 
@@ -291,7 +291,8 @@ Here is a typical command line to analyse whole-exome analysis data, thus focusi
 
 ```bash
 nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \
-                     --genome 'hg38' --tools 'haplotyCaller,mutect2,snpeff,facets' \
+                     --targetBed [BED_FILE] \
+                     --genome 'hg38' --tools 'mutect2,snpeff,facets' \
                      -profile cluster,singularity --outDir [RESULTS] -w [RESULTS/work]
 ```
 
