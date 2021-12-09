@@ -1,4 +1,11 @@
 ***********************************
+version-1.2.1
+
+NEW FEATURES
+
+  - support for Mouse genome with no population annotation (Mutect2)
+
+***********************************
 version-1.2.0
 
 SIGNIFICANT USER-VISIBLE CHANGES
