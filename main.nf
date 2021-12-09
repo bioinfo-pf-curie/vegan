@@ -127,12 +127,12 @@ params.putAll([
 ================================================================================
 */
 
-//if (!params.intervals && !params.noIntervals){
-//  exit 1, "No intervals file specified for '${params.genome}': Please use '--noIntervals'"
-//}
-
 if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!params.dbsnp || !params.knownIndels || !params.dbsnpIndex || !params.knownIndelsIndex)){
   exit 1, "Missing annotation file(s) for GATK Base Recalibrator (dbSNP, knownIndels): Please use '--skipBQSR'"
+}
+
+if (!params.skipMutectContamination && 'mutect2' in tools && !params.germineResource){
+  exit 1, "Missing annotation file(s) for Mutect2 filtering (germlineResource): Please use '--skipMutectContamination'"
 }
 
 if (tools && ('ascat' in tools) && (!params.acLoci || !params.acLociGC)) {
@@ -141,14 +141,6 @@ if (tools && ('ascat' in tools) && (!params.acLoci || !params.acLociGC)) {
   ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for ASCAT (acLoci, acLociGC).
 ========================================================================"""
   tools.removeAll(["ascat"])
-}
-
-if (tools && ('mutect2' in tools) && (!params.germlineResource)) {
-  log.info """\
-========================================================================
-  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for Mutect2 (germlineResource).
-========================================================================"""
-  tools.removeAll(["mutect2"])
 }
 
 if (tools && ('facets' in tools) && (!params.dbsnp)) {
@@ -1456,7 +1448,7 @@ vcfGenotypeGVCFsCh = vcfGenotypeGVCFsCh.groupTuple(by:[0, 1, 2])
  */
 
 // STEP GATK MUTECT2.1 - RAW CALLS
-
+pairBamMutect2Ch = pairBamMutect2Ch.dump(tag:'debug')
 process mutect2 {
   tag "${sampleIdNormal}_vs_${sampleIdTumor}-${intervalBed.baseName}"
   label 'gatk'
@@ -1472,7 +1464,7 @@ process mutect2 {
   file(fastaFai) from fastaFaiCh
   file(germlineResource) from germlineResourceCh
   file(germlineResourceIndex) from germlineResourceIndexCh
-  file(intervals) from intervalsCh
+  //file(intervals) from intervalsCh
   file(ponIndex) from ponIndexCh
   file(targetBed) from targetBedCh
 
@@ -1485,6 +1477,7 @@ process mutect2 {
   script:
   pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
   PON = params.pon ? "--panel-of-normals ${pon}" : ""
+  germlineResourceOpts = params.germlineResource ? "--germline-resource ${germlineResource}" : ""
   intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "" : "-L ${intervalBed}"
   baseQualOpts = params.baseQual ? "--min-base-quality-score ${params.baseQual}" : ""
   mapQualOpts = params.mapQual ? "--minimum-mapping-quality ${params.mapQual}" : ""
@@ -1496,7 +1489,7 @@ process mutect2 {
     -I ${bamTumor} -tumor ${sampleIdTumor} \
     -I ${bamNormal} -normal ${sampleIdNormal} \
     ${intervalOpts} \
-    --germline-resource ${germlineResource} \
+    ${germlineResourceOpts} \
     ${PON} \
     ${baseQualOpts} \
     ${mapQualOpts} \
