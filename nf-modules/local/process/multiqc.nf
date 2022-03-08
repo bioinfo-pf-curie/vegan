@@ -28,13 +28,16 @@ process multiqc {
   rtitle = customRunName ? "--title \"$customRunName\"" : ''
   rfilename = customRunName ? "--filename " + customRunName + "_rnaseq_report" : "--filename rnaseq_report"
   metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
+  designOpts= params.design ? "-d ${params.design}" : ""
   splanOpts = params.samplePlan ? "--splan ${params.samplePlan}" : ""
   isPE = params.singleEnd ? 0 : 1
     
-  modulesList = "-m custom_content -m preseq -m rseqc -m bowtie1 -m hisat2 -m star -m cutadapt -m fastqc -m qualimap -m salmon -m gffcompare"
+  modulesList = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m picard -m mosdepth"
   warn = warnings.name == 'warnings.txt' ? "--warn warnings.txt" : ""
   """
-  mqc_header.py --name "RNA-seq" --version ${workflow.manifest.version} ${metadataOpts} ${splanOpts} ${warn} > multiqc-config-header.yaml
+  apStats2MultiQC.sh -s ${splan} ${designOpts} ${isPE}
+  medianReadNb="\$(sort -t, -k3,3n mqc.stats | awk -F, '{a[i++]=\$3;} END{x=int((i+1)/2); if (x<(i+1)/2) printf "%.0f", (a[x-1]+a[x])/2; else printf "%.0f",a[x-1];}')"
+  mqc_header.py --name "VEGAN" --version ${workflow.manifest.version} ${metadataOpts} ${splanOpts} ${warn} --nbreads \${medianReadNb} > multiqc-config-header.yaml
   multiqc . -f $rtitle $rfilename -c $multiqcConfig -c multiqc-config-header.yaml $modulesList
   """    
 }

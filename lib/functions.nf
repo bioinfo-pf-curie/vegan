@@ -1,4 +1,11 @@
-// RNA-seq Analysis Pipeline : custom functions 
+// VEGAN : custom functions 
+
+/**
+ * Check fraction of aligned reads
+ *
+ * @params prefix
+ * @params logs
+ */
 
 def checkAlignmentPercent(prefix, logs) {
   def percentAligned = 0;
@@ -20,3 +27,23 @@ def checkAlignmentPercent(prefix, logs) {
       return true
   }
 }
+
+/**
+ * Load VEGAN design file
+ *
+ * @params design
+ */
+
+  def loadDesign(designPath) {
+    def designFile = designPath ? file(designPath) : null
+    //def designExt = designPath ? getExtension(designPath, ["tsv", "csv"]) : ""
+    //def separator = (designExt == 'tsv') ? '\t' : (designExt == 'csv') ? ',' : ''
+    def separator = designFile.toString().endsWith(".csv") ? ',' : designFile.toString().endsWith(".tsv") ? '\t':  ''
+    if (designFile) {
+      return Channel.of(designFile)
+        .splitCsv(sep: separator, header: ['germlineId', 'tumorId', 'pairId', 'sex'])
+        .map { row -> [row.germlineId, row.tumorId, row.pairId, row.sex] }
+    } else {
+      return Channel.empty()
+    }
+  }
