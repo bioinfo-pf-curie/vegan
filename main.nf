@@ -33,6 +33,7 @@ customRunName = NFTools.checkRunName(workflow.runName, params.name)
 // Custom functions/variables
 mqcReport = []
 include {checkAlignmentPercent} from './lib/functions'
+include {loadDesign} from './lib/functions'
 
 /*
 ===================================
@@ -50,7 +51,7 @@ if (params.genomes && params.genome && !params.genomes.containsKey(params.genome
 }
 
 // Initialize variable from the genome.conf file
-//params.bowtie2Index = NFTools.getGenomeAttribute(params, 'bowtie2')
+params.bwaIndex = NFTools.getGenomeAttribute(params, 'bwaIndex')
 
 // Stage config files
 chMultiqcConfig = Channel.fromPath(params.multiqcConfig)
@@ -80,6 +81,14 @@ if ( params.metadata ){
     .set { chMetadata }
 }
 
+if ( params.bwaIndex ){
+  Channel
+    .fromPath("${params.bwaIndex}")
+    .ifEmpty { exit 1, "Bwa index not found: ${params.bwaIndex}" }
+    .set{chBwaIndex}
+}else{
+  exit 1, "No genome index specified!"
+}
 /*
 ===========================
    SUMMARY
@@ -112,6 +121,18 @@ chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPa
 // Make samplePlan if not available
 chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPaths, params.singleEnd)
 
+// Load design file
+if (params.design){
+  Channel
+    .fromPath(params.design)
+    .ifEmpty { exit 1, "Design file not found: ${params.design}" }
+    .set { chDesignFile }
+  chDesign = loadDesign(params.design)
+}else{
+  chDesignFile = Channel.empty()
+  chDesign = Channel.empty()
+}
+
 /*
 ==================================
            INCLUDE
@@ -119,6 +140,7 @@ chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPath
 */ 
 
 // Workflows
+include { bwaMapping } from './nf-modules/local/subworkflow/bwaFlow'
 
 // Processes
 include { getSoftwareVersions } from './nf-modules/common/process/getSoftwareVersions'
@@ -136,14 +158,30 @@ workflow {
   chVersions = Channel.empty()
 
   main:
-    // Init Channels
+    // Init MultiQC Channels
     chFastqcMqc = Channel.empty()
+
+    chRawReads.view()
+    chDesign.view()
 
     // subroutines
     outputDocumentation(
       chOutputDocs,
       chOutputDocsImages
     )
+
+    //*******************************************
+    // SUB-WORFKLOW : MAPPING BWA
+    bwaMapping(
+      chRawReads,
+      chBwaIndex
+    )
+
+    //*******************************************
+    // SUB-WORKFLOW : GATK
+    //gatk(
+    //  bwaMapping.out.bam
+    //)
 
     // PROCESS: fastqc
     if (! params.skipFastqc){
