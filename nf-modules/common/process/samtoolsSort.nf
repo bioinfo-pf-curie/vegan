@@ -17,12 +17,13 @@ process samtoolsSort {
 
   script:
   def args = task.ext.args ?: ''
+  def prefix = task.ext.prefix ?: "${bam.baseName}"
   """
   echo \$(samtools --version | head -1 ) > versions.txt
   samtools sort \\
     ${args} \\
     -@  ${task.cpus}  \\
-    -o ${bam.baseName}_sorted.bam  \\
+    -o ${prefix}_sorted.bam  \\
     ${bam}
   """
 }

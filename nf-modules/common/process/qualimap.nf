@@ -1,7 +1,5 @@
 /* 
  * Qualimap - quality controls on RNA-seq BAM file
- * External parameters :
- * @ params.singleEnd :	is data	single-end sequencing ?
  */
 
 process qualimap {
@@ -11,22 +9,24 @@ process qualimap {
   label 'medMem'
 
   input:
-  tuple val(meta.id), path(bam), path(bai), val(stranded)
+  tuple val(meta), path(bam), path(bai)
   path gtf
 
   output:
-  path ("${meta.id}"), emit: results
+  path ("${prefix}"), emit: results
   path ("versions.txt"), emit: versions
 
   script:
-  peOpts = params.singleEnd ? '' : '-pe'
-  memory = task.memory.toGiga() + "G"
-  strandnessOpts = 'non-strand-specific'
-  if (stranded == 'forward') {
+  def peOpts = meta.singleEnd ? '' : '-pe'
+  def memory = task.memory.toGiga() + "G"
+  def strandnessOpts = 'non-strand-specific'
+  if (meta.stranded == 'forward') {
     strandnessOpts = 'strand-specific-forward'
-  } else if (stranded == 'reverse') {
+  } else if (meta.stranded == 'reverse') {
     strandnessOpts = 'strand-specific-reverse'
   }
+  prefix = task.ext.prefix ?: "${meta.id}"
+  def args = task.ext.args ?: ''
   """
   mkdir tmp
   export _JAVA_OPTIONS=-Djava.io.tmpdir=./tmp
@@ -37,7 +37,7 @@ process qualimap {
     -gtf ${gtf} \\
     -p ${strandnessOpts} \\
     ${peOpts} \\
-    -outdir ${meta.id}
+    -outdir ${prefix}
   echo \$(qualimap -h 2>&1 |  grep "QualiMap" | sed -e 's/v.//') > versions.txt
   """
 }

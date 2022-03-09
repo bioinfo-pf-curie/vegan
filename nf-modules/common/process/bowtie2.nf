@@ -3,7 +3,7 @@
  */
 
 process bowtie2{
-  tag "${meta}"
+  tag "${meta.id}"
   label 'bowtie2'
   label 'highCpu'
   label 'highMem'
@@ -19,6 +19,7 @@ process bowtie2{
 
   script:
   def args = task.ext.args ?: ''
+  def prefix = task.ext.prefix ?: "${meta.id}"
   inputOpts = meta.singleEnd ? "-U ${reads[0]}" : "-1 ${reads[0]} -2 ${reads[1]}"
   """
   localIndex=`find -L ./ -name "*.rev.1.bt2" | sed 's/.rev.1.bt2//'`
@@ -27,7 +28,7 @@ process bowtie2{
   bowtie2 -p ${task.cpus} \
           ${args} \
            -x \${localIndex} \
-          $inputOpts > ${meta.id}_\${refName}.bam 2> ${meta.id}_bowtie2.log
+          $inputOpts > ${prefix}_\${refName}.bam 2> ${prefix}_bowtie2.log
   """
 }
 

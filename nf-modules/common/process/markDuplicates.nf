@@ -17,6 +17,7 @@ process markDuplicates {
   path('versions.txt'), emit: versions
 
   script:
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def javaArgs = task.ext.args ?: ''
   markdupMemOption = "\"-Xms" +  (task.memory.toGiga() / 2).trunc() + "g -Xmx" + (task.memory.toGiga() - 1) + "g\""
   """
@@ -24,8 +25,8 @@ process markDuplicates {
   picard ${markdupMemOption} ${javaArgs} MarkDuplicates \\
       MAX_RECORDS_IN_RAM=50000 \\
       INPUT=${bam} \\
-      OUTPUT=${meta.id}_markDups.bam \\
-      METRICS_FILE=${meta.id}_markDups_metrics.txt \\
+      OUTPUT=${prefix}_markDups.bam \\
+      METRICS_FILE=${prefix}_markDups_metrics.txt \\
       REMOVE_DUPLICATES=false \\
       ASSUME_SORTED=true \\
       PROGRAM_RECORD_ID='null' \\
