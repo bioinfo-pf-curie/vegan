@@ -17,10 +17,11 @@ process samtoolsFilter {
 
   script:
   def args = task.ext.args ?: ''
+  def prefix = task.ext.prefix ?: "${bam.baseName}"
   """
   echo \$(samtools --version | head -1) > versions.txt
   samtools view \\
     ${args} \\
-    -b ${bam} > ${bam.baseName}_filtered.bam
+    -b ${bam} > ${prefix}_filtered.bam
   """
 } 

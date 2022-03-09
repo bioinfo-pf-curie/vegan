@@ -16,10 +16,10 @@ process samtoolsFlagstat {
   path("versions.txt") , emit: versions
 
   script:
-  
+  def prefix = task.ext.prefix ?: "${bam.baseName}"  
   """
   echo \$(samtools --version | head -1) > versions.txt
-  samtools flagstat ${bam} > ${bam.baseName}.flagstats
+  samtools flagstat ${bam} > ${prefix}.flagstats
   """
 }
     

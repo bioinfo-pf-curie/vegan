@@ -19,6 +19,7 @@ process bwaMem{
 
   script:
   def args = task.ext.args ?: ''
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
   refName=`basename \${localIndex}`
@@ -26,8 +27,8 @@ process bwaMem{
   bwa mem -t ${task.cpus} \
            \${localIndex} \
           ${args} \
-          $reads | samtools view -bS - > ${meta.id}_\${refName}.bam
-  getBWAstats.sh -i ${meta.id}_\${refName}.bam -p ${task.cpus} > ${meta.id}_bwa.log
+          $reads | samtools view -bS - > ${prefix}_\${refName}.bam
+  getBWAstats.sh -i ${prefix}_\${refName}.bam -p ${task.cpus} > ${prefix}_bwa.log
   """
 }
 

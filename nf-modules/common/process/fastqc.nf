@@ -16,7 +16,7 @@ process fastqc {
   path("versions.txt")       , emit: versions
 
   script:
-  prefix=meta.id
+  def prefix = task.ext.prefix ?: "${meta.id}"
   if (meta.singleEnd){
     """
     echo \$(fastqc --version) > versions.txt
