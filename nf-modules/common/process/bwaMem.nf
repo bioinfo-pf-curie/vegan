@@ -3,17 +3,17 @@
  */
 
 process bwaMem{
-  tag "${prefix}"
+  tag "${meta.id}"
   label 'bwa'
   label 'highCpu'
   label 'highMem'
 
   input:
-  tuple val(prefix), path(reads)
+  tuple val(meta), path(reads)
   path(index)
 
   output:
-  tuple val(prefix), path("*.bam"), emit: bam 
+  tuple val(meta), path("*.bam"), emit: bam 
   path("*.log"), emit: logs
   path("versions.txt"), emit: versions
 
@@ -26,8 +26,8 @@ process bwaMem{
   bwa mem -t ${task.cpus} \
            \${localIndex} \
           ${args} \
-          $reads | samtools view -bS - > ${prefix}_\${refName}.bam
-  getBWAstats.sh -i ${prefix}_\${refName}.bam -p ${task.cpus} > ${prefix}_bwa.log
+          $reads | samtools view -bS - > ${meta.id}_\${refName}.bam
+  getBWAstats.sh -i ${meta.id}_\${refName}.bam -p ${task.cpus} > ${meta.id}_bwa.log
   """
 }
 

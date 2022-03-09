@@ -3,16 +3,16 @@
  */
 
 process samtoolsFilter {
-  tag "${prefix}"
+  tag "${meta.id}"
   label 'samtools'
   label 'lowCpu'
   label 'lowMem'
 
   input:
-  tuple val(prefix), path(bam)
+  tuple val(meta), path(bam)
 
   output:
-  tuple val(prefix), path("*filtered.bam"), emit: bam
+  tuple val(meta), path("*filtered.bam"), emit: bam
   path("versions.txt"), emit: versions
 
   script:

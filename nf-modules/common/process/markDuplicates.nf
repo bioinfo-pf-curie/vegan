@@ -3,16 +3,16 @@
  */
 
 process markDuplicates {
-  tag "${prefix}"
+  tag "${meta.id}"
   label 'picard'
   label 'minCpu'
   label 'medMem'
 
   input:
-  tuple val(prefix), path(bam), path(bai)
+  tuple val(meta), path(bam), path(bai)
 
   output:
-  tuple val(prefix), path('*markDups.bam'), emit: bam
+  tuple val(meta), path('*markDups.bam'), emit: bam
   path('*markDups_metrics.txt'), emit: metrics
   path('versions.txt'), emit: versions
 
@@ -24,8 +24,8 @@ process markDuplicates {
   picard ${markdupMemOption} ${javaArgs} MarkDuplicates \\
       MAX_RECORDS_IN_RAM=50000 \\
       INPUT=${bam} \\
-      OUTPUT=${prefix}_markDups.bam \\
-      METRICS_FILE=${prefix}_markDups_metrics.txt \\
+      OUTPUT=${meta.id}_markDups.bam \\
+      METRICS_FILE=${meta.id}_markDups_metrics.txt \\
       REMOVE_DUPLICATES=false \\
       ASSUME_SORTED=true \\
       PROGRAM_RECORD_ID='null' \\
