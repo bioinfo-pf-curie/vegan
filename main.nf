@@ -5,7 +5,7 @@ Copyright Institut Curie 2019-2022
 This software is a computer program whose purpose is to analyze high-throughput sequencing data.
 You can use, modify and/ or redistribute the software under the terms of license (see the LICENSE file for more details).
 The software is distributed in the hope that it will be useful, but "AS IS" WITHOUT ANY WARRANTY OF ANY KIND.
-Users are therefore encouraged to test the software's suitability as regards their requirements in conditions enabling the security of their systems and/or data. 
+Users are therefore encouraged to test the software's suitability as regards their requirements in conditions enabling the security of their systems and/or data.
 The fact that you are presently reading this means that you have had knowledge of the license and that you accept its terms.
 */
 
@@ -89,6 +89,15 @@ if ( params.bwaIndex ){
 }else{
   exit 1, "No genome index specified!"
 }
+
+if (params.targetBed) {
+  Channel
+    .fromPath(params.targetBed, checkIfExists: true)
+    .set{chBed}
+}else {
+  chBed = Channel.empty()
+}
+
 /*
 ===========================
    SUMMARY
@@ -98,13 +107,25 @@ if ( params.bwaIndex ){
 summary = [
   'Pipeline Release': workflow.revision ?: null,
   'Run Name': customRunName,
+  'Step' : params.step ?: null,
+  'Profile' : workflow.profile,
   'Inputs' : params.samplePlan ?: params.reads ?: null,
   'Genome' : params.genome,
+  'Tools' : params.tools ?: null,
+  'Target Bed' : params.targetBed ?: null,
+  'SNV filters': params.SNVFilters ?: null,
+  'SV filters': params.SVFilters ?: null,
+  'QC tools skip' : params.skipQC ? 'Yes' : 'No',
+  'Script dir': workflow.projectDir,
+  'Launch Dir' : workflow.launchDir,
+  'Output Dir' : params.outDir,
+  'Working Dir': workflow.workDir,
   'Max Resources': "${params.maxMemory} memory, ${params.maxCpus} cpus, ${params.maxTime} time per job",
   'Container': workflow.containerEngine && workflow.container ? "${workflow.containerEngine} - ${workflow.container}" : null,
-  'Profile' : workflow.profile,
-  'OutDir' : params.outDir,
-  'WorkDir': workflow.workDir
+  'User': workflow.userName,
+  'Config Description': params.configProfileDescription ?: null,
+  'Config Contact': params.configProfileContact ?: null,
+  'Config URL': params.configProfileUrl ?: null,
 ].findAll{ it.value != null }
 
 workflowSummaryCh = NFTools.summarize(summary, workflow, params)
@@ -138,7 +159,7 @@ if (params.design){
 ==================================
            INCLUDE
 ==================================
-*/ 
+*/
 
 // Workflows
 include { bwaMapping } from './nf-modules/local/subworkflow/bwaFlow'
@@ -148,10 +169,12 @@ include { getSoftwareVersions } from './nf-modules/common/process/getSoftwareVer
 include { outputDocumentation } from './nf-modules/common/process/outputDocumentation'
 include { fastqc } from './nf-modules/common/process/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
+include { preseq } from './nf-modules/common/process/preseq'
+include { bamFiltering } from './nf-modules/local/subworkflow/bamFilteringFlow'
 
 /*
 =====================================
-            WORKFLOW 
+            WORKFLOW
 =====================================
 */
 
@@ -165,6 +188,8 @@ workflow {
     chRawReads.view()
     chDesign.view()
 
+    chPreseqMqc = Channel.empty()
+
     // subroutines
     outputDocumentation(
       chOutputDocs,
@@ -177,6 +202,30 @@ workflow {
       chRawReads,
       chBwaIndex
     )
+
+    chAlignedBam = bwaMapping.out.bam
+    chVersions = chVersions.mix(bwaMapping.out.versions)
+
+    //*******************************************
+    // Process : Preseq
+
+    if (!params.skipPreseq){
+    preseq(
+      chAlignedBam
+    )
+    chPreseqMqc = preseq.out.results.collect()
+    chVersions = chVersions.mix(preseq.out.versions)
+  }
+
+  //*******************************************
+  // Process : bamFiltering
+
+    bamFiltering(
+      chAlignedBam,
+      chBed
+    )
+
+  chVersions = chVersions.mix(bamFiltering.out.versions)
 
     //*******************************************
     // SUB-WORKFLOW : GATK
@@ -195,7 +244,7 @@ workflow {
 
     //*******************************************
     // MULTIQC
-  
+
     // Warnings that will be printed in the mqc report
     chWarn = Channel.empty()
 
