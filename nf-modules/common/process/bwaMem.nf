@@ -13,7 +13,7 @@ process bwaMem{
   path(index)
 
   output:
-  tuple val(meta), path("*.bam"), emit: bam 
+  tuple val(meta), path("*.bam"), emit: bam
   path("*.log"), emit: logs
   path("versions.txt"), emit: versions
 
@@ -31,4 +31,3 @@ process bwaMem{
   getBWAstats.sh -i ${prefix}_\${refName}.bam -p ${task.cpus} > ${prefix}_bwa.log
   """
 }
-
