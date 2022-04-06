@@ -9,16 +9,16 @@ process bamOnTarget {
   path(targetBed)
 
   output:
-  tuple val(meta), path("*_onTarget.bam"), path("*_onTarget.bam.bai"), emit: bam
-  path("*_onTarget.flagstats"), emit: metrics
+  tuple val(meta), path("*.onTarget.bam"), emit: bam
+  path("*.onTarget.flagstats"), emit: metrics
   path("versions.txt"), emit: versions
 
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   echo \$(bedtools --version 2>&1) &> versions.txt
-  intersectBed -abam ${bam} -b ${targetBed} > ${prefix}_onTarget.bam
-  samtools index ${prefix}_onTarget.bam
-  samtools flagstat ${prefix}_onTarget.bam > ${prefix}_onTarget.flagstats
+  intersectBed -abam ${bam} -b ${targetBed} > ${prefix}.onTarget.bam
+  samtools index ${prefix}.onTarget.bam
+  samtools flagstat ${prefix}.onTarget.bam > ${prefix}.onTarget.flagstats
   """
 }
