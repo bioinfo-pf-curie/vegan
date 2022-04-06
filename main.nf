@@ -113,8 +113,8 @@ summary = [
   'Genome' : params.genome,
   'Tools' : params.tools ?: null,
   'Target Bed' : params.targetBed ?: null,
-  'SNV filters': params.SNVFilters ?: null,
-  'SV filters': params.SVFilters ?: null,
+  // 'SNV filters': params.SNVFilters ?: null,
+  // 'SV filters': params.SVFilters ?: null,
   'QC tools skip' : params.skipQC ? 'Yes' : 'No',
   'Script dir': workflow.projectDir,
   'Launch Dir' : workflow.launchDir,
@@ -170,7 +170,7 @@ include { outputDocumentation } from './nf-modules/common/process/outputDocument
 include { fastqc } from './nf-modules/common/process/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq'
-include { bamFiltering } from './nf-modules/local/subworkflow/bamFilteringFlow'
+include { bamFilters } from './nf-modules/local/subworkflow/bamFilteringFlow'
 
 /*
 =====================================
@@ -220,12 +220,12 @@ workflow {
   //*******************************************
   // Process : bamFiltering
 
-    bamFiltering(
+    bamFilters(
       chAlignedBam,
       chBed
     )
 
-  chVersions = chVersions.mix(bamFiltering.out.versions)
+  chVersions = chVersions.mix(bamFilters.out.versions)
 
     //*******************************************
     // SUB-WORKFLOW : GATK
