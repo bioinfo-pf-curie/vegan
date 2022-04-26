@@ -11,10 +11,16 @@ The fact that you are presently reading this means that you have had knowledge o
 
 /*
 ========================================================================================
-                         DSL2 Template
+                         project : EUCANCAN/vegan
 ========================================================================================
-VEGAN
+VEGAN: Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data Pipeline.
+  An open-source analysis pipeline to detect germline or somatic variants
+  from whole genome or targeted sequencing
+
+@Homepage
 https://gitlab.curie.fr/data-analysis/vegan
+@Documentation
+https://gitlab.curie.fr/data-analysis/vegan/README.md
 ----------------------------------------------------------------------------------------
 */
 
@@ -22,6 +28,12 @@ nextflow.enable.dsl=2
 
 // Initialize lintedParams and paramsWithUsage
 NFTools.welcome(workflow, params)
+
+/*
+===================================
+  SET UP CONFIGURATION VARIABLES
+===================================
+*/
 
 // Use lintedParams as default params object
 paramsWithUsage = NFTools.readParamsFromJsonSettings("${projectDir}/parameters.settings.json")
@@ -35,11 +47,20 @@ mqcReport = []
 include {checkAlignmentPercent} from './lib/functions'
 include {loadDesign} from './lib/functions'
 
+
+tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
+
+
 /*
-===================================
-  SET UP CONFIGURATION VARIABLES
-===================================
+================================================================================
+                               CHECKING REFERENCES
+================================================================================
 */
+
+// ???
+// CHECKING VARIABLES ??
+// Init Channels ??
+// Intervals ?
 
 // Genome-based variables
 if (!params.genome){
@@ -52,6 +73,24 @@ if (params.genomes && params.genome && !params.genomes.containsKey(params.genome
 
 // Initialize variable from the genome.conf file
 params.bwaIndex = NFTools.getGenomeAttribute(params, 'bwaIndex')
+params.chrLength = NFTools.getGenomeAttribute(params, 'chrLength')
+params.dict = NFTools.getGenomeAttribute(params, 'dict')
+params.fasta = NFTools.getGenomeAttribute(params, 'fasta')
+params.fastaFai = NFTools.getGenomeAttribute(params, 'fastaFai')
+params.gtf = NFTools.getGenomeAttribute(params, 'gtf')
+params.dbsnp = NFTools.getGenomeAttribute(params, 'dbsnp')
+params.dbsnpIndex = NFTools.getGenomeAttribute(params, 'dbsnpIndex')
+params.acLoci = NFTools.getGenomeAttribute(params, 'acLoci')
+params.acLociGC = NFTools.getGenomeAttribute(params, 'acLociGC')
+params.polyms = NFTools.getGenomeAttribute(params, 'polyms')
+params.germlineResource = NFTools.getGenomeAttribute(params, 'germlineResource')
+params.germlineResourceIndex = NFTools.getGenomeAttribute(params, 'germlineResourceIndex')
+params.intervals = NFTools.getGenomeAttribute(params, 'intervals')
+params.knownIndels = NFTools.getGenomeAttribute(params, 'knownIndels')
+params.knownIndelsIndex = NFTools.getGenomeAttribute(params, 'knownIndelsIndex')
+params.snpeffDb = NFTools.getGenomeAttribute(params, 'snpeffDb')
+params.snpeffCache = NFTools.getGenomeAttribute(params, 'snpeffCache')
+
 
 // Stage config files
 chMultiqcConfig = Channel.fromPath(params.multiqcConfig)
@@ -74,13 +113,7 @@ if ((params.reads && params.samplePlan) || (params.readPaths && params.samplePla
 ==========================
 */
 
-if ( params.metadata ){
-  Channel
-    .fromPath( params.metadata )
-    .ifEmpty { exit 1, "Metadata file not found: ${params.metadata}" }
-    .set { chMetadata }
-}
-
+// Channels from genome.config
 if ( params.bwaIndex ){
   Channel
     .fromPath("${params.bwaIndex}")
@@ -90,6 +123,156 @@ if ( params.bwaIndex ){
   exit 1, "No genome index specified!"
 }
 
+if (params.chrLength) {
+  Channel
+    .fromPath(params.chrLength, checkIfExists: true)
+    .set{chrLength}
+}else {
+  chrLength = Channel.empty()
+}
+
+// Dict file
+if ( params.dict ){
+  Channel
+    .fromPath(params.dict, checkIfExists: true)
+    .set{chDict}
+}
+else{
+  exit 1, "Fasta file not found: ${params.fasta}"
+}
+
+// Genome Fasta file
+if ( params.fasta ){
+  Channel
+    .fromPath(params.fasta, checkIfExists: true)
+    .set{chFasta}
+}
+else{
+  exit 1, "Fasta file not found: ${params.fasta}"
+}
+
+if ( params.fastaFai ){
+  Channel
+    .fromPath(params.fastaFai, checkIfExists: true)
+    .set{chFastaFai}
+}
+else{
+  exit 1, "Fasta file not found: ${params.fasta}"
+}
+
+if (params.gtf) {
+  Channel
+    .fromPath(params.gtf, checkIfExists: true)
+    .set{chGtf}
+}else {
+  exit 1, "GTF annotation file not specified!"
+}
+
+if (params.dbsnp) {
+  Channel
+    .fromPath(params.dbsnp, checkIfExists: true)
+    .set{chDbsnp}
+}else {
+  exit 1, "Dbsnp annotation file not specified!"
+}
+
+if (params.dbsnpIndex) {
+  Channel
+    .fromPath(params.dbsnpIndex, checkIfExists: true)
+    .set{chDbsnpIndex}
+}else {
+  exit 1, "Dbsnp annotation file not specified!"
+}
+
+if (params.acLoci) {
+  Channel
+    .fromPath(params.acLoci, checkIfExists: true)
+    .set{chAcLoci}
+}else {
+  exit 1, "Ascat annotation file not specified!"
+}
+
+if (params.acLociGC) {
+  Channel
+    .fromPath(params.acLociGC, checkIfExists: true)
+    .set{chAcLociGC}
+}else {
+  exit 1, "Ascat annotation file not specified!"
+}
+
+if (params.polyms) {
+  Channel
+    .fromPath(params.polyms, checkIfExists: true)
+    .set{chPolyms}
+}else {
+  exit 1, "Identito vigilance annotation file not specified!"
+}
+
+if (params.germlineResource) {
+  Channel
+    .fromPath(params.germlineResource, checkIfExists: true)
+    .set{chGermlineResource}
+}else {
+  exit 1, "Mutect2 annotation file not specified!"
+}
+
+if (params.germlineResourceIndex) {
+  Channel
+    .fromPath(params.germlineResourceIndex, checkIfExists: true)
+    .set{chGermlineResourceIndex}
+}else {
+  exit 1, "Mutect2 annotation file not specified!"
+}
+
+if (params.intervals) {
+  Channel
+    .fromPath(params.intervals, checkIfExists: true)
+    .set{chrIntervals}
+}else {
+  chrIntervals = Channel.empty()
+}
+
+if (params.knownIndels) {
+  Channel
+    .fromPath(params.knownIndels, checkIfExists: true)
+    .set{chKnownIndels}
+}else {
+  exit 1, "BQSR annotation file not specified!"
+}
+
+if (params.knownIndelsIndex) {
+  Channel
+    .fromPath(params.knownIndelsIndex, checkIfExists: true)
+    .set{chKnownIndelsIndex}
+}else {
+  exit 1, "BQSR annotation file not specified!"
+}
+
+// if (params.snpeffDb) {
+//   Channel
+//     .fromPath(params.snpeffDb, checkIfExists: true)
+//     .set{chsnpeffDb}
+// }else {
+//   exit 1, "SnpEff annotation file not specified!"
+// }
+
+if (params.snpeffCache) {
+  Channel
+    .fromPath(params.snpeffCache, checkIfExists: true)
+    .set{chSnpeffCache}
+}else {
+  exit 1, "SnpEff annotation file not specified!"
+}
+
+// Other channels
+
+if ( params.metadata ){
+  Channel
+    .fromPath( params.metadata )
+    .ifEmpty { exit 1, "Metadata file not found: ${params.metadata}" }
+    .set { chMetadata }
+}
+
 if (params.targetBed) {
   Channel
     .fromPath(params.targetBed, checkIfExists: true)
@@ -97,6 +280,7 @@ if (params.targetBed) {
 }else {
   chBed = Channel.empty()
 }
+
 
 /*
 ===========================
@@ -113,6 +297,7 @@ summary = [
   'Genome' : params.genome,
   'Tools' : params.tools ?: null,
   'Target Bed' : params.targetBed ?: null,
+  'Identito' : params.polym ?: null,
   // 'SNV filters': params.SNVFilters ?: null,
   // 'SV filters': params.SVFilters ?: null,
   'QC tools skip' : params.skipQC ? 'Yes' : 'No',
@@ -138,7 +323,7 @@ workflowSummaryCh = NFTools.summarize(summary, workflow, params)
 
 // Load raw reads
 chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
-chRawReads.view()
+//chRawReads.view()
 
 // Make samplePlan if not available
 chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPaths, params.singleEnd)
@@ -163,6 +348,10 @@ if (params.design){
 
 // Workflows
 include { bwaMapping } from './nf-modules/local/subworkflow/bwaFlow'
+include { bamFilters } from './nf-modules/local/subworkflow/bamFilteringFlow'
+include { bamQcFlow } from './nf-modules/local/subworkflow/bamQcFlow'
+include { identitoFlow } from './nf-modules/common/subworkflow/identito'
+include { bqsrFlow } from './nf-modules/local/subworkflow/bqsrFlow'
 
 // Processes
 include { getSoftwareVersions } from './nf-modules/common/process/getSoftwareVersions'
@@ -170,7 +359,7 @@ include { outputDocumentation } from './nf-modules/common/process/outputDocument
 include { fastqc } from './nf-modules/common/process/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq'
-include { bamFilters } from './nf-modules/local/subworkflow/bamFilteringFlow'
+
 
 /*
 =====================================
@@ -183,18 +372,26 @@ workflow {
 
   main:
     // Init MultiQC Channels
+    //chRawReads.view()
+    //chDesign.view()
     chFastqcMqc = Channel.empty()
-
-    chRawReads.view()
-    chDesign.view()
-
     chPreseqMqc = Channel.empty()
+    chIdentitoMqc = Channel.empty()
 
     // subroutines
     outputDocumentation(
       chOutputDocs,
       chOutputDocsImages
     )
+
+    // PROCESS: fastqc
+    if (! params.skipFastqc){
+      fastqc(
+        chRawReads
+      )
+      chFastqcMqc = fastqc.out.results.collect()
+      chVersions = chVersions.mix(fastqc.out.versions)
+    }
 
     //*******************************************
     // SUB-WORFKLOW : MAPPING BWA
@@ -204,6 +401,7 @@ workflow {
     )
 
     chAlignedBam = bwaMapping.out.bam
+    //chAlignedBam.view()
     chVersions = chVersions.mix(bwaMapping.out.versions)
 
     //*******************************************
@@ -218,7 +416,7 @@ workflow {
   }
 
   //*******************************************
-  // Process : bamFiltering
+  // SUB-WORKFLOW : bamFiltering
 
     bamFilters(
       chAlignedBam,
@@ -227,21 +425,56 @@ workflow {
 
   chVersions = chVersions.mix(bamFilters.out.versions)
 
-    //*******************************************
-    // SUB-WORKFLOW : GATK
-    //gatk(
-    //  bwaMapping.out.bam
-    //)
+  //*******************************************
+  // SUB-WORKFLOW : GATK
+  //gatk(
+  //  bwaMapping.out.bam
+  //)
 
-    // PROCESS: fastqc
-    if (! params.skipFastqc){
-      fastqc(
-        chRawReads
+  //*******************************************
+  //SUB-WORKFLOW : bamQcFlow
+
+  chFilteredBam = bamFilters.out.bam
+
+  if (!params.skipQC){
+    bamQcFlow(
+      chFilteredBam,
+      chBed,
+      chGtf,
+      chFasta,
+      chDict
+    )
+    chVersions = chVersions.mix(bamQcFlow.out.versions)
+  }
+
+  // SUBWORKFLOW: Identito - polym and Monitoring
+  if (!params.skipIdentito){
+    identitoFlow(
+      chFilteredBam,
+      chFasta.collect(),
+      chFastaFai.collect(),
+      chPolyms.collect()
+    )
+
+    chIdentitoMqc = identitoFlow.out.results.collect()
+    chVersions = chVersions.mix(identitoFlow.out.versions)
+  }
+
+  if('haplotypecaller' in tools || 'mutect2' in tools){
+    bqsrFlow(
+      chFilteredBam,
+      chBed,
+      chDbsnp,
+      chDbsnpIndex,
+      chFasta,
+      chFastaFai,
+      chKnownIndels,
+      chKnownIndelsIndex,
+      chDict
       )
-      chFastqcMqc = fastqc.out.results.collect()
-      chVersions = chVersions.mix(fastqc.out.versions)
-    }
 
+    chVersions = chVersions.mix(bqsrFlow.out.versions)
+  }
     //*******************************************
     // MULTIQC
 
