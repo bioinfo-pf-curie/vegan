@@ -16,7 +16,7 @@ include { samtoolsStats } from '../../common/process/samtoolsStats'
 workflow bamFilters {
 
     take:
-    bams // [prefix, bam, bai]
+    bam // [prefix, bam, bai]
     bed
 
     main:
@@ -24,29 +24,36 @@ workflow bamFilters {
 
     // Remove duplicates
     sambambaMarkdup(
-      bams
+      bam
     )
     chVersions = chVersions.mix(sambambaMarkdup.out.versions)
+
+    chBamTest = sambambaMarkdup.out.bam
+    chBamTest.view()
 
     // Reduce to the Target
     if(params.targetBed){
       bamOnTarget(
           sambambaMarkdup.out.bam,
-          bed
+          bed.collect()
           )
           chVersions = chVersions.mix(bamOnTarget.out.versions)
           chBam = bamOnTarget.out.bam
     }else{
       chBam = sambambaMarkdup.out.bam
     }
-
-chBam.view()
-
+    
     // Filter with samtools
     samtoolsFilter(
       chBam
       )
+      chBam = samtoolsFilter.out.bam
       chVersions = chVersions.mix(samtoolsFilter.out.versions)
+
+    // index
+    samtoolsIndex(
+      chBam
+    )
 
     // flagstat
     samtoolsFlagstat(
@@ -56,7 +63,6 @@ chBam.view()
     // IdxStats
     samtoolsIdxstats(
       chBam
-      //samtoolsIndex.out.bai
     )
 
     // Stats
@@ -65,7 +71,7 @@ chBam.view()
     )
 
     emit:
-    bam = sambambaMarkdup.out.bam
+    bam = samtoolsFilter.out.bam.join(samtoolsIndex.out.bai)
     markdupMetrics = sambambaMarkdup.out.metrics
     bamOnTargetMetrics = bamOnTarget.out.metrics
     flagstat  = samtoolsFlagstat.out.stats
