@@ -13,7 +13,7 @@ process samtoolsMerge{
   tuple val(prefix), path(bams)
 
   output:
-  tuple val(prefix), file("*_merged.bam"), emit: bam
+  tuple val(prefix), path("*_merged.bam"), emit: bam
   path("versions.txt"), emit: versions
 
   script:
@@ -24,4 +24,3 @@ process samtoolsMerge{
   echo \$(samtools --version | head -1) > versions.txt
   """
 }
-
