@@ -32,7 +32,7 @@ workflow bqsrFlow {
       knownIndels.collect(),
       knownIndelsIndex.collect(),
       dict.collect()
-      )
+    )
 
     applyBQSR(
       baseRecalibrator.out.table,
@@ -42,8 +42,9 @@ workflow bqsrFlow {
       dict.collect(),
       )
 
-    if(params.noIntervals){indexBamRecal(
-      applyBQSR.out.bqsrBam
+    if(params.noIntervals){
+      indexBamRecal(
+        applyBQSR.out.bqsrBam
       )
     }
 
