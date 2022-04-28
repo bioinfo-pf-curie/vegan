@@ -30,24 +30,24 @@ workflow bamQcFlow {
     getSeqDepth(
       bamFiltered,
       bed.collect()
-      )
+    )
 
     prepareExonInfo(
       bed.collect(),
       gtf.collect()
-      )
+    )
 
     genesCoverage(
       bamFiltered,
       prepareExonInfo.out.exonBed
-      )
+    )
 
     getWGSmetrics(
       bamFiltered,
       bed,
       fasta,
       dict
-      )
+    )
 
     chVersions = chVersions.mix(getSeqDepth.out.versions)
 
