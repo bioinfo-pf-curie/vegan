@@ -477,7 +477,7 @@ workflow {
     chVersions = chVersions.mix(bqsrFlow.out.versions)
 
     chBqsrBam = bqsrFlow.out.bqsrBam
-  }
+
 
   /*
   ================================================================================
@@ -513,26 +513,27 @@ workflow {
     // MULTIQC
 
     // Warnings that will be printed in the mqc report
-    chWarn = Channel.empty()
-
-    if (!params.skipMultiQC){
-
-      getSoftwareVersions(
-        chVersions.unique().collectFile()
-      )
-
-      multiqc(
-        customRunName,
-        chSplan.collect(),
-        chMetadata.ifEmpty([]),
-        chMultiqcConfig.ifEmpty([]),
-        chFastqcMqc.ifEmpty([]),
-        getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
-        workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
-        chWarn.collect().ifEmpty([])
-      )
-      mqcReport = multiqc.out.report.toList()
-    }
+    // chWarn = Channel.empty()
+    //
+    // if (!params.skipMultiQC){
+    //
+    //   getSoftwareVersions(
+    //     chVersions.unique().collectFile()
+    //   )
+    //
+    //   multiqc(
+    //     customRunName,
+    //     chSplan.collect(),
+    //     chMetadata.ifEmpty([]),
+    //     chMultiqcConfig.ifEmpty([]),
+    //     chFastqcMqc.ifEmpty([]),
+    //     getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
+    //     workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
+    //     chWarn.collect().ifEmpty([])
+    //   )
+    //
+    //   mqcReport = multiqc.out.report.toList()
+    // }
 }
 
 workflow.onComplete {
