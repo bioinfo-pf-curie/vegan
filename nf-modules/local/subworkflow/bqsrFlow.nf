@@ -4,7 +4,8 @@
 
 include { baseRecalibrator } from '../../local/process/baseRecalibrator'
 include { applyBQSR } from '../../local/process/applyBqsr'
-include { indexBamRecal } from '../../local/process/indexBamRecal'
+include { samtoolsIndex } from '../../common/process/samtoolsIndex'
+//include { indexBamRecal } from '../../local/process/indexBamRecal'
 
 workflow bqsrFlow {
 
@@ -42,12 +43,12 @@ workflow bqsrFlow {
       dict.collect(),
       )
 
-    if(params.noIntervals){indexBamRecal(
+    samtoolsIndex(
       applyBQSR.out.bqsrBam
       )
-    }
 
   emit:
     bqsrTable = baseRecalibrator.out.table
-    bqsrBam = applyBQSR.out.bqsrBam
+    bqsrBam = applyBQSR.out.bqsrBam.join(samtoolsIndex.out.bai)
+    versions = applyBQSR.out.versions
 }

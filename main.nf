@@ -339,7 +339,6 @@ if (params.design){
   chDesignFile = Channel.empty()
   chDesign = Channel.empty()
 }
-
 /*
 ==================================
            INCLUDE
@@ -352,6 +351,7 @@ include { bamFilters } from './nf-modules/local/subworkflow/bamFilteringFlow'
 include { bamQcFlow } from './nf-modules/local/subworkflow/bamQcFlow'
 include { identitoFlow } from './nf-modules/common/subworkflow/identito'
 include { bqsrFlow } from './nf-modules/local/subworkflow/bqsrFlow'
+include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCallerFlow'
 
 // Processes
 include { getSoftwareVersions } from './nf-modules/common/process/getSoftwareVersions'
@@ -474,7 +474,41 @@ workflow {
       )
 
     chVersions = chVersions.mix(bqsrFlow.out.versions)
+
+    chBqsrBam = bqsrFlow.out.bqsrBam
   }
+
+  /*
+  ================================================================================
+                              DESIGN / PAIRED ANALYSIS
+  ================================================================================
+  */
+
+
+  /*
+  ================================================================================
+                              SNV VARIANT CALLING
+  ================================================================================
+  */
+
+  //*******************************************
+  //SUB-WORKFLOW : HaplotypeCaller
+
+  if('haplotypecaller' in tools){
+    haplotypeCallerFlow(
+      chBqsrBam,
+      chBed,
+      chDbsnp,
+      chDbsnpIndex,
+      chFasta,
+      chFastaFai,
+      chDict
+      )
+
+    //chVersions = chVersions.mix(bqsrFlow.out.versions)
+  }
+
+
     //*******************************************
     // MULTIQC
 
