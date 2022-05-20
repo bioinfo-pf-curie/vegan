@@ -408,70 +408,71 @@ workflow {
     // Process : Preseq
 
     if (!params.skipPreseq){
-    preseq(
-      chAlignedBam
-    )
-    chPreseqMqc = preseq.out.results.collect()
-    chVersions = chVersions.mix(preseq.out.versions)
-  }
+      preseq(
+        chAlignedBam
+      )
+      chPreseqMqc = preseq.out.results.collect()
+      chVersions = chVersions.mix(preseq.out.versions)
+    }
 
-  //*******************************************
-  // SUB-WORKFLOW : bamFiltering
+    //*******************************************
+    // SUB-WORKFLOW : bamFiltering
 
     bamFilters(
       chAlignedBam,
       chBed
     )
+    chVersions = chVersions.mix(bamFilters.out.versions)
 
-  chVersions = chVersions.mix(bamFilters.out.versions)
 
-  //*******************************************
-  // SUB-WORKFLOW : GATK
-  //gatk(
-  //  bwaMapping.out.bam
-  //)
+    //*******************************************
+    //SUB-WORKFLOW : bamQcFlow
 
-  //*******************************************
-  //SUB-WORKFLOW : bamQcFlow
+    chFilteredBam = bamFilters.out.bam
 
-  chFilteredBam = bamFilters.out.bam
-
-  if (!params.skipQC){
-    bamQcFlow(
-      chFilteredBam,
-      chBed,
-      chGtf,
-      chFasta,
-      chDict
-    )
-    chVersions = chVersions.mix(bamQcFlow.out.versions)
-  }
-
-  // SUBWORKFLOW: Identito - polym and Monitoring
-  if (!params.skipIdentito){
-    identitoFlow(
-      chFilteredBam,
-      chFasta.collect(),
-      chFastaFai.collect(),
-      chPolyms.collect()
-    )
-
-    chIdentitoMqc = identitoFlow.out.results.collect()
-    chVersions = chVersions.mix(identitoFlow.out.versions)
-  }
-
-  if('haplotypecaller' in tools || 'mutect2' in tools){
-    bqsrFlow(
-      chFilteredBam,
-      chBed,
-      chDbsnp,
-      chDbsnpIndex,
-      chFasta,
-      chFastaFai,
-      chKnownIndels,
-      chKnownIndelsIndex,
-      chDict
+    if (!params.skipQC){
+      bamQcFlow(
+        chFilteredBam,
+        chBed,
+        chGtf,
+        chFasta,
+        chDict
       )
+      chVersions = chVersions.mix(bamQcFlow.out.versions)
+    }
+
+    // SUBWORKFLOW: Identito - polym and Monitoring
+    if (!params.skipIdentito){
+      identitoFlow(
+        chFilteredBam,
+        chFasta.collect(),
+        chFastaFai.collect(),
+        chPolyms.collect()
+      )
+
+      chIdentitoMqc = identitoFlow.out.results.collect()
+      chVersions = chVersions.mix(identitoFlow.out.versions)
+    }
+
+
+    //*****************************
+    // GATK4 - PRE-PROCESSING
+
+    if('haplotypecaller' in tools || 'mutect2' in tools){
+      bqsrFlow(
+        chFilteredBam,
+        chBed,
+        chDbsnp,
+        chDbsnpIndex,
+        chFasta,
+        chFastaFai,
+        chKnownIndels,
+        chKnownIndelsIndex,
+        chDict
+      )
+      chVersions = chVersions.mix(bqsrFlow.out.versions)
+    }
+
 
     chVersions = chVersions.mix(bqsrFlow.out.versions)
 
@@ -507,7 +508,6 @@ workflow {
 
     //chVersions = chVersions.mix(bqsrFlow.out.versions)
   }
-
 
     //*******************************************
     // MULTIQC

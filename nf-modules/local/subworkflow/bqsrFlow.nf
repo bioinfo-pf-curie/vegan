@@ -33,7 +33,7 @@ workflow bqsrFlow {
       knownIndels.collect(),
       knownIndelsIndex.collect(),
       dict.collect()
-      )
+    )
 
     applyBQSR(
       baseRecalibrator.out.table,

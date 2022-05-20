@@ -38,7 +38,5 @@ process baseRecalibrator {
       ${dbsnpOptions} \
       ${knownOptions} \
       --verbosity INFO
-
-      echo "hello_world"
   """
 }

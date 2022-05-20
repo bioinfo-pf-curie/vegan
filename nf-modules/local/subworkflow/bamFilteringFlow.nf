@@ -35,6 +35,7 @@ workflow bamFilters {
 
     // Reduce to the Target
     if(params.targetBed){
+
       intersectBed(
         sambambaMarkdup.out.bam,
         bed.collect()
@@ -48,12 +49,13 @@ workflow bamFilters {
       chVersions = chVersions.mix(intersectBed.out.versions)
       chBam = intersectBed.out.bam
 
-      // bamOnTarget(
-      //     sambambaMarkdup.out.bam,
-      //     bed.collect()
-      //     )
-      //     chVersions = chVersions.mix(bamOnTarget.out.versions)
-      //     chBam = bamOnTarget.out.bam
+      bamOnTarget(
+          sambambaMarkdup.out.bam,
+          bed.collect()
+          )
+          chVersions = chVersions.mix(bamOnTarget.out.versions)
+          chBam = bamOnTarget.out.bam
+
     }else{
       chBam = sambambaMarkdup.out.bam
     }
@@ -61,9 +63,9 @@ workflow bamFilters {
     // Filter with samtools
     samtoolsFilter(
       chBam
-      )
-      chBam = samtoolsFilter.out.bam
-      chVersions = chVersions.mix(samtoolsFilter.out.versions)
+    )
+    chBam = samtoolsFilter.out.bam
+    chVersions = chVersions.mix(samtoolsFilter.out.versions)
 
     // index
     samtoolsIndexFilter(
