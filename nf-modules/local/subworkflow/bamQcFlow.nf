@@ -30,15 +30,16 @@ workflow bamQcFlow {
     getSeqDepth(
       bamFiltered,
       bed.collect()
-      )
+    )
 
     prepareExonInfo(
       bed.collect(),
       gtf.collect()
-      )
+    )
 
     genesCoverage(
       bamFiltered,
+
       prepareExonInfo.out.exonBed.collect()
       )
 
