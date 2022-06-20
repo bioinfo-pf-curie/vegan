@@ -86,10 +86,11 @@ if (length(naToRemove) > 0){
     dmat <- dt
 }
 
+
 if (!is.null(dim(dmat)) && dim(dmat)[1]>1){
     clust <- hclust(as.dist(dmat), "ward.D2")
     clust_order <- clust$order
-    
+
     png(outputPlot, width=1400, height=600)
     par(mar=c(8,5,2,2))
     clust %>%
@@ -99,11 +100,10 @@ if (!is.null(dim(dmat)) && dim(dmat)[1]>1){
         set("leaves_pch", 16)  %>% set("leaves_col", "orange") %>%
         plot()
     dev.off()
-    
+
     write.csv(round(dmat[clust_order,clust_order],3), outputMatrix, quote=TRUE, row.names=TRUE)
 }else{
     warning("Not enough samples to run the clustering")
-    write.csv(round(jacdist,3), outputMatrix, quote=TRUE, row.names=TRUE)
 }
 
 print("script ended successfully")
