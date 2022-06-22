@@ -9,7 +9,6 @@ process sambambaMarkdup {
 
   output:
   tuple val(meta), path("*.md.bam"),path("*.md.bam.bai"), emit: bam
-  //path("*.md.bam.bai"), emit: bai
   path ("*.md.flagstats"), emit: metrics
   path('versions.txt'), emit: versions
 

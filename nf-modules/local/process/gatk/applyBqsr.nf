@@ -16,7 +16,7 @@
    path(dict)
 
    output:
-   tuple val(meta),path("*.recal.bam"), emit:bqsrBam
+   tuple val(meta),path("*.recal.bam"), emit:bam
    path("versions.txt"), emit: versions
 
    script:

@@ -2,15 +2,15 @@
  * BQSR step
  */
 
-include { baseRecalibrator } from '../../local/process/baseRecalibrator'
-include { applyBQSR } from '../../local/process/applyBqsr'
+include { baseRecalibrator } from '../../local/process/gatk/baseRecalibrator'
+include { applyBQSR } from '../../local/process/gatk/applyBqsr'
 include { samtoolsIndex } from '../../common/process/samtoolsIndex'
 //include { indexBamRecal } from '../../local/process/indexBamRecal'
 
 workflow bqsrFlow {
 
   take:
-    bamFiltered
+    bam
     bed
     dbsnp
     dbsnpIndex
@@ -24,31 +24,31 @@ workflow bqsrFlow {
     chVersions = Channel.empty()
 
     baseRecalibrator(
-      bamFiltered,
-      bed.collect(),
-      dbsnp.collect(),
-      dbsnpIndex.collect(),
-      fasta.collect(),
-      fastaFai.collect(),
-      knownIndels.collect(),
-      knownIndelsIndex.collect(),
-      dict.collect()
+      bam,
+      bed,
+      dbsnp,
+      dbsnpIndex,
+      fasta,
+      fastaFai,
+      knownIndels,
+      knownIndelsIndex,
+      dict
     )
 
     applyBQSR(
       baseRecalibrator.out.table,
-      bed.collect(),
-      fasta.collect(),
-      fastaFai.collect(),
-      dict.collect(),
-      )
+      bed,
+      fasta,
+      fastaFai,
+      dict
+    )
 
     samtoolsIndex(
-      applyBQSR.out.bqsrBam
-      )
+      applyBQSR.out.bam
+    )
 
   emit:
     bqsrTable = baseRecalibrator.out.table
-    bqsrBam = applyBQSR.out.bqsrBam.join(samtoolsIndex.out.bai)
+    bqsrBam = applyBQSR.out.bam.join(samtoolsIndex.out.bai)
     versions = applyBQSR.out.versions
 }

@@ -2,45 +2,47 @@
  * HaplotypeCaller Flow
  */
 
-include { haplotypeCaller } from '../../local/process/haplotypeCaller'
-include { genotypeGVCFs } from '../../local/process/genotypeGVCFs'
+include { haplotypeCaller } from '../../local/process/gatk/haplotypeCaller'
+include { genotypeGVCFs } from '../../local/process/gatk/genotypeGVCFs'
 
 workflow haplotypeCallerFlow {
 
   take:
-    bqsrBam
-    bed
-    dbsnp
-    dbsnpIndex
-    fasta
-    fastaFai
-    dict
+  bqsrBam
+  bed
+  dbsnp
+  dbsnpIndex
+  fasta
+  fastaFai
+  dict
 
   main:
-    chVersions = Channel.empty()
+  chVersions = Channel.empty()
 
-    haplotypeCaller(
-      bqsrBam,
-      bed.collect(),
-      dbsnp.collect(),
-      dbsnpIndex.collect(),
-      fasta.collect(),
-      fastaFai.collect(),
-      dict.collect()
-      )
+  haplotypeCaller(
+    bqsrBam,
+    bed,
+    dbsnp,
+    dbsnpIndex,
+    fasta,
+    fastaFai,
+    dict
+  )
+  chVersions = chVersions.mix(haplotypeCaller.out.versions)
 
-    genotypeGVCFs(
-      haplotypeCaller.out.hcGvcf,
-      bed.collect(),
-      dbsnp.collect(),
-      dbsnpIndex.collect(),
-      fasta.collect(),
-      fastaFai.collect(),
-      dict.collect()
-      )
+  genotypeGVCFs(
+    haplotypeCaller.out.gvcf,
+    bed,
+    dbsnp,
+    dbsnpIndex,
+    fasta,
+    fastaFai,
+    dict
+  )
+  chVersions = chVersions.mix(genotypeGVCFs.out.versions)
 
   emit:
-    hcGvcf = haplotypeCaller.out.hcGvcf
-    hcVcf = genotypeGVCFs.out.hcVcf
-
+  gvcf = haplotypeCaller.out.gvcf
+  vcf = genotypeGVCFs.out.vcf
+  versions = chVersions
 }

@@ -21,6 +21,7 @@ process baseRecalibrator {
 
   output:
   tuple val(meta), path(bamFiltered), path(bamFilteredBai), path("*.recal.table"), emit: table
+  path("versions.txt"), emit: versions
 
   script:
   def args = task.ext.args ?: ''
@@ -38,5 +39,7 @@ process baseRecalibrator {
       ${dbsnpOptions} \
       ${knownOptions} \
       --verbosity INFO
+
+  echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt
   """
 }
