@@ -68,6 +68,8 @@ if (params.genomes && params.genome && !params.genomes.containsKey(params.genome
 
 // Initialize variable from the genome.conf file
 params.bwaIndex = NFTools.getGenomeAttribute(params, 'bwaIndex')
+params.bwaMem2Index = NFTools.getGenomeAttribute(params, 'bwaMem2Index')
+params.dragmapIndex = NFTools.getGenomeAttribute(params, 'dragmapIndex')
 params.chrLength = NFTools.getGenomeAttribute(params, 'chrLength')
 params.dict = NFTools.getGenomeAttribute(params, 'dict')
 params.fasta = NFTools.getGenomeAttribute(params, 'fasta')
@@ -133,6 +135,8 @@ chBed                   = params.targetBed             ? Channel.fromPath(params
 chIntervals             = params.intervals             ? Channel.fromPath(params.intervals, checkIfExists: true).collect()              : Channel.value([]) //optional
 
 chBwaIndex              = params.bwaIndex              ? Channel.fromPath(params.bwaIndex)                                              : Channel.empty()
+chBwaMem2Index          = params.bwaMem2Index          ? Channel.fromPath(params.bwaMem2Index)                                          : Channel.empty()
+chDragmapIndex          = params.dragmapIndex          ? Channel.fromPath(params.dragmapIndex)                                          : Channel.empty()
 
 
 /*
@@ -204,7 +208,7 @@ if (params.design){
 */
 
 // Workflows
-include { bwaMapping } from './nf-modules/local/subworkflow/bwaFlow'
+include { mapping } from './nf-modules/local/subworkflow/mappingFlow'
 include { bamFilters } from './nf-modules/local/subworkflow/bamFilteringFlow'
 include { bamQcFlow } from './nf-modules/local/subworkflow/bamQcFlow'
 include { identitoFlow } from './nf-modules/common/subworkflow/identito'
@@ -252,14 +256,18 @@ workflow {
     }
 
     //*******************************************
-    // SUB-WORFKLOW : MAPPING BWA
+    // SUB-WORFKLOW : MAPPING WITH BWA-MEM/BWA-MEM2/DRAGMAP
+    
+    chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex :
+      params.aligner == 'bwa-mem2' ? chBwaMem2Index :
+      chdragmapIndex
 
-    bwaMapping(
+    mapping(
       chRawReads,
-      chBwaIndex
+      chAlignerIndex
     )
-    chAlignedBam = bwaMapping.out.bam
-    chVersions = chVersions.mix(bwaMapping.out.versions)
+    chAlignedBam = mapping.out.bam
+    chVersions = chVersions.mix(mapping.out.versions)
 
     //*******************************************
     // Process : Preseq

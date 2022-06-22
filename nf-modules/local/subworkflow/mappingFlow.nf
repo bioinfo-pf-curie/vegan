@@ -3,11 +3,13 @@
  */
 
 include { bwaMem } from '../../common/process/bwaMem'
+include { bwaMem2 } from '../../common/process/bwaMem2'
+include { dragmap } from '../../common/process/dragmap'
 include { samtoolsSort } from '../../common/process/samtoolsSort'
 include { samtoolsIndex } from '../../common/process/samtoolsIndex'
 include { samtoolsMerge } from '../../common/process/samtoolsMerge'
 
-workflow bwaMapping {
+workflow mapping {
 
   take:
   reads
@@ -16,14 +18,34 @@ workflow bwaMapping {
   main:
   chVersions = Channel.empty()
 
-  bwaMem(
-    reads,
-    index.collect()
-  )
-  chVersions = chVersions.mix(bwaMem.out.versions)
+  if (params.aligner == 'bwa-mem'){
+    bwaMem(
+      reads,
+      index.collect()
+    )
+    chVersions = chVersions.mix(bwaMem.out.versions)
+    chBams = bwaMem.out.bam
+    chMappingLogs = bwaMem.out.logs
+  }else if (param.aligner == 'bwa-mem2'){
+    bwaMem2(
+      reads,
+      index.collect()
+    )
+    chVersions = chVersions.mix(bwaMem2.out.versions)
+    chBams = bwaMem2.out.bam
+    chMappingLogs = bwaMem2.out.logs
+  }else if (params.aligner == 'dragmap'){
+    dragmap(
+      reads,
+      index
+    )
+    chVersions = chVersions.mix(dragmap.out.versions)
+    chBams = dragmap.out.bam
+    chMappingLogs = dragmap.out.logs
+  }
 
   // Merge BAM file with the same prefix
-  bwaMem.out.bam.groupTuple(by:[0])
+  chBams.groupTuple(by:[0])
     .branch {
       singleCh: it[1].size() == 1
       multipleCh: it[1].size() > 1
@@ -46,6 +68,6 @@ workflow bwaMapping {
 
   emit:
   bam = samtoolsSort.out.bam.join(samtoolsIndex.out.bai)
-  logs = bwaMem.out.logs
+  logs = chMappingLogs
   versions = chVersions
 }
