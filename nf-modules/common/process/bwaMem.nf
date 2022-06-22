@@ -23,11 +23,16 @@ process bwaMem{
   """
   localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
   refName=`basename \${localIndex}`
-  echo "Bwa-mem "\$(bwa 2>&1 | grep Version | cut -d" " -f2) &> versions.txt
-  bwa mem -t ${task.cpus} \
-           \${localIndex} \
-          ${args} \
-          $reads | samtools view -bS - > ${prefix}_\${refName}.bam
+
+  bwa \
+    mem \
+    $args \
+    -t $task.cpus \
+    \${localIndex} \
+    $reads | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
+
   getBWAstats.sh -i ${prefix}_\${refName}.bam -p ${task.cpus} > ${prefix}_bwa.log
+  echo "Bwa-mem "\$(bwa 2>&1 | grep Version | cut -d" " -f2) &> versions.txt
+
   """
 }
