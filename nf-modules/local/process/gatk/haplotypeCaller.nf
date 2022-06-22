@@ -18,7 +18,8 @@ process haplotypeCaller {
   path(dict)
 
   output:
-  tuple val(meta), path("*.g.vcf"), emit:hcGvcf
+  tuple val(meta), path("*.g.vcf"), emit: gvcf
+  path("versions.txt"), emit: versions
 
   script:
   def args = task.ext.args ?: ''
@@ -33,5 +34,7 @@ process haplotypeCaller {
     ${args2} \
     -O ${prefix}.g.vcf \
     -ERC GVCF
+
+  echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt
   """
 }

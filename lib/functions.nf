@@ -41,8 +41,8 @@ def checkAlignmentPercent(prefix, logs) {
     def separator = designFile.toString().endsWith(".csv") ? ',' : designFile.toString().endsWith(".tsv") ? '\t':  ''
     if (designFile) {
       return Channel.of(designFile)
-        .splitCsv(sep: separator, header: ['germlineId', 'tumorId', 'pairId', 'sex'])
-        .map { row -> [row.germlineId, row.tumorId, row.pairId, row.sex] }
+        .splitCsv(sep: separator, header:true)
+        .map { row -> [row.TUMOR_ID, row.GERMLINE_ID, row.PAIR_ID, row.SEX] }
     } else {
       return Channel.empty()
     }

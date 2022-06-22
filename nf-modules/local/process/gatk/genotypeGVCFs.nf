@@ -16,7 +16,8 @@ process genotypeGVCFs {
   path(dict)
 
   output:
-  tuple val(meta), path("${prefix}.vcf"),emit: hcVcf
+  tuple val(meta), path("${prefix}.vcf"),emit: vcf
+  path("versions.txt"), emit: versions
 
   script:
   def args = task.ext.args ?: ''
@@ -34,5 +35,6 @@ process genotypeGVCFs {
     -V ${gvcf} \
     -O ${prefix}.vcf
 
+  echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt
   """
 }
