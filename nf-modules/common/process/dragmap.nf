@@ -2,7 +2,7 @@
  * Alignement on reference genome with DragMap
  */
 
-process dragMap{
+process dragmap{
   tag "${meta.id}"
   label 'dragmap'
   label 'highCpu'

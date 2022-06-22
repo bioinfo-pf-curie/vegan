@@ -4,7 +4,7 @@
 
 process bwaMem2{
   tag "${meta.id}"
-  label 'bwa-mem2'
+  label 'bwaMem2'
   label 'highCpu'
   label 'highMem'
 
@@ -22,7 +22,7 @@ process bwaMem2{
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
-  refName=$(basename \${localIndex)
+  refName=\$(basename \${localIndex})
 
    bwa-mem2 \
         mem \
