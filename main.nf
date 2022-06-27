@@ -131,7 +131,7 @@ if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!
   exit 1, "Missing annotation file(s) for GATK Base Recalibrator (dbSNP, knownIndels): Please use '--skipBQSR'"
 }
 
-if (!params.skipMutectContamination && 'mutect2' in tools && !params.germineResource){
+if (!params.skipMutectContamination && 'mutect2' in tools && !params.germlineResource){
   exit 1, "Missing annotation file(s) for Mutect2 filtering (germlineResource): Please use '--skipMutectContamination'"
 }
 
