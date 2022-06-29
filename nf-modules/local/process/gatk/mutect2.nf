@@ -25,6 +25,9 @@ process mutect2 {
   tuple val(meta), path("*.stats")      , emit: stats
   path "versions.txt"                   , emit: versions
 
+  when:
+  task.ext.when == null || task.ext.when
+
   script:
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"

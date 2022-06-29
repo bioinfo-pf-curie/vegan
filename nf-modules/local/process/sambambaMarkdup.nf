@@ -12,6 +12,9 @@ process sambambaMarkdup {
   path ("*.md.flagstats"), emit: metrics
   path('versions.txt'), emit: versions
 
+  when:
+  task.ext.when == null || task.ext.when
+
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
