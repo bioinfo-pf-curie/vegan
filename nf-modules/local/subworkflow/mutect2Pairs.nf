@@ -2,7 +2,7 @@
  * Mutect2 Tumor/Normal
  */
 
-include { mutect2 } from '../../local/process/gatk/mutect2'
+include { mutect2 } from '../../common/process/gatk/mutect2'
 
 workflow mutect2PairsFlow {
 

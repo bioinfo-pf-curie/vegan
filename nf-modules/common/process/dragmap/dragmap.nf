@@ -17,6 +17,9 @@ process dragmap{
   path("*.log"), emit: logs
   path("versions.txt"), emit: versions
 
+  when:
+  task.ext.when == null || task.ext.when
+
   script:
   def readsCmd = meta.single_end ? "-1 $reads" : "-1 ${reads[0]} -2 ${reads[1]}"
   def args = task.ext.args ?: ''

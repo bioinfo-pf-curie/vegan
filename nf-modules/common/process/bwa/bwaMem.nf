@@ -2,9 +2,9 @@
  * Alignement on reference genome with Bwa-mem
  */
 
-process bwaMem2{
+process bwaMem{
   tag "${meta.id}"
-  label 'bwaMem2'
+  label 'bwa'
   label 'highCpu'
   label 'highMem'
 
@@ -17,22 +17,25 @@ process bwaMem2{
   path("*.log"), emit: logs
   path("versions.txt"), emit: versions
 
+  when:
+  task.ext.when == null || task.ext.when
+
   script:
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
-  refName=\$(basename \${localIndex})
+  refName=`basename \${localIndex}`
 
-   bwa-mem2 \
-        mem \
-        $args \
-        -t $task.cpus \
-        \$INDEX \
-        $reads \
-        | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
+  bwa \
+    mem \
+    $args \
+    -t $task.cpus \
+    \${localIndex} \
+    $reads | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
 
   getBWAstats.sh -i ${prefix}_\${refName}.bam -p ${task.cpus} > ${prefix}_bwa.log
-  echo "Bwa-mem2 "\$(bwa-mem2 version 2>&1) &> versions.txt
+  echo "Bwa-mem "\$(bwa 2>&1 | grep Version | cut -d" " -f2) &> versions.txt
+
   """
 }

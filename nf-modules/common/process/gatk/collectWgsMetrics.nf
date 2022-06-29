@@ -1,9 +1,8 @@
 /*
- * getWGSmetrics:
- * External parameters :
+ * GATK collectWGSmetrics
  */
 
-process getWGSmetrics {
+process collectWgsMetrics {
   tag "${meta.id}"
   label 'gatk'
   label 'minCpu'
@@ -18,6 +17,9 @@ process getWGSmetrics {
   output:
   path("*metrics.txt"), emit: metrics
   path("versions.txt"), emit: versions
+
+  when:
+  task.ext.when == null || task.ext.when
 
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"

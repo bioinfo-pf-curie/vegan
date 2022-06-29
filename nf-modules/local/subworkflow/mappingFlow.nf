@@ -2,12 +2,12 @@
  * Mapping Worflow with BWA
  */
 
-include { bwaMem } from '../../common/process/bwaMem'
-include { bwaMem2 } from '../../common/process/bwaMem2'
-include { dragmap } from '../../common/process/dragmap'
-include { samtoolsSort } from '../../common/process/samtoolsSort'
-include { samtoolsIndex } from '../../common/process/samtoolsIndex'
-include { samtoolsMerge } from '../../common/process/samtoolsMerge'
+include { bwaMem } from '../../common/process/bwa/bwaMem'
+include { bwaMem2 } from '../../common/process/bwamem2/bwaMem2'
+include { dragmap } from '../../common/process/dragmap/dragmap'
+include { samtoolsSort } from '../../common/process/samtools/samtoolsSort'
+include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
+include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
 
 workflow mapping {
 

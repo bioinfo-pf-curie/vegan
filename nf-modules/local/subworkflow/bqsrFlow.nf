@@ -2,10 +2,9 @@
  * BQSR step
  */
 
-include { baseRecalibrator } from '../../local/process/gatk/baseRecalibrator'
-include { applyBQSR } from '../../local/process/gatk/applyBqsr'
-include { samtoolsIndex } from '../../common/process/samtoolsIndex'
-//include { indexBamRecal } from '../../local/process/indexBamRecal'
+include { baseRecalibrator } from '../../common/process/gatk/baseRecalibrator'
+include { applyBQSR } from '../../common/process/gatk/applyBqsr'
+include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
 
 workflow bqsrFlow {
 

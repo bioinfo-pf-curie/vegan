@@ -3,7 +3,7 @@
  * External parameters :
  */
 
-process getSeqDepth {
+process mosdepth {
   tag "${meta.id}"
   label 'mosdepth'
   label 'medCpu'
@@ -17,6 +17,9 @@ process getSeqDepth {
   path("*.*.txt"), emit: metrics
   path("*{.bed.gz,.bed.gz.csi}"), emit: mosdepthBed
   path("versions.txt"), emit: versions
+
+  when:
+  task.ext.when == null || task.ext.when
 
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
