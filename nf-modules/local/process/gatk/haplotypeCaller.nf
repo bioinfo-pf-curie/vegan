@@ -21,6 +21,9 @@ process haplotypeCaller {
   tuple val(meta), path("*.g.vcf"), emit: gvcf
   path("versions.txt"), emit: versions
 
+  when:
+  task.ext.when == null || task.ext.when
+
   script:
   def args = task.ext.args ?: ''
   def args2 = task.ext.args2 ?: ''

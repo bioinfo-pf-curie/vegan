@@ -23,6 +23,9 @@ process baseRecalibrator {
   tuple val(meta), path(bamFiltered), path(bamFilteredBai), path("*.recal.table"), emit: table
   path("versions.txt"), emit: versions
 
+  when:
+  task.ext.when == null || task.ext.when
+
   script:
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
