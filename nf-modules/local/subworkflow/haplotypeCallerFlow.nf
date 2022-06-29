@@ -2,8 +2,8 @@
  * HaplotypeCaller Flow
  */
 
-include { haplotypeCaller } from '../../local/process/gatk/haplotypeCaller'
-include { genotypeGVCFs } from '../../local/process/gatk/genotypeGVCFs'
+include { haplotypeCaller } from '../../common/process/gatk/haplotypeCaller'
+include { genotypeGVCFs } from '../../common/process/gatk/genotypeGVCFs'
 
 workflow haplotypeCallerFlow {
 

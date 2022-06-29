@@ -2,8 +2,8 @@
  * Identito monitoring
  */
 
-include { identitoPolym } from '../process/identitoPolym'
-include { identitoCombine } from '../process/identitoCombine'
+include { identitoPolym } from '../process/identito/identitoPolym'
+include { identitoCombine } from '../process/identito/identitoCombine'
 
 workflow identitoFlow {
     take:

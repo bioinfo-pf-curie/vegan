@@ -15,13 +15,16 @@ process samtoolsFilter {
   tuple val(meta), path("*filtered.bam"), emit: bam
   path("versions.txt"), emit: versions
 
+  when:
+  task.ext.when == null || task.ext.when
+
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${bam.baseName}"
   """
   echo \$(samtools --version | head -1) > versions.txt
   samtools view \\
     ${args} \\
     -b ${bam} > ${prefix}_filtered.bam
   """
-}
+} 

@@ -2,11 +2,11 @@
  * QC Worflow for Bam files
  */
 
-include { getFragmentSize } from '../../common/process/getFragmentSize'
-include { getSeqDepth } from '../../common/process/getSeqDepth'
+include { collectInsertSizeMetrics } from '../../common/process/picard/collectInsertSizeMetrics'
+include { mosdepth } from '../../common/process/mosdepth/mosdepth'
 include { prepareExonInfo } from '../../local/process/prepareExonInfo'
-include { genesCoverage } from '../../common/process/genesCoverage'
-include { getWGSmetrics } from '../../common/process/getWGSmetrics'
+include { genesCoverage } from '../../local/process/genesCoverage'
+include { collectWgsMetrics } from '../../common/process/gatk/collectWgsMetrics'
 
 workflow bamQcFlow {
 
@@ -21,16 +21,17 @@ workflow bamQcFlow {
     chVersions = Channel.empty()
 
     if (!params.singleEnd){
-      getFragmentSize(
-        bamFiltered)
-
-      chVersions = chVersions.mix(getFragmentSize.out.versions)
+      collectInsertSizeMetrics(
+        bamFiltered
+      )
+      chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
     }
 
-    getSeqDepth(
+    mosdepth(
       bamFiltered,
       bed.collect()
     )
+    chVersions = chVersions.mix(mosdepth.out.versions)
 
     prepareExonInfo(
       bed.collect(),
@@ -39,22 +40,20 @@ workflow bamQcFlow {
 
     genesCoverage(
       bamFiltered,
-
       prepareExonInfo.out.exonBed.collect()
-      )
+    )
 
-    getWGSmetrics(
+    collectWgsMetrics(
       bamFiltered,
       bed.collect(),
       fasta.collect(),
       dict.collect( )
-      )
-
-    chVersions = chVersions.mix(getSeqDepth.out.versions)
+    )
+    chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
   emit:
-    fragSize = getFragmentSize.out.metrics
-    seqDepth = getSeqDepth.out.metrics
-    bedDepth = getSeqDepth.out.mosdepthBed
-    versions = getFragmentSize.out.versions
+    fragSize = collectInsertSizeMetrics.out.results
+    seqDepth = mosdepth.out.metrics
+    bedDepth = mosdepth.out.mosdepthBed
+    versions = chVersions
 }

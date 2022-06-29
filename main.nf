@@ -217,11 +217,11 @@ include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCa
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
 
 // Processes
-include { getSoftwareVersions } from './nf-modules/common/process/getSoftwareVersions'
-include { outputDocumentation } from './nf-modules/common/process/outputDocumentation'
-include { fastqc } from './nf-modules/common/process/fastqc'
+include { getSoftwareVersions } from './nf-modules/common/process/utils/getSoftwareVersions'
+include { outputDocumentation } from './nf-modules/common/process/utils/outputDocumentation'
+include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
-include { preseq } from './nf-modules/common/process/preseq'
+include { preseq } from './nf-modules/common/process/preseq/preseq'
 
 
 /*

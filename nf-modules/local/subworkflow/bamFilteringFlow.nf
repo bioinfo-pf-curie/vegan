@@ -2,15 +2,15 @@
  * Filter BAMs file
  */
 
-include { sambambaMarkdup } from '../../local/process/sambambaMarkdup'
-include { intersectBed } from '../../local/process/intersectBed'
-include { samtoolsFilter } from '../../common/process/samtoolsFilter'
-include { samtoolsIndex as samtoolsIndexTarget } from '../../common/process/samtoolsIndex'
-include { samtoolsIndex as samtoolsIndexFilter } from '../../common/process/samtoolsIndex'
-include { samtoolsFlagstat as samtoolsFlagstatTarget } from '../../common/process/samtoolsFlagstat'
-include { samtoolsFlagstat as samtoolsFlagstatFilter  } from '../../common/process/samtoolsFlagstat'
-include { samtoolsIdxstats } from '../../common/process/samtoolsIdxstats'
-include { samtoolsStats } from '../../common/process/samtoolsStats'
+include { sambambaMarkdup } from '../../common/process/sambamba/sambambaMarkdup'
+include { intersectBed } from '../../common/process/bedtools/intersectBed'
+include { samtoolsFilter } from '../../common/process/samtools/samtoolsFilter'
+include { samtoolsIndex as samtoolsIndexTarget } from '../../common/process/samtools/samtoolsIndex'
+include { samtoolsIndex as samtoolsIndexFilter } from '../../common/process/samtools/samtoolsIndex'
+include { samtoolsFlagstat as samtoolsFlagstatTarget } from '../../common/process/samtools/samtoolsFlagstat'
+include { samtoolsFlagstat as samtoolsFlagstatFilter  } from '../../common/process/samtools/samtoolsFlagstat'
+include { samtoolsIdxstats } from '../../common/process/samtools/samtoolsIdxstats'
+include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
 
 workflow bamFilters {
 

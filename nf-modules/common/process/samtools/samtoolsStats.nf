@@ -1,8 +1,8 @@
 /*
- * Samtools - Index
+ * Samtools - Stats
  */
 
-process samtoolsIndex {
+process samtoolsStats {
   tag "${meta.id}"
   label 'samtools'
   label 'minCpu'
@@ -12,13 +12,16 @@ process samtoolsIndex {
   tuple val(meta), path (bam)
 
   output:
-  tuple val(meta), path("*bam.bai"), emit: bai
+  tuple val(meta), path("*stats"), emit: stats
   path("versions.txt") , emit: versions
+
+  when:
+  task.ext.when == null || task.ext.when
 
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   echo \$(samtools --version | head -1) > versions.txt
-  samtools index ${bam}
+  samtools stats ${bam} > ${prefix}.stats
   """
 }
