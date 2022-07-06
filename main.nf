@@ -215,7 +215,6 @@ include { identitoFlow } from './nf-modules/common/subworkflow/identito'
 include { bqsrFlow } from './nf-modules/local/subworkflow/bqsrFlow'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCallerFlow'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
-include { mutect2FiltersFlow } from './nf-modules/local/subworkflow/mutect2Filters'
 include { mantaFlow } from './nf-modules/local/subworkflow/mantaFlow'
 
 // Processes
@@ -224,8 +223,6 @@ include { outputDocumentation } from './nf-modules/common/process/utils/outputDo
 include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq/preseq'
-// include { concatVCF } from './nf-modules/local/process/concatVCF'
-// include { collectVCFmetrics } from './nf-modules/local/process/collectVCFmetrics'
 
 /*
 =====================================
@@ -356,8 +353,6 @@ workflow {
       meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
       return [meta, it[1], it[2], it[4], it[5] ]
     }.set{ chPairBam }
-
-  //chPairBam.view()
 
   //[meta], tumor_bam, tumor_bai
   chProcBam
