@@ -215,6 +215,8 @@ include { identitoFlow } from './nf-modules/common/subworkflow/identito'
 include { bqsrFlow } from './nf-modules/local/subworkflow/bqsrFlow'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCallerFlow'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
+include { mutect2FiltersFlow } from './nf-modules/local/subworkflow/mutect2Filters'
+include { mantaFlow } from './nf-modules/local/subworkflow/mantaFlow'
 
 // Processes
 include { getSoftwareVersions } from './nf-modules/common/process/utils/getSoftwareVersions'
@@ -222,7 +224,8 @@ include { outputDocumentation } from './nf-modules/common/process/utils/outputDo
 include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq/preseq'
-
+// include { concatVCF } from './nf-modules/local/process/concatVCF'
+// include { collectVCFmetrics } from './nf-modules/local/process/collectVCFmetrics'
 
 /*
 =====================================
@@ -257,7 +260,7 @@ workflow {
 
     //*******************************************
     // SUB-WORFKLOW : MAPPING WITH BWA-MEM/BWA-MEM2/DRAGMAP
-    
+
     chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex :
       params.aligner == 'bwa-mem2' ? chBwaMem2Index :
       chdragmapIndex
@@ -350,26 +353,35 @@ workflow {
     .combine(chDesign.paired)
     .filter { it[0].id == it[6] && it[3].id == it[7] }
     .map{ it ->
-      meta = [tumor_id:it[6], normal_id:it[7], id:it[8], sex:it[9]]
+      meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
       return [meta, it[1], it[2], it[4], it[5] ]
     }.set{ chPairBam }
 
-  chPairBam.view()
+  //chPairBam.view()
 
-  if ('mutect2' in tools){
-    mutect2PairsFlow(
-      chPairBam,
-      chBed,
-      chFasta,
-      chFastaFai,
-      chDict,
-      chGermlineResource,
-      chGermlineResourceIndex,
-      chPon,
-      chPonIndex
-    )
-    chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-  }
+  //[meta], tumor_bam, tumor_bai
+  chProcBam
+    .combine(chProcBam)
+    .combine(chDesign.paired)
+    .filter { it[0].id == it[6] && it[3].id == it[7] }
+    .map{ it ->
+      meta = [tumor_id:it[6], normal_id:it[7], status: "tumor", id:it[8], sex:it[9]]
+      return [meta, it[1], it[2] ]
+    }.set{ chTumorBam }
+
+  //chTumorBam.view()
+
+  //[meta], normal_bam, normal_bai
+  chProcBam
+    .combine(chProcBam)
+    .combine(chDesign.paired)
+    .filter { it[0].id == it[6] && it[3].id == it[7] }
+    .map{ it ->
+      meta = [tumor_id:it[6], normal_id:it[7], status: "normal", id:it[8], sex:it[9]]
+      return [meta, it[4], it[5] ]
+    }.set{ chNormalBam }
+
+  chSingleBam = chNormalBam.mix(chTumorBam)
 
   /*
   ================================================================================
@@ -380,7 +392,8 @@ workflow {
   //*******************************************
   //SUB-WORKFLOW : HaplotypeCaller
 
-  if('haplotypecaller' in tools){
+
+  if(params.tools && params.tools.contains('haplotypecaller')){
     haplotypeCallerFlow(
       chProcBam,
       chBed,
@@ -393,7 +406,101 @@ workflow {
     chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
   }
 
+  //*******************************************
+  //SUB-WORKFLOW : Mutect2
+
+  if(params.tools && params.tools.contains('mutect2')){
+    mutect2PairsFlow(
+      chPairBam,
+      chBed,
+      chFasta,
+      chFastaFai,
+      chDict,
+      chGermlineResource,
+      chGermlineResourceIndex,
+      chPon,
+      chPonIndex,
+      chIntervals
+    )
+    chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
+  }
+
+  //Process: concatenate vcfs and add target
+
+  // if ('mutect2' in params.tools || 'haplotypecaller' in params.tools){
+  // chConcatenateVCFsCh = mutect2PairsFlow.out.vcf.mix(haplotypeCallerFlow.out.vcf)
+
+  //chConcatenateVCFsCh.view()
+
+  // concatVCF(
+  //   chConcatenateVCFsCh,
+  //   chBed,
+  //   chFasta,
+  //   chFastaFai
+  //   )
+  //   chConcatVCF = concatVCF.out.vcf
+  //   chVersions = chVersions.mix(concatVCF.out.versions)
+
+    // Seperate Mutect2 vs HC from annotation
+    // chConcatVCF
+    //   .branch {
+    //     vcfMutect2: it[1] == "Mutect2"
+    //     vcfHC: it[1] == "HaplotypeCaller"
+    //     other: true
+    //   }.set { vcfConcatenatedForks }
+    //
+    // (vcfConcatenatedForMutect2FilterCh, vcfConcatenatedHaplotypeCallerCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfMutect2, vcfConcatenatedForks.vcfHC, vcfConcatenatedForks.other]
+    //
+    // collectVCFmetrics(
+    //   vcfConcatenatedHaplotypeCallerCh
+    //   )
+    // }
     //*******************************************
+    //SUB-WORKFLOW : Somatic variant filtering
+
+    //*******************************************
+
+    // mutect2CallsToFilterCh = vcfConcatenatedForMutect2FilterCh.map{
+    //     variantCaller, sampleId, sampleIdTN, vcf, index ->
+    //     [sampleId, sampleIdTN, vcf, index]
+    // }.join(mergedStatsFileCh, by:[0,1])
+    //
+    // if ('mutect2' in params.tools){
+    // mutect2FiltersFlow(
+    //   chPairBam,
+    //   chIntervals,
+    //   chGermlineResource,
+    //   chGermlineResourceIndex,
+    //   chBed,
+    //   chDict,
+    //   vcfConcatenatedForMutect2FilterCh,
+    //   mutect2PairsFlow.out.stats,
+    //   chFasta,
+    //   chFastaFai
+    //   )
+    //
+    //   chVersions = chVersions.mix(mutect2FiltersFlow.out.versions)
+    // }
+    /*
+    ================================================================================
+                                SV VARIANT CALLING
+    ================================================================================
+    */
+
+    // STEP MANTA.1 - SINGLE MODE
+
+    if ('manta' in params.tools){
+    mantaFlow(
+      chPairBam,
+      chSingleBam,
+      chBed,
+      chFasta,
+      chFastaFai
+      )
+
+    chVersions = chVersions.mix(mantaFlow.out.versions)
+  }
+
     // MULTIQC
 
     // Warnings that will be printed in the mqc report

@@ -16,7 +16,7 @@ process genotypeGVCFs {
   path(dict)
 
   output:
-  tuple val(meta), path("${prefix}.vcf"),emit: vcf
+  tuple val(meta), val("HaplotypeCaller"), path("${prefix}.vcf"),emit: vcf
   path("versions.txt"), emit: versions
 
   when:
