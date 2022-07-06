@@ -1,9 +1,9 @@
 /*
- * Germine variant calling with Mutect2
+ * somatic variant calling with Mutect2
  */
 
 process mutect2 {
-  tag "$meta.id"
+  tag "${meta.tumor_id}_vs_${meta.normal_id}"
   label 'gatk'
   label 'medMem'
   label 'lowCpu'
@@ -20,17 +20,17 @@ process mutect2 {
   path panelOfNormalsIndex
 
   output:
-  tuple val(meta), path("*.vcf.gz")     , emit: vcf
-  tuple val(meta), path("*.tbi")        , emit: tbi
+  tuple val(meta), val("Mutect2"), path("*.vcf")     , emit: vcf
+  tuple val(meta), path("*.idx")        , emit: idx
   tuple val(meta), path("*.stats")      , emit: stats
-  path "versions.txt"                   , emit: versions
+  path("versions.txt")                   , emit: versions
 
   when:
   task.ext.when == null || task.ext.when
 
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.tumor_id}_vs_${meta.normal_id}"
   def inputs = bam.collect{ "--input $it"}.join(" ")
   def intervalCmd = bed ? "--intervals $bed" : ""
   def ponCmd = panelOfNormals ? "--panel-of-normals $panelOfNormals" : ""
@@ -39,7 +39,7 @@ process mutect2 {
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" Mutect2 \\
        $inputs \\
-       --output ${prefix}.vcf.gz \\
+       --output ${prefix}.vcf \\
        --reference $fasta \\
        $ponCmd \\
        $grCmd \\
