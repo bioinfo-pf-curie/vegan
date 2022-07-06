@@ -90,8 +90,6 @@ workflow mutect2PairsFlow {
     mutect2CallsToFilter = mutect2CallsToFilter.combine(Channel.from('NO_FILE'))
   }
 
-  mutect2CallsToFilter.view()
-
   filterMutect2Calls(
     mutect2CallsToFilter,
     dict,
@@ -101,7 +99,6 @@ workflow mutect2PairsFlow {
     germlineResourceIndex,
     intervals
     )
-
 
   emit:
   versions = chVersions

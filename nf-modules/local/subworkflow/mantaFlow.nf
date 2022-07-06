@@ -2,9 +2,7 @@
  * Manta structural variant calling Flow
  */
 
-// include { mantaSingle } from '../../local/process/mantaSingle'
-// include { manta } from '../../local/process/manta'
-include { mantaCombined } from '../../local/process/mantaCombined'
+include { manta } from '../../local/process/manta'
 
 workflow mantaFlow {
 
@@ -26,21 +24,7 @@ workflow mantaFlow {
 
     chBamMantaCombined = chBamManta.mix(bam)
 
-    // mantaSingle(
-    //   bam,
-    //   bed,
-    //   fasta,
-    //   fastaFai
-    //   )
-    //
-    // manta(
-    //   bamTN,
-    //   bed,
-    //   fasta,
-    //   fastaFai
-    //   )
-
-      mantaCombined(
+      manta(
         chBamMantaCombined,
         bed,
         fasta,
