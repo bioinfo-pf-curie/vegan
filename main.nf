@@ -350,7 +350,7 @@ workflow {
     .combine(chDesign.paired)
     .filter { it[0].id == it[6] && it[3].id == it[7] }
     .map{ it ->
-      meta = [tumor_id:it[6], normal_id:it[7], id:it[8], sex:it[9]]
+      meta = [tumor_id:it[6], normal_id:it[7], id:it[8], sex:it[9], status='pairs']
       return [meta, it[1], it[2], it[4], it[5] ]
     }.set{ chPairBam }
 
