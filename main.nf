@@ -128,7 +128,7 @@ chPon                   = params.pon                   ? Channel.fromPath(params
 chPonIndex              = params.ponIndex              ? Channel.fromPath(params.ponIndex, checkIfExists: true).collect()               : Channel.value([]) //optional
 chKnownIndels           = params.knownIndels           ? Channel.fromPath(params.knownIndels, checkIfExists: true).collect()            : Channel.value([]) //optional
 chKnownIndelsIndex      = params.knownIndelsIndex      ? Channel.fromPath(params.knownIndelsIndex, checkIfExists: true).collect()       : Channel.value([]) //optional
-chSnpeffDb              = params.snpeffDb              ?: Channel.empty()
+chSnpeffDb              = params.snpeffDb              ? Channel.of(params.snpeffDb)                                                    : Channel.empty()
 chSnpeffCache           = params.snpeffCache           ? Channel.fromPath(params.snpeffCache, checkIfExists: true).collect()            : Channel.value([])
 
 chBed                   = params.targetBed             ? Channel.fromPath(params.targetBed, checkIfExists: true).collect()              : Channel.value([]) //optional
@@ -215,6 +215,7 @@ include { identitoFlow } from './nf-modules/common/subworkflow/identito'
 include { bqsrFlow } from './nf-modules/local/subworkflow/bqsrFlow'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCallerFlow'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
+include { vcfAnnotFlow } from './nf-modules/local/subworkflow/vcfAnnot'
 include { mantaFlow } from './nf-modules/local/subworkflow/mantaFlow'
 
 // Processes
@@ -384,6 +385,8 @@ workflow {
   ================================================================================
   */
 
+  chAllVcf = Channel.empty()
+
   //*******************************************
   //SUB-WORKFLOW : HaplotypeCaller
 
@@ -399,6 +402,7 @@ workflow {
       chDict
     )
     chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
+    chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcf)
   }
 
   //*******************************************
@@ -418,69 +422,29 @@ workflow {
       chIntervals
     )
     chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
+    chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFiltered)
   }
 
-  //Process: concatenate vcfs and add target
 
-  // if ('mutect2' in params.tools || 'haplotypecaller' in params.tools){
-  // chConcatenateVCFsCh = mutect2PairsFlow.out.vcf.mix(haplotypeCallerFlow.out.vcf)
+  /*
+  ================================================================================
+                             VCF ANNOTATION
+  ================================================================================
+  */
 
-  //chConcatenateVCFsCh.view()
+  chAllVcf.view()
 
-  // concatVCF(
-  //   chConcatenateVCFsCh,
-  //   chBed,
-  //   chFasta,
-  //   chFastaFai
-  //   )
-  //   chConcatVCF = concatVCF.out.vcf
-  //   chVersions = chVersions.mix(concatVCF.out.versions)
+  vcfAnnotFlow(
+    chAllVcf,
+    chSnpeffDb,
+    chSnpeffCache
+  )
 
-    // Seperate Mutect2 vs HC from annotation
-    // chConcatVCF
-    //   .branch {
-    //     vcfMutect2: it[1] == "Mutect2"
-    //     vcfHC: it[1] == "HaplotypeCaller"
-    //     other: true
-    //   }.set { vcfConcatenatedForks }
-    //
-    // (vcfConcatenatedForMutect2FilterCh, vcfConcatenatedHaplotypeCallerCh, vcfConcatenatedCh) = [vcfConcatenatedForks.vcfMutect2, vcfConcatenatedForks.vcfHC, vcfConcatenatedForks.other]
-    //
-    // collectVCFmetrics(
-    //   vcfConcatenatedHaplotypeCallerCh
-    //   )
-    // }
-    //*******************************************
-    //SUB-WORKFLOW : Somatic variant filtering
-
-    //*******************************************
-
-    // mutect2CallsToFilterCh = vcfConcatenatedForMutect2FilterCh.map{
-    //     variantCaller, sampleId, sampleIdTN, vcf, index ->
-    //     [sampleId, sampleIdTN, vcf, index]
-    // }.join(mergedStatsFileCh, by:[0,1])
-    //
-    // if ('mutect2' in params.tools){
-    // mutect2FiltersFlow(
-    //   chPairBam,
-    //   chIntervals,
-    //   chGermlineResource,
-    //   chGermlineResourceIndex,
-    //   chBed,
-    //   chDict,
-    //   vcfConcatenatedForMutect2FilterCh,
-    //   mutect2PairsFlow.out.stats,
-    //   chFasta,
-    //   chFastaFai
-    //   )
-    //
-    //   chVersions = chVersions.mix(mutect2FiltersFlow.out.versions)
-    // }
-    /*
-    ================================================================================
-                                SV VARIANT CALLING
-    ================================================================================
-    */
+  /*
+  ================================================================================
+                             SV VARIANT CALLING
+  ================================================================================
+  */
 
     // STEP MANTA.1 - SINGLE MODE
 

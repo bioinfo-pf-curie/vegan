@@ -22,14 +22,16 @@ process collectWgsMetrics {
   task.ext.when == null || task.ext.when
 
   script:
+  def preproc = bed ? "gatk BedToIntervalList -I ${bed} -O intervals.bed -SD ${dict}" : ""
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   def args2 = task.ext.args2 ?: ''
   """
-  ${args}
+  ${preproc}
   gatk CollectWgsMetrics --help &> versions.txt 2>&1 || true
   gatk --java-options -Xmx${task.memory.toGiga()}g \
        ReorderSam \
+       ${args} \
        -I ${bamFiltered} \
        -O ${bamFiltered.baseName}_reorder.bam \
        -SD ${dict} \
