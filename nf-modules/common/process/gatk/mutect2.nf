@@ -20,10 +20,10 @@ process mutect2 {
   path panelOfNormalsIndex
 
   output:
-  tuple val(meta), val("Mutect2"), path("*.vcf")     , emit: vcf
-  tuple val(meta), path("*.idx")        , emit: idx
-  tuple val(meta), path("*.stats")      , emit: stats
-  path("versions.txt")                   , emit: versions
+  tuple val(meta), path("*.vcf")    , emit: vcf
+  tuple val(meta), path("*.idx")    , emit: idx
+  tuple val(meta), path("*.stats")  , emit: stats
+  path("versions.txt")              , emit: versions
 
   when:
   task.ext.when == null || task.ext.when

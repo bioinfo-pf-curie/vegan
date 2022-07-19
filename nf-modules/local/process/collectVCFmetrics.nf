@@ -4,13 +4,15 @@ process collectVCFmetrics {
   label 'onlyLinux'
 
   input:
-  tuple val(meta), val(variantCaller), path(vcf), path(tbi)
+  tuple val(meta), path(vcf)
 
   output:
-  path("*.mqc"), emit: hcCallingMetricsMqc
+  path("*.mqc"), emit: mqc
 
+  script:
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
-  getCallingMetrics.sh -i ${vcf} \
-                       -n ${meta.id} > ${meta.id}_${variantCaller}_callingMetrics.mqc
+  getCallingMetrics.sh -i ${vcf[0]} \
+                       -n ${meta.id} > ${prefix}_callingMetrics.mqc
   """
 }

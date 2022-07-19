@@ -3,32 +3,26 @@
  */
 
 process concatVCF {
-  tag "${variantCaller}-${meta.id}"
+  tag "${meta.id}"
   label 'bcftools'
   label 'highCpu'
   label 'medMem'
 
   input:
-  tuple val(meta), val(variantCaller), path(vcFiles)
+  tuple val(meta), path(vcf)
   path(targetBed)
   path(fasta)
   path(fastaFai)
 
   output:
-  tuple val(meta), val(variantCaller), path("*_*.vcf.gz"), path("*_*.vcf.gz.tbi"), emit: vcf
-  path("versions.txt")                   , emit: versions
+  tuple val(meta), path("*concat.vcf.gz*"), emit: vcf
+  path("versions.txt"), emit: versions
 
   script:
-  if (variantCaller == 'HaplotypeCaller')
-    outputFile = "${meta.id}_HaplotypeCaller.vcf"
-  else if (variantCaller == 'Mutect2')
-    outputFile = "${meta.tumor_id}_vs_${meta.normal_id}_Mutect2_unfiltered.vcf"
-  else
-    outputFile = "${meta.id}_${variantCaller}.vcf"
-
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   """
-  apConcatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${args}
+  apConcatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${prefix}_concat.vcf ${args}
   bcftools --version &> versions.txt 2>&1 || true
   """
 }

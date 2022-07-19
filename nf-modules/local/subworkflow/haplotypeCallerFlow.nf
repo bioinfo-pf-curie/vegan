@@ -48,17 +48,17 @@ workflow haplotypeCallerFlow {
     bed,
     fasta,
     fastaFai
-    )
+  )
 
   chVersions = chVersions.mix(concatVCF.out.versions)
 
   collectVCFmetrics(
     concatVCF.out.vcf
-    )
+  )
 
   emit:
   gvcf = haplotypeCaller.out.gvcf
   vcf = concatVCF.out.vcf
-  hcCallingMetricsMqc = collectVCFmetrics.out.hcCallingMetricsMqc
+  mqc = collectVCFmetrics.out.mqc
   versions = chVersions
 }

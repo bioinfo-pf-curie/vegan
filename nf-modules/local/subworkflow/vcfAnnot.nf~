@@ -1,0 +1,28 @@
+/*
+ * VCF annotation sub-workflow
+ */
+
+include { snpEff } from '../../common/process/snpEff/snpEff'
+
+workflow vcfAnnotFlow {
+
+  take:
+  vcf
+  db
+  cache
+
+  main:
+  chVersions = Channel.empty()
+
+  snpEff(
+    vcf,
+    db,
+    cache
+  )
+  chVersions = chVersions.mix(snpEff.out.versions)
+
+  emit:
+  vcf = snpEff.out.vcf
+  logs = snpEff.out.report
+  versions = chVersions
+}
