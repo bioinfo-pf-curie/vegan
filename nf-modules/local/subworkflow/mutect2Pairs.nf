@@ -33,7 +33,9 @@ workflow mutect2PairsFlow {
     .map{ it -> [it[0], [it[1], it[3]], [it[2], it[4]]] }
     .set{ chBamMutect2 }
 
-  //chBamMutect2.view()
+  /*
+   * MUTECT2 CALLS
+   */
 
   mutect2(
     chBamMutect2,
@@ -46,19 +48,24 @@ workflow mutect2PairsFlow {
     panelsOfNormals,
     panelsOfNormalsIndex
   )
+  chVersions = chVersions.mix(mutect2.out.versions)
 
   mergeMutect2Stats(
     mutect2.out.stats
-    )
+  )
+  chVersions = chVersions.mix(mergeMutect2Stats.out.versions)
 
   concatVCF(
     mutect2.out.vcf,
     bed,
     fasta,
     fai
-    )
-
+  )
   chVersions = chVersions.mix(concatVCF.out.versions)
+
+  /*
+   * PILEUP SUMMARY
+   */
 
   getPileupSummaries(
     bam,
@@ -66,29 +73,36 @@ workflow mutect2PairsFlow {
     germlineResource,
     germlineResourceIndex,
     bed
-    )
+  )
+  chVersions = chVersions.mix(getPileupSummaries.out.versions)
 
   gatherPileupSummaries(
     getPileupSummaries.out.pileupSummaries,
     dict
-    )
+  )
+  chVersions = chVersions.mix(gatherPileupSummaries.out.versions)
 
-  pairBamCalculateContaminationCh = bam.join(gatherPileupSummaries.out.mergedPileupFileCh)
+  /*
+   * CALCULATE CONTAMINATION
+   */
 
   calculateContamination(
-    pairBamCalculateContaminationCh
-    )
+    bam.join(gatherPileupSummaries.out.mergedPileupFileCh)
+  )
+  chVersions = chVersions.mix(calculateContamination.out.versions)
 
-  mutect2CallsToFilter = concatVCF.out.vcf.map{
-      meta,variantCaller, vcf, index ->
-      [meta, vcf, index]
+  /*
+   * FILTER MUTECT CALL
+   */
+
+  concatVCF.out.vcf.map{
+      meta, variantCaller, vcf, index -> [meta, vcf, index]
   }.join(mergeMutect2Stats.out.mergedStatsFile)
+  .set{mutect2CallsToFilter}
 
-  if (!params.skipMutectContamination){
-    mutect2CallsToFilter = mutect2CallsToFilter.join(calculateContamination.out.contaminationTable)
-  }else{
-    mutect2CallsToFilter = mutect2CallsToFilter.combine(Channel.from('NO_FILE'))
-  }
+  mutect2CallsToFilter = params.skipMutectContamination ? 
+    mutect2CallsToFilter.combine(Channel.from('NO_FILE') : 
+    mutect2CallsToFilter.join(calculateContamination.out.contaminationTable)
 
   filterMutect2Calls(
     mutect2CallsToFilter,
@@ -98,12 +112,12 @@ workflow mutect2PairsFlow {
     germlineResource,
     germlineResourceIndex,
     intervals
-    )
+  )
+  chVersions = chVersions.mix(filterMutect2Calls.out.versions)
 
   emit:
   versions = chVersions
   vcfUnfiltered = mutect2.out.vcf
   vcfFiltered = filterMutect2Calls.out.filteredMutect2OutputCh
   stats = mergeMutect2Stats.out.mergedStatsFile
-
 }
