@@ -3,6 +3,12 @@
  */
 
 include { mutect2 } from '../../common/process/gatk/mutect2'
+include { mergeMutect2Stats } from '../../common/process/gatk/mergeMutect2Stats'
+include { concatVCF } from '../../local/process/concatVCF'
+include { getPileupSummaries } from '../../common/process/gatk/getPileupSummaries'
+include { gatherPileupSummaries } from '../../common/process/gatk/gatherPileupSummaries'
+include { calculateContamination } from '../../common/process/gatk/calculateContamination'
+include { filterMutect2Calls } from '../../common/process/gatk/filterMutect2Calls'
 
 workflow mutect2PairsFlow {
 
@@ -16,6 +22,7 @@ workflow mutect2PairsFlow {
   germlineResourceIndex
   panelsOfNormals
   panelsOfNormalsIndex
+  intervals
 
   main:
   chVersions = Channel.empty()
@@ -26,7 +33,7 @@ workflow mutect2PairsFlow {
     .map{ it -> [it[0], [it[1], it[3]], [it[2], it[4]]] }
     .set{ chBamMutect2 }
 
-  chBamMutect2.view()
+  //chBamMutect2.view()
 
   mutect2(
     chBamMutect2,
@@ -40,6 +47,63 @@ workflow mutect2PairsFlow {
     panelsOfNormalsIndex
   )
 
+  mergeMutect2Stats(
+    mutect2.out.stats
+    )
+
+  concatVCF(
+    mutect2.out.vcf,
+    bed,
+    fasta,
+    fai
+    )
+
+  chVersions = chVersions.mix(concatVCF.out.versions)
+
+  getPileupSummaries(
+    bam,
+    intervals,
+    germlineResource,
+    germlineResourceIndex,
+    bed
+    )
+
+  gatherPileupSummaries(
+    getPileupSummaries.out.pileupSummaries,
+    dict
+    )
+
+  pairBamCalculateContaminationCh = bam.join(gatherPileupSummaries.out.mergedPileupFileCh)
+
+  calculateContamination(
+    pairBamCalculateContaminationCh
+    )
+
+  mutect2CallsToFilter = concatVCF.out.vcf.map{
+      meta,variantCaller, vcf, index ->
+      [meta, vcf, index]
+  }.join(mergeMutect2Stats.out.mergedStatsFile)
+
+  if (!params.skipMutectContamination){
+    mutect2CallsToFilter = mutect2CallsToFilter.join(calculateContamination.out.contaminationTable)
+  }else{
+    mutect2CallsToFilter = mutect2CallsToFilter.combine(Channel.from('NO_FILE'))
+  }
+
+  filterMutect2Calls(
+    mutect2CallsToFilter,
+    dict,
+    fasta,
+    fai,
+    germlineResource,
+    germlineResourceIndex,
+    intervals
+    )
+
   emit:
   versions = chVersions
+  vcfUnfiltered = mutect2.out.vcf
+  vcfFiltered = filterMutect2Calls.out.filteredMutect2OutputCh
+  stats = mergeMutect2Stats.out.mergedStatsFile
+
 }
