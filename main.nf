@@ -208,15 +208,15 @@ if (params.design){
 */
 
 // Workflows
-include { mapping } from './nf-modules/local/subworkflow/mappingFlow'
-include { bamFilters } from './nf-modules/local/subworkflow/bamFilteringFlow'
-include { bamQcFlow } from './nf-modules/local/subworkflow/bamQcFlow'
+include { mappingFlow } from './nf-modules/local/subworkflow/mapping'
+include { bamFiltersFlow } from './nf-modules/local/subworkflow/bamFiltering'
+include { bamQcFlow } from './nf-modules/local/subworkflow/bamQc'
 include { identitoFlow } from './nf-modules/common/subworkflow/identito'
-include { bqsrFlow } from './nf-modules/local/subworkflow/bqsrFlow'
-include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCallerFlow'
+include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
+include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
-include { vcfAnnotFlow } from './nf-modules/local/subworkflow/vcfAnnot'
-include { mantaFlow } from './nf-modules/local/subworkflow/mantaFlow'
+include { annotateFlow } from './nf-modules/local/subworkflow/annotate'
+include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 
 // Processes
 include { getSoftwareVersions } from './nf-modules/common/process/utils/getSoftwareVersions'
@@ -224,6 +224,9 @@ include { outputDocumentation } from './nf-modules/common/process/utils/outputDo
 include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq/preseq'
+include { tmb } from './nf-modules/common/process/tmb/tmb'
+include { msisensorproScan } from './nf-modules/common/process/msisensorpro/msisensorproScan.nf'
+include { msisensorproMsi } from './nf-modules/common/process/msisensorpro/msisensorproMsi.nf'
 
 /*
 =====================================
@@ -263,12 +266,12 @@ workflow {
       params.aligner == 'bwa-mem2' ? chBwaMem2Index :
       chdragmapIndex
 
-    mapping(
+    mappingFlow(
       chRawReads,
       chAlignerIndex
     )
-    chAlignedBam = mapping.out.bam
-    chVersions = chVersions.mix(mapping.out.versions)
+    chAlignedBam = mappingFlow.out.bam
+    chVersions = chVersions.mix(mappingFlow.out.versions)
 
     //*******************************************
     // Process : Preseq
@@ -284,12 +287,12 @@ workflow {
     //*******************************************
     // SUB-WORKFLOW : bamFiltering
 
-    bamFilters(
+    bamFiltersFlow(
       chAlignedBam,
       chBed
     )
-    chVersions = chVersions.mix(bamFilters.out.versions)
-    chFilteredBam = bamFilters.out.bam
+    chVersions = chVersions.mix(bamFiltersFlow.out.versions)
+    chFilteredBam = bamFiltersFlow.out.bam
 
     //*******************************************
     //SUB-WORKFLOW : bamQcFlow
@@ -428,17 +431,48 @@ workflow {
 
   /*
   ================================================================================
-                             VCF ANNOTATION
+                                   VCF ANNOTATION
   ================================================================================
   */
 
-  chAllVcf.view()
-
-  vcfAnnotFlow(
-    chAllVcf,
+  // Annotation somatic vcf
+  annotateFlow(
+    mutect2PairsFlow.out.vcfFiltered,
     chSnpeffDb,
     chSnpeffCache
   )
+
+  /*
+  ================================================================================
+                                         TMB
+  ================================================================================
+  */
+
+  dbConfig = file("$projectDir/assets/tmb/snpeff.yml", checkIfExists: true)
+  varConfig = file("$projectDir/assets/tmb/mutect2.yml", checkIfExists: true)
+
+  //tmb(
+  //  annotateFlow.out.vcf.map{ it -> [it[0], it[1][0], dbConfig, varConfig] },
+  //  chBed
+  //)
+  //chVersions = chVersions.mix(tmb.out.versions)
+
+  /*
+  ================================================================================
+                                        MSI
+  ================================================================================
+  */
+
+  msisensorproScan(
+    chFasta
+  )
+
+  msisensorproMsi(
+    chPairBam,
+    chFasta.collect(),
+    msisensorproScan.out.list.collect()
+  )
+  chVersions = chVersions.mix(msisensorproMsi.out.versions)
 
   /*
   ================================================================================
@@ -459,6 +493,13 @@ workflow {
 
     chVersions = chVersions.mix(mantaFlow.out.versions)
   }
+
+
+  /*
+  ================================================================================
+                                 MULTIQC
+  ================================================================================
+  */
 
     // MULTIQC
 

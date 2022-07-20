@@ -6,6 +6,7 @@ process msisensorproMsi {
   tag "$meta.id"
   label 'minCup'
   label 'lowMem'
+  label 'msisensorpro'
 
   input:
   tuple val(meta), path(tumor), path(tumorIndex), path(normal), path(normalIndex)
@@ -26,7 +27,7 @@ process msisensorproMsi {
   def args = task.ext.args   ?: ''
   prefix   = task.ext.prefix ?: "${meta.id}"
   def fasta = fasta ? "-g ${fasta}" : ""
-  def intervals = intervals ? " -e ${intervals} " : ""
+  //def intervals = intervals ? " -e ${intervals} " : ""
   """
   msisensor-pro \\
       msi \\
@@ -36,9 +37,8 @@ process msisensorproMsi {
       ${fasta} \\
       -o $prefix \\
       -b ${task.cpus} \\
-      ${intervals} \\
       $args
 
-  echo "missensor-pro "\$(msisensor-pro 2>&1 | sed -nE 's/Version:\\sv([0-9]\\.[0-9])/\\1/ p')
+  echo "missensor-pro "\$(msisensor-pro 2>&1 | sed -nE 's/Version:\\sv([0-9]\\.[0-9])/\\1/ p') > versions.txt
   """
 }
