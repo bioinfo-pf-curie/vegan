@@ -5,13 +5,14 @@
 process msisensorproScan {
   label 'minCpu'
   label 'LowMem'
+  label 'msisensorpro'
 
   input:
-  tuple path(fasta)
+  path(fasta)
 
   output:
-  tuple path("*.list"), emit: list
-  path "versions.yml"            , emit: versions
+  path("*.list"), emit: list
+  path "versions.txt" , emit: versions
 
   when:
   task.ext.when == null || task.ext.when
@@ -22,9 +23,9 @@ process msisensorproScan {
   msisensor-pro \\
       scan \\
       -d $fasta \\
-      -o ${prefix}.msisensor_scan.list \\
+      -o msisensor_scan.list \\
       $args
 
-  echo "msisensor-pro "\$(msisensor-pro 2>&1 | sed -nE 's/Version:\\sv([0-9]\\.[0-9])/\\1/ p')
+  echo "msisensor-pro "\$(msisensor-pro 2>&1 | sed -nE 's/Version:\\sv([0-9]\\.[0-9])/\\1/ p') > versions.txt
   """
 }

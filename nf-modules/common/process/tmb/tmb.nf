@@ -25,7 +25,8 @@ process tmb {
   def target_bed = target_bed ? "--bed ${target_bed}" : ""
   """
   pyTMB.py -i $vcf \
-      --dbConfig ${dbConfig} \
+      --sample ${meta.tumor_id} \
+      --dbConfig ${dbconfig} \
       --varConfig ${varconfig} \
       ${target_bed} \
       $args

@@ -9,7 +9,7 @@ include { samtoolsSort } from '../../common/process/samtools/samtoolsSort'
 include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
 
-workflow mapping {
+workflow mappingFlow {
 
   take:
   reads
