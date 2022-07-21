@@ -91,6 +91,7 @@ params.cosmicDb = NFTools.getGenomeAttribute(params, 'cosmicDb')
 params.icgcDb = NFTools.getGenomeAttribute(params, 'icgcDb')
 params.cancerhotspotDb = NFTools.getGenomeAttribute(params, 'cancerhotspotDb')
 params.gnomadDb = NFTools.getGenomeAttribute(params, 'gnomadDb')
+params.dbnsfp = NFTools.getGenomeAttribute(params, 'dbnsfp')
 
 // Stage config files
 chMultiqcConfig = Channel.fromPath(params.multiqcConfig)
@@ -138,6 +139,7 @@ chCosmicDb              = params.cosmicDb              ? Channel.fromPath(params
 chIcgcDb                = params.icgcDb                ? Channel.fromPath(params.icgcDb, checkIfExists: true).collect()                 : Channel.value([])
 chCancerhotspotDb       = params.cancerhotspotDb       ? Channel.fromPath(params.cancerhotspotDb, checkIfExists: true).collect()        : Channel.value([])
 chGnomadDb              = params.gnomadDb              ? Channel.fromPath(params.gnomadDb, checkIfExists: true).collect()               : Channel.value([])
+chDbnsfp                = params.dbnsfp                ? Channel.fromPath(params.dbnsfp, checkIfExists: true).collect()                 : Channel.value([])
 
 chBed                   = params.targetBed             ? Channel.fromPath(params.targetBed, checkIfExists: true).collect()              : Channel.value([]) //optional
 chIntervals             = params.intervals             ? Channel.fromPath(params.intervals, checkIfExists: true).collect()              : Channel.value([]) //optional
@@ -451,7 +453,8 @@ workflow {
     chCosmicDb,
     chIcgcDb,
     chCancerhotspotDb,
-    chGnomadDb    
+    chGnomadDb,
+    chDbnsfp
   )
 
   /*
