@@ -217,6 +217,8 @@ include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCa
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
 include { annotateFlow } from './nf-modules/local/subworkflow/annotate'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
+include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
+include { msiFlow } from './nf-modules/local/subworkflow/msi'
 
 // Processes
 include { getSoftwareVersions } from './nf-modules/common/process/utils/getSoftwareVersions'
@@ -224,9 +226,6 @@ include { outputDocumentation } from './nf-modules/common/process/utils/outputDo
 include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq/preseq'
-include { tmb } from './nf-modules/common/process/tmb/tmb'
-include { msisensorproScan } from './nf-modules/common/process/msisensorpro/msisensorproScan.nf'
-include { msisensorproMsi } from './nf-modules/common/process/msisensorpro/msisensorproMsi.nf'
 
 /*
 =====================================
@@ -448,14 +447,10 @@ workflow {
   ================================================================================
   */
 
-  dbConfig = file("$projectDir/assets/tmb/snpeff.yml", checkIfExists: true)
-  varConfig = file("$projectDir/assets/tmb/mutect2.yml", checkIfExists: true)
-
-  //tmb(
-  //  annotateFlow.out.vcf.map{ it -> [it[0], it[1][0], dbConfig, varConfig] },
-  //  chBed
-  //)
-  //chVersions = chVersions.mix(tmb.out.versions)
+  tmbFlow(
+    mutect2PairsFlow.out.vcfFiltered,
+    chBed
+  )
 
   /*
   ================================================================================
@@ -463,16 +458,10 @@ workflow {
   ================================================================================
   */
 
-  msisensorproScan(
+  msiFlow(
+    chPairBam,
     chFasta
   )
-
-  msisensorproMsi(
-    chPairBam,
-    chFasta.collect(),
-    msisensorproScan.out.list.collect()
-  )
-  chVersions = chVersions.mix(msisensorproMsi.out.versions)
 
   /*
   ================================================================================

@@ -13,7 +13,7 @@ process tmb {
   path (target_bed)
 
   output:
-  tuple val(meta), path("*.log"), emit: log
+  tuple val(meta), path("*.log"), emit: logs
   path "versions.txt"           , emit: versions
 
   when:
