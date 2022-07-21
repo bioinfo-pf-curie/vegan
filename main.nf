@@ -87,6 +87,10 @@ params.knownIndels = NFTools.getGenomeAttribute(params, 'knownIndels')
 params.knownIndelsIndex = NFTools.getGenomeAttribute(params, 'knownIndelsIndex')
 params.snpeffDb = NFTools.getGenomeAttribute(params, 'snpeffDb')
 params.snpeffCache = NFTools.getGenomeAttribute(params, 'snpeffCache')
+params.cosmicDb = NFTools.getGenomeAttribute(params, 'cosmicDb')
+params.icgcDb = NFTools.getGenomeAttribute(params, 'icgcDb')
+params.cancerhotspotDb = NFTools.getGenomeAttribute(params, 'cancerhotspotDb')
+params.gnomadDb = NFTools.getGenomeAttribute(params, 'gnomadDb')
 
 // Stage config files
 chMultiqcConfig = Channel.fromPath(params.multiqcConfig)
@@ -130,6 +134,10 @@ chKnownIndels           = params.knownIndels           ? Channel.fromPath(params
 chKnownIndelsIndex      = params.knownIndelsIndex      ? Channel.fromPath(params.knownIndelsIndex, checkIfExists: true).collect()       : Channel.value([]) //optional
 chSnpeffDb              = params.snpeffDb              ? Channel.of(params.snpeffDb)                                                    : Channel.empty()
 chSnpeffCache           = params.snpeffCache           ? Channel.fromPath(params.snpeffCache, checkIfExists: true).collect()            : Channel.value([])
+chCosmicDb              = params.cosmicDb              ? Channel.fromPath(params.cosmicDb, checkIfExists: true).collect()               : Channel.value([])
+chIcgcDb                = params.icgcDb                ? Channel.fromPath(params.icgcDb, checkIfExists: true).collect()                 : Channel.value([])
+chCancerhotspotDb       = params.cancerhotspotDb       ? Channel.fromPath(params.cancerhotspotDb, checkIfExists: true).collect()        : Channel.value([])
+chGnomadDb              = params.gnomadDb              ? Channel.fromPath(params.gnomadDb, checkIfExists: true).collect()               : Channel.value([])
 
 chBed                   = params.targetBed             ? Channel.fromPath(params.targetBed, checkIfExists: true).collect()              : Channel.value([]) //optional
 chIntervals             = params.intervals             ? Channel.fromPath(params.intervals, checkIfExists: true).collect()              : Channel.value([]) //optional
@@ -154,6 +162,7 @@ summary = [
   'Design' : params.design ?: null,
   'Genome' : params.genome,
   'Tools' : params.tools ?: null,
+  'Databases' : params.annotDb ?: null,
   'Target Bed' : params.targetBed ?: null,
   'Script dir': workflow.projectDir,
   'Launch Dir' : workflow.launchDir,
@@ -393,7 +402,7 @@ workflow {
   //SUB-WORKFLOW : HaplotypeCaller
 
 
-  if(params.tools && params.tools.contains('haplotypecaller')){
+  if('haplotypecaller' in tools){
     haplotypeCallerFlow(
       chProcBam,
       chBed,
@@ -410,7 +419,7 @@ workflow {
   //*******************************************
   //SUB-WORKFLOW : Mutect2
 
-  if(params.tools && params.tools.contains('mutect2')){
+  if('mutect2' in tools){
     mutect2PairsFlow(
       chPairBam,
       chBed,
@@ -438,7 +447,11 @@ workflow {
   annotateSomaticFlow(
     mutect2PairsFlow.out.vcfFiltered,
     chSnpeffDb,
-    chSnpeffCache
+    chSnpeffCache,
+    chCosmicDb,
+    chIcgcDb,
+    chCancerhotspotDb,
+    chGnomadDb    
   )
 
   /*
@@ -469,16 +482,16 @@ workflow {
   ================================================================================
   */
 
-    // STEP MANTA.1 - SINGLE MODE
+  // STEP MANTA.1 - SINGLE MODE
 
-    if ('manta' in params.tools){
+  if ('manta' in tools){
     mantaFlow(
       chPairBam,
       chSingleBam,
       chBed,
       chFasta,
       chFastaFai
-      )
+    )
 
     chVersions = chVersions.mix(mantaFlow.out.versions)
   }
