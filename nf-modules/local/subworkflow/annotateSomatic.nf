@@ -21,6 +21,7 @@ workflow annotateSomaticFlow {
   gnomAd
 
   main:
+  annotDb = params.annotDb ? params.annotDb.split(',').collect{it.trim().toLowerCase()} : []
   chVersions = Channel.empty()
 
   /*
@@ -44,7 +45,7 @@ workflow annotateSomaticFlow {
     cosmic
   )
   chVersions = chVersions.mix(snpSiftCosmic.out.versions)
-  chAnnotVcf = params.annotDb.contains('cosmic') ? snpSiftCosmic.out.vcf : chAnnotVcf
+  chAnnotVcf = 'cosmic' in annotDb ? snpSiftCosmic.out.vcf : chAnnotVcf
 
   /*
    * ICGC annotations
@@ -55,7 +56,7 @@ workflow annotateSomaticFlow {
     icgc
   )
   chVersions = chVersions.mix(snpSiftIcgc.out.versions)
-  chAnnotVcf = params.annotDb.contains('icgc') ? snpSiftIcgc.out.vcf : chAnnotVcf
+  chAnnotVcf = 'icgc' in annotDb ? snpSiftIcgc.out.vcf : chAnnotVcf
 
   /*
    * CancerHotspot annotations
@@ -66,7 +67,7 @@ workflow annotateSomaticFlow {
     cancerHotspot
   )
   chVersions = chVersions.mix(snpSiftCancerHotspot.out.versions)
-  chAnnotVcf = params.annotDb.contains('cancerhotspot') ? snpSiftCancerHotspot.out.vcf : chAnnotVcf
+  chAnnotVcf = 'cancerhotspot' in annotDb ? snpSiftCancerHotspot.out.vcf : chAnnotVcf
 
   /*
    * GnomAD annotations
@@ -77,7 +78,7 @@ workflow annotateSomaticFlow {
     gnomAD
   )
   chVersions = chVersions.mix(snpSiftGnomAD.out.versions)
-  chAnnotVcf = params.annotDb.contains('gnomad') ? snpSiftGnomAD.out.vcf : chAnnotVcf
+  chAnnotVcf = 'gnomad' in annotDb ? snpSiftGnomAD.out.vcf : chAnnotVcf
 
   /*
    * SnpSift dbNSFP
@@ -87,7 +88,7 @@ workflow annotateSomaticFlow {
     chAnnotVcf
   )
   chVersions = chVersions.mix(snpSiftDbnsfp.out.versions)
-  chAnnotVcf = params.annotDb.contains('dbnsfp') ? snpSiftDbnsfp.out.vcf : chAnnotVcf
+  chAnnotVcf = 'dbnsfp' in annotDb ? snpSiftDbnsfp.out.vcf : chAnnotVcf
 
   emit:
   vcf = chAnnotVcf
