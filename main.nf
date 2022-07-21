@@ -215,7 +215,7 @@ include { identitoFlow } from './nf-modules/common/subworkflow/identito'
 include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
-include { annotateFlow } from './nf-modules/local/subworkflow/annotate'
+include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
 include { msiFlow } from './nf-modules/local/subworkflow/msi'
@@ -435,7 +435,7 @@ workflow {
   */
 
   // Annotation somatic vcf
-  annotateFlow(
+  annotateSomaticFlow(
     mutect2PairsFlow.out.vcfFiltered,
     chSnpeffDb,
     chSnpeffCache
