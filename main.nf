@@ -448,7 +448,7 @@ workflow {
 
     // STEP MANTA.1 - SINGLE MODE
 
-    if ('manta' in params.tools){
+    if(params.tools && params.tools.contains('manta')){
     mantaFlow(
       chPairBam,
       chSingleBam,
