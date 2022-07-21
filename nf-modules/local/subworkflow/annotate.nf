@@ -3,8 +3,9 @@
  */
 
 include { snpEff } from '../../common/process/snpEff/snpEff'
+include { tabix } from '../../common/process/tabix/tabix'
 
-workflow vcfAnnotFlow {
+workflow annotateFlow {
 
   take:
   vcf
@@ -21,8 +22,13 @@ workflow vcfAnnotFlow {
   )
   chVersions = chVersions.mix(snpEff.out.versions)
 
+  tabix(
+    snpEff.out.vcf
+  )
+  chVersions = chVersions.mix(tabix.out.versions)
+
   emit:
-  vcf = snpEff.out.vcf
+  vcf = tabix.out.vcf
   logs = snpEff.out.report
   versions = chVersions
 }
