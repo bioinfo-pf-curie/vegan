@@ -23,6 +23,7 @@ workflow mantaFlow {
       .set{ chBamManta }
 
     chBamMantaCombined = chBamManta.mix(bam)
+    chBamMantaCombined.view()
 
       manta(
         chBamMantaCombined,
