@@ -12,7 +12,7 @@ include { samtoolsFlagstat as samtoolsFlagstatFilter  } from '../../common/proce
 include { samtoolsIdxstats } from '../../common/process/samtools/samtoolsIdxstats'
 include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
 
-workflow bamFilters {
+workflow bamFiltersFlow {
 
     take:
     bam // [prefix, bam, bai]

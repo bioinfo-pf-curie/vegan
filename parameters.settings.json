@@ -74,7 +74,7 @@
       "usage": "Specify tools to use for variant calling",
       "type": "string",
       "nargs": "+",
-      "choices": ["facets", "ascat", "haplotypecaller", "manta", "mutect2", "snpeff" ],
+      "choices": ["facets", "ascat", "haplotypecaller", "manta", "mutect2", "snpeff", "tmb", "msisensor" ],
       "default_value": [],
       "pattern": ".*",
       "render": "textfield",

@@ -208,15 +208,17 @@ if (params.design){
 */
 
 // Workflows
-include { mapping } from './nf-modules/local/subworkflow/mappingFlow'
-include { bamFilters } from './nf-modules/local/subworkflow/bamFilteringFlow'
-include { bamQcFlow } from './nf-modules/local/subworkflow/bamQcFlow'
+include { mappingFlow } from './nf-modules/local/subworkflow/mapping'
+include { bamFiltersFlow } from './nf-modules/local/subworkflow/bamFiltering'
+include { bamQcFlow } from './nf-modules/local/subworkflow/bamQc'
 include { identitoFlow } from './nf-modules/common/subworkflow/identito'
-include { bqsrFlow } from './nf-modules/local/subworkflow/bqsrFlow'
-include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCallerFlow'
+include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
+include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
-include { vcfAnnotFlow } from './nf-modules/local/subworkflow/vcfAnnot'
-include { mantaFlow } from './nf-modules/local/subworkflow/mantaFlow'
+include { annotateFlow } from './nf-modules/local/subworkflow/annotate'
+include { mantaFlow } from './nf-modules/local/subworkflow/manta'
+include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
+include { msiFlow } from './nf-modules/local/subworkflow/msi'
 
 // Processes
 include { getSoftwareVersions } from './nf-modules/common/process/utils/getSoftwareVersions'
@@ -263,12 +265,12 @@ workflow {
       params.aligner == 'bwa-mem2' ? chBwaMem2Index :
       chdragmapIndex
 
-    mapping(
+    mappingFlow(
       chRawReads,
       chAlignerIndex
     )
-    chAlignedBam = mapping.out.bam
-    chVersions = chVersions.mix(mapping.out.versions)
+    chAlignedBam = mappingFlow.out.bam
+    chVersions = chVersions.mix(mappingFlow.out.versions)
 
     //*******************************************
     // Process : Preseq
@@ -284,12 +286,12 @@ workflow {
     //*******************************************
     // SUB-WORKFLOW : bamFiltering
 
-    bamFilters(
+    bamFiltersFlow(
       chAlignedBam,
       chBed
     )
-    chVersions = chVersions.mix(bamFilters.out.versions)
-    chFilteredBam = bamFilters.out.bam
+    chVersions = chVersions.mix(bamFiltersFlow.out.versions)
+    chFilteredBam = bamFiltersFlow.out.bam
 
     //*******************************************
     //SUB-WORKFLOW : bamQcFlow
@@ -428,16 +430,37 @@ workflow {
 
   /*
   ================================================================================
-                             VCF ANNOTATION
+                                   VCF ANNOTATION
   ================================================================================
   */
 
-  chAllVcf.view()
-
-  vcfAnnotFlow(
-    chAllVcf,
+  // Annotation somatic vcf
+  annotateFlow(
+    mutect2PairsFlow.out.vcfFiltered,
     chSnpeffDb,
     chSnpeffCache
+  )
+
+  /*
+  ================================================================================
+                                         TMB
+  ================================================================================
+  */
+
+  tmbFlow(
+    mutect2PairsFlow.out.vcfFiltered,
+    chBed
+  )
+
+  /*
+  ================================================================================
+                                        MSI
+  ================================================================================
+  */
+
+  msiFlow(
+    chPairBam,
+    chFasta
   )
 
   /*
@@ -459,6 +482,13 @@ workflow {
 
     chVersions = chVersions.mix(mantaFlow.out.versions)
   }
+
+
+  /*
+  ================================================================================
+                                 MULTIQC
+  ================================================================================
+  */
 
     // MULTIQC
 
