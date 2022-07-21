@@ -19,6 +19,7 @@ workflow annotateSomaticFlow {
   icgc
   cancerHotspot
   gnomAd
+  dbnsfp
 
   main:
   annotDb = params.annotDb ? params.annotDb.split(',').collect{it.trim().toLowerCase()} : []
@@ -75,7 +76,7 @@ workflow annotateSomaticFlow {
 
   snpSiftGnomAD(
     chAnnotVcf,
-    gnomAD
+    gnomAd
   )
   chVersions = chVersions.mix(snpSiftGnomAD.out.versions)
   chAnnotVcf = 'gnomad' in annotDb ? snpSiftGnomAD.out.vcf : chAnnotVcf
@@ -85,7 +86,8 @@ workflow annotateSomaticFlow {
    */
 
   snpSiftDbnsfp(
-    chAnnotVcf
+    chAnnotVcf,
+    dbnsfp
   )
   chVersions = chVersions.mix(snpSiftDbnsfp.out.versions)
   chAnnotVcf = 'dbnsfp' in annotDb ? snpSiftDbnsfp.out.vcf : chAnnotVcf
