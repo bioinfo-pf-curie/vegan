@@ -85,6 +85,8 @@ workflow annotateSomaticFlow {
    * SnpSift dbNSFP
    */
 
+  dbnsfp.view()
+
   snpSiftDbnsfp(
     chAnnotVcf,
     dbnsfp

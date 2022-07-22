@@ -1,4 +1,4 @@
-/*
+B1;5202;0c/*
  * VCF annotation with snpSnift
  */
 
@@ -24,14 +24,15 @@ process snpSniftExtractFields {
   def args2 = task.ext.args2 ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
-  snpSift -Xmx${task.memory.toGiga()}g \\
+  SnpSift -Xmx${task.memory.toGiga()}g \\
     extractFields
     ${args} \\
     ${vcf[0]} \\
     ${args2}
     > ${prefix}.tsv
 
-  echo \$(snpSift -version | cut -d" " -f1,2) > versions.txt
+  echo "snpSift "\$(SnpSift 2>&1 | awk '\$0~"SnpSift version"{print \$3}') > versions.txt
+  echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt
   """
 }
 
