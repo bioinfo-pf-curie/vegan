@@ -11,10 +11,10 @@ process snpSiftAnnotate {
 
   input:
   tuple val(meta), path(vcf)
-  val(db)
+  path(db)
 
   output:
-  tuple val(meta), path("*.ann.vcf.gz*"), emit: vcf
+  tuple val(meta), path("*.vcf{.gz,.gz.tbi}"), emit: vcf
   path("versions.txt"), emit: versions
 
   when:
@@ -22,19 +22,20 @@ process snpSiftAnnotate {
 
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}.ann"
   """
-  snpSift -Xmx${task.memory.toGiga()}g \\
+  SnpSift -Xmx${task.memory.toGiga()}g \\
     annotate \\
     ${args} \\
-    ${db} \\
+    ${db[0]} \\
     ${vcf[0]} \\
-    > ${prefix}.ann.vcf
+    > ${prefix}.vcf
 
-  bgzip < ${prefix}.ann.vcf > ${prefix}.ann.vcf.gz
-  tabix ${prefix}.ann.vcf.gz
+  bgzip < ${prefix}.vcf > ${prefix}.vcf.gz
+  tabix ${prefix}.vcf.gz
 
-  echo \$(snpSift -version | cut -d" " -f1,2) > versions.txt
+  echo "snpSift "\$(SnpSift 2>&1 | awk '\$0~"SnpSift version"{print \$3}') > versions.txt
+  echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt
   """
 }
 
