@@ -227,6 +227,7 @@ include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
 include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
+include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
 include { msiFlow } from './nf-modules/local/subworkflow/msi'
@@ -455,6 +456,16 @@ workflow {
     chCancerhotspotDb,
     chGnomadDb,
     chDbnsfp
+  )
+
+  /*
+  ================================================================================
+                                   TABLE REPORT
+  ================================================================================
+  */
+
+  tableReportFlow(
+    annotateSomaticFlow.out.vcf
   )
 
   /*
