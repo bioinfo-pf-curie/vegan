@@ -135,11 +135,11 @@ chKnownIndels           = params.knownIndels           ? Channel.fromPath(params
 chKnownIndelsIndex      = params.knownIndelsIndex      ? Channel.fromPath(params.knownIndelsIndex, checkIfExists: true).collect()       : Channel.value([]) //optional
 chSnpeffDb              = params.snpeffDb              ? Channel.of(params.snpeffDb)                                                    : Channel.empty()
 chSnpeffCache           = params.snpeffCache           ? Channel.fromPath(params.snpeffCache, checkIfExists: true).collect()            : Channel.value([])
-chCosmicDb              = params.cosmicDb              ? Channel.fromPath(params.cosmicDb, checkIfExists: true).collect()               : Channel.value([])
-chIcgcDb                = params.icgcDb                ? Channel.fromPath(params.icgcDb, checkIfExists: true).collect()                 : Channel.value([])
-chCancerhotspotDb       = params.cancerhotspotDb       ? Channel.fromPath(params.cancerhotspotDb, checkIfExists: true).collect()        : Channel.value([])
-chGnomadDb              = params.gnomadDb              ? Channel.fromPath(params.gnomadDb, checkIfExists: true).collect()               : Channel.value([])
-chDbnsfp                = params.dbnsfp                ? Channel.fromPath(params.dbnsfp, checkIfExists: true).collect()                 : Channel.value([])
+chCosmicDb              = params.cosmicDb              ? Channel.fromPath(params.cosmicDb, checkIfExists: true).collect()               : Channel.empty()
+chIcgcDb                = params.icgcDb                ? Channel.fromPath(params.icgcDb, checkIfExists: true).collect()                 : Channel.empty()
+chCancerhotspotDb       = params.cancerhotspotDb       ? Channel.fromPath(params.cancerhotspotDb, checkIfExists: true).collect()        : Channel.empty()
+chGnomadDb              = params.gnomadDb              ? Channel.fromPath(params.gnomadDb, checkIfExists: true).collect()               : Channel.empty()
+chDbnsfp                = params.dbnsfp                ? Channel.fromPath(params.dbnsfp, checkIfExists: true).collect()                 : Channel.empty()
 
 chBed                   = params.targetBed             ? Channel.fromPath(params.targetBed, checkIfExists: true).collect()              : Channel.value([]) //optional
 chIntervals             = params.intervals             ? Channel.fromPath(params.intervals, checkIfExists: true).collect()              : Channel.value([]) //optional
@@ -227,6 +227,7 @@ include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
 include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
+include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
 include { msiFlow } from './nf-modules/local/subworkflow/msi'
@@ -460,6 +461,16 @@ workflow {
     chDbnsfp
   )
   }
+
+  /*
+  ================================================================================
+                                   TABLE REPORT
+  ================================================================================
+  */
+
+  tableReportFlow(
+    annotateSomaticFlow.out.vcf
+  )
 
   /*
   ================================================================================
