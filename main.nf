@@ -239,6 +239,8 @@ include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
 include { msiFlow } from './nf-modules/local/subworkflow/msi'
+include { facetsFlow } from './nf-modules/local/subworkflow/facets'
+include { ascatFlow } from './nf-modules/local/subworkflow/ascat'
 
 // Processes
 include { getSoftwareVersions } from './nf-modules/common/process/utils/getSoftwareVersions'
@@ -455,6 +457,7 @@ workflow {
   */
 
   // Annotation somatic vcf
+  if('snpeff' in tools){
   annotateSomaticFlow(
     mutect2PairsFlow.out.vcfFiltered,
     chSnpeffDb,
@@ -470,6 +473,7 @@ workflow {
     chDbnsfp,
     chDbnsfpIndex
   )
+  }
 
   /*
   ================================================================================
@@ -487,10 +491,12 @@ workflow {
   ================================================================================
   */
 
+  if('tmb' in tools){
   tmbFlow(
     mutect2PairsFlow.out.vcfFiltered,
     chBed
   )
+  }
 
   /*
   ================================================================================
@@ -498,10 +504,12 @@ workflow {
   ================================================================================
   */
 
+  if('msisensor' in tools){
   msiFlow(
     chPairBam,
     chFasta
   )
+  }
 
   /*
   ================================================================================
@@ -523,6 +531,32 @@ workflow {
     chVersions = chVersions.mix(mantaFlow.out.versions)
   }
 
+
+  /*
+  ================================================================================
+                                        CNV calling
+  ================================================================================
+  */
+
+  //chPairBam.view()
+
+  if('facets' in tools){
+  facetsFlow(
+    chPairBam,
+    chDbsnp
+  )
+  }
+
+  if('ascat' in tools){
+  ascatFlow(
+    chSingleBam,
+    chAcLoci,
+    chAcLociGC,
+    chDict,
+    chFasta,
+    chFastaFai
+  )
+  }
 
   /*
   ================================================================================
