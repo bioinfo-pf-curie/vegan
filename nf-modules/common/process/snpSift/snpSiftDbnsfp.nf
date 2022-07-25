@@ -11,7 +11,7 @@ process snpSiftDbnsfp {
 
   input:
   tuple val(meta), path(vcf)
-  path(db)
+  tuple path(db), path(tbi)
 
   output:
   tuple val(meta), path("*.vcf{.gz,.gz.tbi}"), emit: vcf

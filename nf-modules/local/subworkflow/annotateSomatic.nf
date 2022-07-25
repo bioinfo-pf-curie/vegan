@@ -5,7 +5,7 @@
 include { snpEff } from '../../common/process/snpEff/snpEff'
 include { snpSiftAnnotate as snpSiftCosmic } from '../../common/process/snpSift/snpSiftAnnotate'
 include { snpSiftAnnotate as snpSiftIcgc } from '../../common/process/snpSift/snpSiftAnnotate'
-include { snpSiftAnnotate as snpSiftCancerHotspot } from '../../common/process/snpSift/snpSiftAnnotate'
+include { snpSiftAnnotate as snpSiftCancerHotspots } from '../../common/process/snpSift/snpSiftAnnotate'
 include { snpSiftAnnotate as snpSiftGnomAD } from '../../common/process/snpSift/snpSiftAnnotate'
 include { snpSiftDbnsfp } from '../../common/process/snpSift/snpSiftDbnsfp'
 
@@ -16,10 +16,15 @@ workflow annotateSomaticFlow {
   snpEffDb
   snpEffCache
   cosmic
+  cosmicIndex
   icgc
-  cancerHotspot
+  icgcIndex
+  cancerHotspots
+  cancerHotspotsIndex
   gnomAd
+  gnomAdIndex
   dbnsfp
+  dbnsfpIndex
 
   main:
   annotDb = params.annotDb ? params.annotDb.split(',').collect{it.trim().toLowerCase()} : []
@@ -43,7 +48,7 @@ workflow annotateSomaticFlow {
 
   snpSiftCosmic(
     chAnnotVcf,
-    cosmic
+    cosmic.combine(cosmicIndex)
   )
   chVersions = chVersions.mix(snpSiftCosmic.out.versions)
   chAnnotVcf = 'cosmic' in annotDb ? snpSiftCosmic.out.vcf : chAnnotVcf
@@ -52,23 +57,26 @@ workflow annotateSomaticFlow {
    * ICGC annotations
    */
   
+  icgc.view()
+  icgcIndex.view()
+
   snpSiftIcgc(
     chAnnotVcf,
-    icgc
+    icgc.combine(icgcIndex)
   )
   chVersions = chVersions.mix(snpSiftIcgc.out.versions)
   chAnnotVcf = 'icgc' in annotDb ? snpSiftIcgc.out.vcf : chAnnotVcf
 
   /*
-   * CancerHotspot annotations
+   * CancerHotspots annotations
    */
 
-  snpSiftCancerHotspot(
+  snpSiftCancerHotspots(
     chAnnotVcf,
-    cancerHotspot
+    cancerHotspots.combine(cancerHotspotsIndex)
   )
-  chVersions = chVersions.mix(snpSiftCancerHotspot.out.versions)
-  chAnnotVcf = 'cancerhotspot' in annotDb ? snpSiftCancerHotspot.out.vcf : chAnnotVcf
+  chVersions = chVersions.mix(snpSiftCancerHotspots.out.versions)
+  chAnnotVcf = 'cancerhotspots' in annotDb ? snpSiftCancerHotspots.out.vcf : chAnnotVcf
 
   /*
    * GnomAD annotations
@@ -76,7 +84,7 @@ workflow annotateSomaticFlow {
 
   snpSiftGnomAD(
     chAnnotVcf,
-    gnomAd
+    gnomAd.combine(gnomAdIndex)
   )
   chVersions = chVersions.mix(snpSiftGnomAD.out.versions)
   chAnnotVcf = 'gnomad' in annotDb ? snpSiftGnomAD.out.vcf : chAnnotVcf
@@ -85,11 +93,9 @@ workflow annotateSomaticFlow {
    * SnpSift dbNSFP
    */
 
-  dbnsfp.view()
-
   snpSiftDbnsfp(
     chAnnotVcf,
-    dbnsfp
+    dbnsfp.combine(dbnsfpIndex)
   )
   chVersions = chVersions.mix(snpSiftDbnsfp.out.versions)
   chAnnotVcf = 'dbnsfp' in annotDb ? snpSiftDbnsfp.out.vcf : chAnnotVcf
