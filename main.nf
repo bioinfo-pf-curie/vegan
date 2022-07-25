@@ -88,10 +88,15 @@ params.knownIndelsIndex = NFTools.getGenomeAttribute(params, 'knownIndelsIndex')
 params.snpeffDb = NFTools.getGenomeAttribute(params, 'snpeffDb')
 params.snpeffCache = NFTools.getGenomeAttribute(params, 'snpeffCache')
 params.cosmicDb = NFTools.getGenomeAttribute(params, 'cosmicDb')
+params.cosmicDbIndex = NFTools.getGenomeAttribute(params, 'cosmicDbIndex')
 params.icgcDb = NFTools.getGenomeAttribute(params, 'icgcDb')
-params.cancerhotspotDb = NFTools.getGenomeAttribute(params, 'cancerhotspotDb')
+params.icgcDbIndex = NFTools.getGenomeAttribute(params, 'icgcDbIndex')
+params.cancerhotspotsDb = NFTools.getGenomeAttribute(params, 'cancerhotspotsDb')
+params.cancerhotspotsDbIndex = NFTools.getGenomeAttribute(params, 'cancerhotspotsDbIndex')
 params.gnomadDb = NFTools.getGenomeAttribute(params, 'gnomadDb')
+params.gnomadDbIndex = NFTools.getGenomeAttribute(params, 'gnomadDbIndex')
 params.dbnsfp = NFTools.getGenomeAttribute(params, 'dbnsfp')
+params.dbnsfpIndex = NFTools.getGenomeAttribute(params, 'dbnsfpIndex')
 
 // Stage config files
 chMultiqcConfig = Channel.fromPath(params.multiqcConfig)
@@ -107,8 +112,6 @@ chOutputDocsImages = file("$baseDir/docs/images/", checkIfExists: true)
 if ((params.reads && params.samplePlan) || (params.readPaths && params.samplePlan)){
   exit 1, "Input reads must be defined using either '--reads' or '--samplePlan' parameter. Please choose one way"
 }
-
-/* TODO - add additional controls on annotation files ? */
 
 /*
 =====================================
@@ -136,10 +139,15 @@ chKnownIndelsIndex      = params.knownIndelsIndex      ? Channel.fromPath(params
 chSnpeffDb              = params.snpeffDb              ? Channel.of(params.snpeffDb)                                                    : Channel.empty()
 chSnpeffCache           = params.snpeffCache           ? Channel.fromPath(params.snpeffCache, checkIfExists: true).collect()            : Channel.value([])
 chCosmicDb              = params.cosmicDb              ? Channel.fromPath(params.cosmicDb, checkIfExists: true).collect()               : Channel.empty()
+chCosmicDbIndex         = params.cosmicDbIndex         ? Channel.fromPath(params.cosmicDbIndex, checkIfExists: true).collect()          : Channel.empty()
 chIcgcDb                = params.icgcDb                ? Channel.fromPath(params.icgcDb, checkIfExists: true).collect()                 : Channel.empty()
-chCancerhotspotDb       = params.cancerhotspotDb       ? Channel.fromPath(params.cancerhotspotDb, checkIfExists: true).collect()        : Channel.empty()
+chIcgcDbIndex           = params.icgcDbIndex           ? Channel.fromPath(params.icgcDbIndex, checkIfExists: true).collect()            : Channel.empty()
+chCancerhotspotsDb      = params.cancerhotspotsDb      ? Channel.fromPath(params.cancerhotspotsDb, checkIfExists: true).collect()       : Channel.empty()
+chCancerhotspotsDbIndex = params.cancerhotspotsDbIndex ? Channel.fromPath(params.cancerhotspotsDbIndex, checkIfExists: true).collect()  : Channel.empty()
 chGnomadDb              = params.gnomadDb              ? Channel.fromPath(params.gnomadDb, checkIfExists: true).collect()               : Channel.empty()
+chGnomadDbIndex         = params.gnomadDbIndex         ? Channel.fromPath(params.gnomadDbIndex, checkIfExists: true).collect()          : Channel.empty()
 chDbnsfp                = params.dbnsfp                ? Channel.fromPath(params.dbnsfp, checkIfExists: true).collect()                 : Channel.empty()
+chDbnsfpIndex           = params.dbnsfpIndex           ? Channel.fromPath(params.dbnsfpIndex, checkIfExists: true).collect()            : Channel.empty()
 
 chBed                   = params.targetBed             ? Channel.fromPath(params.targetBed, checkIfExists: true).collect()              : Channel.value([]) //optional
 chIntervals             = params.intervals             ? Channel.fromPath(params.intervals, checkIfExists: true).collect()              : Channel.value([]) //optional
@@ -452,10 +460,15 @@ workflow {
     chSnpeffDb,
     chSnpeffCache,
     chCosmicDb,
+    chCosmicDbIndex,
     chIcgcDb,
-    chCancerhotspotDb,
+    chIcgcDbIndex,
+    chCancerhotspotsDb,
+    chCancerhotspotsDbIndex,
     chGnomadDb,
-    chDbnsfp
+    chGnomadDbIndex,
+    chDbnsfp,
+    chDbnsfpIndex
   )
 
   /*
