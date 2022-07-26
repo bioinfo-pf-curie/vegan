@@ -196,6 +196,8 @@ workflowSummaryCh = NFTools.summarize(summary, workflow, params)
 
 // Load raw reads
 chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
+//NFTools.getIntermediatesData(params.samplePlan, '.bam',  params)
+//NFTools.getIntermediatesData(params.samplePlan, '.vcf',  params)
 
 // Make samplePlan if not available
 chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPaths, params.singleEnd)
