@@ -23,6 +23,7 @@ process mutect2 {
   tuple val(meta), path("*.vcf")    , emit: vcf
   tuple val(meta), path("*.idx")    , emit: idx
   tuple val(meta), path("*.stats")  , emit: stats
+  tuple val(meta), path("*f1r2.tar.gz"), emit: f1r2
   path("versions.txt")              , emit: versions
 
   when:
@@ -48,5 +49,6 @@ process mutect2 {
        $args
 
   echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt
+
   """
 }
