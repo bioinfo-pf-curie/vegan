@@ -6,6 +6,8 @@ include { haplotypeCaller } from '../../common/process/gatk/haplotypeCaller'
 include { genotypeGVCFs } from '../../common/process/gatk/genotypeGVCFs'
 include { concatVCF } from '../../local/process/concatVCF'
 include { collectVCFmetrics } from '../../local/process/collectVCFmetrics'
+include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
+include { computeTransition } from '../../local/process/computeTransition'
 
 workflow haplotypeCallerFlow {
 
@@ -56,9 +58,22 @@ workflow haplotypeCallerFlow {
     concatVCF.out.vcf
   )
 
+  bcftoolsNorm(
+    concatVCF.out.vcf,
+    fasta
+    )
+
+  bcftoolsNorm.out.vcf.view()
+
+  computeTransition(
+    bcftoolsNorm.out.vcf
+    )
+
   emit:
   gvcf = haplotypeCaller.out.gvcf
   vcf = concatVCF.out.vcf
+  vcfNorm = bcftoolsNorm.out.vcf
+  transition = computeTransition.out.metrics
   mqc = collectVCFmetrics.out.mqc
   versions = chVersions
 }

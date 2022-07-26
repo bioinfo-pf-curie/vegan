@@ -5,11 +5,14 @@
 include { mutect2 } from '../../common/process/gatk/mutect2'
 include { mergeMutect2Stats } from '../../common/process/gatk/mergeMutect2Stats'
 include { concatVCF } from '../../local/process/concatVCF'
+include { learnReadOrientationModel } from '../../common/process/gatk/learnReadOrientationModel'
 include { getPileupSummaries } from '../../common/process/gatk/getPileupSummaries'
 include { gatherPileupSummaries } from '../../common/process/gatk/gatherPileupSummaries'
 include { calculateContamination } from '../../common/process/gatk/calculateContamination'
 include { filterMutect2Calls } from '../../common/process/gatk/filterMutect2Calls'
 include { collectVCFmetrics } from '../../local/process/collectVCFmetrics'
+include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
+include { computeTransition } from '../../local/process/computeTransition'
 
 workflow mutect2PairsFlow {
 
@@ -67,6 +70,10 @@ workflow mutect2PairsFlow {
    * PILEUP SUMMARY
    */
 
+   learnReadOrientationModel(
+     mutect2.out.f1r2
+     )
+
   getPileupSummaries(
     bam,
     intervals,
@@ -99,9 +106,11 @@ workflow mutect2PairsFlow {
     .join(mergeMutect2Stats.out.mergedStatsFile)
     .set{mutect2CallsToFilter}
 
-  mutect2CallsToFilter = params.skipMutectContamination ? 
-    mutect2CallsToFilter.combine(Channel.from('NO_FILE')) : 
+  mutect2CallsToFilter = params.skipMutectContamination ?
+    mutect2CallsToFilter.combine(Channel.from('NO_FILE')) :
     mutect2CallsToFilter.join(calculateContamination.out.contaminationTable)
+
+  learnReadOrientationModel.out.readOrientation.view()
 
   filterMutect2Calls(
     mutect2CallsToFilter,
@@ -110,18 +119,35 @@ workflow mutect2PairsFlow {
     fai,
     germlineResource,
     germlineResourceIndex,
-    intervals
+    intervals,
+    learnReadOrientationModel.out.readOrientation
   )
   chVersions = chVersions.mix(filterMutect2Calls.out.versions)
 
   collectVCFmetrics(
-    filterMutect2Calls.out.vcf
+    filterMutect2Calls.out.vcf,
+    //filterMutect2Calls.out.unfilteredVcf
   )
+
+  filterMutect2Calls.out.vcf.view()
+
+  bcftoolsNorm(
+    filterMutect2Calls.out.vcf,
+    fasta
+    )
+
+  computeTransition(
+    bcftoolsNorm.out.vcf
+    )
+
+  chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 
   emit:
   versions = chVersions
   vcfUnfiltered = mutect2.out.vcf
   vcfFiltered = filterMutect2Calls.out.vcf
+  vcfFilteredNorm = bcftoolsNorm.out.vcf
+  transition = computeTransition.out.metrics
   mqc = collectVCFmetrics.out.mqc
   stats = mergeMutect2Stats.out.mergedStatsFile
 }

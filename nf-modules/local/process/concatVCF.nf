@@ -3,7 +3,7 @@
  */
 
 process concatVCF {
-  tag "${meta.id}"
+  tag "${fileID}"
   label 'bcftools'
   label 'highCpu'
   label 'medMem'
@@ -19,10 +19,11 @@ process concatVCF {
   path("versions.txt"), emit: versions
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  //def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
+  fileID = "${meta.status}" == "pair" ? "${meta.tumor_id}_vs_${meta.normal_id}" : "${meta.status}" == "tumor" ? "${meta.tumor_id}" : "${meta.normal_id}"
   """
-  apConcatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${prefix}_concat.vcf ${args}
+  apConcatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${fileID}_concat.vcf ${args}
   bcftools --version &> versions.txt 2>&1 || true
   """
 }

@@ -17,14 +17,17 @@ process filterMutect2Calls {
   path(germlineResource)
   path(germlineResourceIndex)
   path(intervals)
+  path(readOrientation)
 
   output:
-  tuple val(meta), path("*_filtered*.vcf.gz*"), emit: vcf
+  tuple val(meta), path("*_filtered_pass.vcf.gz*"), emit: vcf
+  tuple val(meta), path("*_filtered.vcf.gz*"), emit: fullVcf
   tuple val(meta), path("*filteringStats.tsv"), emit: stats
   path("versions.txt"), emit: versions
 
   script:
   def args = task.ext.args ?: ''
+  def args2 = task.ext.args2 ?: ''
   def prefix = task.ext.prefix ?: "${meta.tumor_id}_vs_${meta.normal_id}"
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
@@ -39,6 +42,6 @@ process filterMutect2Calls {
   tabix ${meta.tumor_id}_vs_${meta.normal_id}_Mutect2_filtered_pass.vcf.gz
 
   gatk FilterMutectCalls --version 2>&1 | sed 's/^.*(GATK) v/GATK /; s/Version: //; s/ .*\$//' | tail -3 > versions.txt
-  echo "tot"
+  echo "toto"
   """
 }
