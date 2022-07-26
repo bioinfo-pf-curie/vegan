@@ -417,7 +417,7 @@ workflow {
 
   if('haplotypecaller' in tools){
     haplotypeCallerFlow(
-      chProcBam,
+      chSingleBam,
       chBed,
       chDbsnp,
       chDbsnpIndex,
@@ -426,7 +426,7 @@ workflow {
       chDict
     )
     chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-    chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcf)
+    chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
   }
 
   //*******************************************
@@ -446,7 +446,7 @@ workflow {
       chIntervals
     )
     chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-    chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFiltered)
+    chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
   }
 
 
@@ -459,7 +459,7 @@ workflow {
   // Annotation somatic vcf
   if('snpeff' in tools){
   annotateSomaticFlow(
-    mutect2PairsFlow.out.vcfFiltered,
+    mutect2PairsFlow.out.vcfFilteredNorm,
     chSnpeffDb,
     chSnpeffCache,
     chCosmicDb,
@@ -493,7 +493,7 @@ workflow {
 
   if('tmb' in tools){
   tmbFlow(
-    mutect2PairsFlow.out.vcfFiltered,
+    mutect2PairsFlow.out.vcfFilteredNorm,
     chBed
   )
   }
