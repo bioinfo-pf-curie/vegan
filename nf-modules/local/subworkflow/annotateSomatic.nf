@@ -42,6 +42,8 @@ workflow annotateSomaticFlow {
   chVersions = chVersions.mix(snpEff.out.versions)
   chAnnotVcf = snpEff.out.vcf
 
+  chAnnotVcf.view()
+
   /*
    * COSMIC annotations
    */
@@ -56,7 +58,7 @@ workflow annotateSomaticFlow {
   /*
    * ICGC annotations
    */
-  
+
   icgc.view()
   icgcIndex.view()
 
