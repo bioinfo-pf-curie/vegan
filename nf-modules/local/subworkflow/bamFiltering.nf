@@ -78,7 +78,7 @@ workflow bamFiltersFlow {
 
     emit:
     bam = samtoolsFilter.out.bam.join(samtoolsIndexFilter.out.bai)
-    markdupMetrics = sambambaMarkdup.out.metrics
+    //markdupMetrics = sambambaMarkdup.out.metrics
     flagstat  = samtoolsFlagstatFilter.out.stats
     idxstats  = samtoolsIdxstats.out.stats
     stats  = samtoolsStats.out.stats

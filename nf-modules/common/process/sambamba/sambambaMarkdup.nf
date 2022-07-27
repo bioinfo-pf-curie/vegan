@@ -8,8 +8,8 @@ process sambambaMarkdup {
   tuple val(meta), path(bam), path(bai)
 
   output:
-  tuple val(meta), path("*.md.bam"),path("*.md.bam.bai"), emit: bam
-  path ("*.md.flagstats"), emit: metrics
+  tuple val(meta), path("*.md.bam"), emit: bam
+  tuple val(meta), path("*.md.bam.bai"), emit: bai
   path('versions.txt'), emit: versions
 
   when:
@@ -20,6 +20,5 @@ process sambambaMarkdup {
   """
   sambamba --version &> versions.txt 2>&1 || true
   sambamba markdup --nthreads ${task.cpus} --tmpdir . ${bam} ${prefix}.md.bam
-  sambamba flagstat --nthreads ${task.cpus} ${prefix}.md.bam > ${prefix}.md.flagstats
   """
 }

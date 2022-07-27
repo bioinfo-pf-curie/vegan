@@ -29,13 +29,13 @@ workflow bamQcFlow {
 
     mosdepth(
       bamFiltered,
-      bed.collect()
+      bed
     )
     chVersions = chVersions.mix(mosdepth.out.versions)
 
     prepareExonInfo(
-      bed.collect(),
-      gtf.collect()
+      gtf,
+      bed
     )
 
     genesCoverage(
@@ -45,9 +45,9 @@ workflow bamQcFlow {
 
     collectWgsMetrics(
       bamFiltered,
-      bed.collect(),
-      fasta.collect(),
-      dict.collect( )
+      bed,
+      fasta,
+      dict
     )
     chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
