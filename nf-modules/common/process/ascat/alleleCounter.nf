@@ -7,7 +7,7 @@ process alleleCounter {
   label 'lowMem'
   label 'minCpu'
 
-  tag "${fileID}"
+  tag "${prefix}"
 
   input:
   tuple val(meta), path(bam), path(bai)
@@ -17,20 +17,20 @@ process alleleCounter {
   path(fastaFai)
 
   output:
-  tuple val(meta), path("${fileID}.alleleCount"), emit: alleleCounterOutCh
+  tuple val(meta), path("${prefix}.alleleCount"), emit: alleleCounterOutCh
   path("versions.txt"),emit: version
 
   when:
   task.ext.when == null || task.ext.when
 
   script:
-  fileID = "${meta.status}" == "tumor" ? "${meta.tumor_id}" : "${meta.normal_id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   """
   alleleCounter \
     -l ${acLoci} \
     -r ${fasta} \
     -b ${bam} \
-    -o ${fileID}.alleleCount;
+    -o ${prefix}.alleleCount;
   alleleCounter --version &> versions.txt 2>&1 || true
   """
 }

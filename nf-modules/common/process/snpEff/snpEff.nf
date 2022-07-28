@@ -7,7 +7,7 @@ process snpEff {
   label 'lowMem'
   label 'lowCpu'
 
-  tag "${fileID}"
+  tag "${prefix}"
 
   input:
   tuple val(meta), path(vcf)
@@ -27,18 +27,18 @@ process snpEff {
   script:
   def args = task.ext.args ?: ''
   def cacheCmd = cache ? "-dataDir \${PWD}/${cache}" : ""
-  fileID = "${meta.status}" == "pair" ? "${meta.tumor_id}_vs_${meta.normal_id}" : "${meta.status}" == "tumor" ? "${meta.tumor_id}" : "${meta.normal_id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   """
   snpEff -Xmx${task.memory.toGiga()}g \\
     ${db} \\
     ${args} \\
-    -csvStats ${fileID}.csv \\
+    -csvStats ${prefix}.csv \\
     $cacheCmd \\
     ${vcf[0]} \\
-    > ${fileID}.ann.vcf
+    > ${prefix}.ann.vcf
 
-  bgzip < ${fileID}.ann.vcf > ${fileID}.ann.vcf.gz
-  tabix ${fileID}.ann.vcf.gz
+  bgzip < ${prefix}.ann.vcf > ${prefix}.ann.vcf.gz
+  tabix ${prefix}.ann.vcf.gz
 
   echo \$(snpEff -version | cut -d" " -f1,2) > versions.txt
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt

@@ -33,7 +33,7 @@ workflow bamFiltersFlow {
 
       intersectBed(
         sambambaMarkdup.out.bam,
-        bed.collect()
+        bed
       )
 
       samtoolsIndexTarget(

@@ -21,7 +21,7 @@ process tmb {
 
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   def target_bed = target_bed ? "--bed ${target_bed}" : ""
   """
   pyTMB.py -i $vcf \

@@ -7,7 +7,7 @@ process samtoolsFlagstat {
   label 'samtools'
   label 'minCpu'
   label 'lowMem'
- 
+
   input:
   tuple val(meta), path (bam)
 
@@ -19,10 +19,9 @@ process samtoolsFlagstat {
   task.ext.when == null || task.ext.when
 
   script:
-  def prefix = task.ext.prefix ?: "${bam.baseName}"  
+  prefix = task.ext.prefix ?: "${bam.baseName}"  
   """
   echo \$(samtools --version | head -1) > versions.txt
   samtools flagstat ${bam} > ${prefix}.flagstats
   """
 }
-    

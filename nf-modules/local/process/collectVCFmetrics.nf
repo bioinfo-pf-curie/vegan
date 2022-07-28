@@ -3,17 +3,23 @@ process collectVCFmetrics {
   label 'minMem'
   label 'onlyLinux'
 
+  tag "${prefix}"
+
   input:
-  tuple val(meta), path(vcf)
+  tuple val(meta), path(vcf), path(index), file(vcfFilt), path(indexFilt), file(conta)
 
   output:
   path("*.mqc"), emit: mqc
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
+  def filtOpt = vcfFilt.name != [] ? "-f $vcfFilt" : ""
+  def contaOpt = conta.name != [] && !params.skipMutectContamination ? "-c $conta" : ""
   """
-  getCallingMetrics.sh -i ${vcf[0]} \
-                       -n ${meta.id} > ${prefix}_callingMetrics.mqc
+  getCallingMetrics.sh -i ${vcf} \
+                        $filtOpt \
+                        $contaOpt \
+                       -n ${prefix} > ${prefix}_callingMetrics.mqc
   """
 }
 
