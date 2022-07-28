@@ -18,7 +18,7 @@ process genesCoverage {
   path("*.pdf"), emit: geneCovOutput
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   """
   mosdepth -n -t ${task.cpus} --by ${exonBed} ${meta.id}.genecov ${bamFiltered}

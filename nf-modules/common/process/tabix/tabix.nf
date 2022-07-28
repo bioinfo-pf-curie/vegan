@@ -21,7 +21,7 @@ process tabix {
 
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   compress = vcf.getExtension() == "vcf" ? "bgzip < ${vcf} > ${vcf}.gz" : ""
   """
   $compress
@@ -29,4 +29,3 @@ process tabix {
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') > versions.txt
   """
 }
-

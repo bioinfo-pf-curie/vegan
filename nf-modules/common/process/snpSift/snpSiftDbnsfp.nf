@@ -22,7 +22,7 @@ process snpSiftDbnsfp {
 
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.id}.ann"
+  prefix = task.ext.prefix ?: "${meta.id}.ann"
   """
   SnpSift -Xmx${task.memory.toGiga()}g \\
     dbnsfp \\
@@ -37,4 +37,3 @@ process snpSiftDbnsfp {
   echo "snpSift "\$(SnpSift 2>&1 | awk '\$0~"SnpSift version"{print \$3}') > versions.txt
   """
 }
-

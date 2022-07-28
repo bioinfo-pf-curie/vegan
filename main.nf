@@ -502,9 +502,11 @@ workflow {
   ================================================================================
   */
 
+  //annotateSomaticFlow.out.vcf.view()
+
   if('tmb' in tools){
   tmbFlow(
-    mutect2PairsFlow.out.vcfFilteredNorm,
+    annotateSomaticFlow.out.vcf,
     chBed
   )
   }
