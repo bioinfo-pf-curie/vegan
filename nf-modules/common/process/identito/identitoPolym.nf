@@ -19,7 +19,7 @@ process identitoPolym {
   path("versions.txt"), emit: versions
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   """
   echo \$(bcftools --version | head -1) > versions.txt
   echo \$(SnpSift 2>&1| awk 'NR==1{print \$1,\$3}') >> versions.txt

@@ -22,7 +22,7 @@ process snpSiftExtractFields {
   script:
   def args = task.ext.args ?: ''
   def args2 = task.ext.args2 ?: ''
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   """
   SnpSift -Xmx${task.memory.toGiga()}g \
     extractFields \
@@ -34,4 +34,3 @@ process snpSiftExtractFields {
   echo "snpSift "\$(SnpSift 2>&1 | awk '\$0~"SnpSift version"{print \$3}') > versions.txt
   """
 }
-

@@ -22,12 +22,12 @@ process snpSiftAnnotate {
 
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.id}.ann"
+  prefix = task.ext.prefix ?: "${meta.id}.ann"
   """
   SnpSift -Xmx${task.memory.toGiga()}g \\
     annotate \\
     ${args} \\
-    ${db[0]} \\
+    ${db} \\
     ${vcf[0]} \\
     > ${prefix}.vcf
 
@@ -38,4 +38,3 @@ process snpSiftAnnotate {
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt
   """
 }
-
