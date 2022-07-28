@@ -23,7 +23,7 @@ process dragmap{
   script:
   def readsCmd = meta.single_end ? "-1 $reads" : "-1 ${reads[0]} -2 ${reads[1]}"
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   """
   dragen-os \\
     -r $hashmap \\

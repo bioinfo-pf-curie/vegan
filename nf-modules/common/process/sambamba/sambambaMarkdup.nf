@@ -16,7 +16,7 @@ process sambambaMarkdup {
   task.ext.when == null || task.ext.when
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   """
   sambamba --version &> versions.txt 2>&1 || true
   sambamba markdup --nthreads ${task.cpus} --tmpdir . ${bam} ${prefix}.md.bam

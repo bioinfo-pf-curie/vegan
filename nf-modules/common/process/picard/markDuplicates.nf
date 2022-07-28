@@ -20,7 +20,7 @@ process markDuplicates {
   task.ext.when == null || task.ext.when
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   def javaArgs = task.ext.args ?: ''
   markdupMemOption = "\"-Xms" +  (task.memory.toGiga() / 2).trunc() + "g -Xmx" + (task.memory.toGiga() - 1) + "g\""
   """

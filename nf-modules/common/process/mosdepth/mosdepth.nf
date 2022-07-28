@@ -22,7 +22,7 @@ process mosdepth {
   task.ext.when == null || task.ext.when
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   """
   mosdepth --version &> versions.txt 2>&1 || true
