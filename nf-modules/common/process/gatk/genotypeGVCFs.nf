@@ -3,11 +3,11 @@
  */
 
 process genotypeGVCFs {
-  tag "${fileID}"
+  tag "${prefix}"
   label 'gatk'
 
   input:
-  tuple val(meta), path(gvcf)
+  tuple val(meta), path(gvcf), path(index)
   path(bed)
   path(dbsnp)
   path(dbsnpIndex)
@@ -16,7 +16,7 @@ process genotypeGVCFs {
   path(dict)
 
   output:
-  tuple val(meta), path("${fileID}.vcf"), emit: vcf
+  tuple val(meta), path("${prefix}.vcf.gz"), path("${prefix}.vcf.gz.tbi"), emit: vcf
   path("versions.txt"), emit: versions
 
   when:
@@ -25,8 +25,7 @@ process genotypeGVCFs {
   script:
   def args = task.ext.args ?: ''
   def args2 = task.ext.args2 ?: ''
-  //prefix = task.ext.prefix ?: "${meta.id}"
-  fileID = "${meta.status}" == "pair" ? "${meta.tumor_id}_vs_${meta.normal_id}" : "${meta.status}" == "tumor" ? "${meta.tumor_id}" : "${meta.normal_id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
     IndexFeatureFile -I ${gvcf}
@@ -37,7 +36,7 @@ process genotypeGVCFs {
     ${args} \
     ${args2} \
     -V ${gvcf} \
-    -O ${fileID}.vcf
+    -O ${prefix}.vcf.gz
 
   echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt
   """

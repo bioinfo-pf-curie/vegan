@@ -20,8 +20,7 @@ process mutect2 {
   path panelOfNormalsIndex
 
   output:
-  tuple val(meta), path("*.vcf")    , emit: vcf
-  tuple val(meta), path("*.idx")    , emit: idx
+  tuple val(meta), path("*.vcf.gz"), path("*.tbi")    , emit: vcf
   tuple val(meta), path("*.stats")  , emit: stats
   tuple val(meta), path("*f1r2.tar.gz"), emit: f1r2
   path("versions.txt")              , emit: versions
@@ -40,7 +39,7 @@ process mutect2 {
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" Mutect2 \\
        $inputs \\
-       --output ${prefix}.vcf \\
+       --output ${prefix}.vcf.gz \\
        --reference $fasta \\
        $ponCmd \\
        $grCmd \\

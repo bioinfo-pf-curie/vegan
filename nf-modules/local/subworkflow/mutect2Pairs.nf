@@ -4,7 +4,7 @@
 
 include { mutect2 } from '../../common/process/gatk/mutect2'
 include { mergeMutect2Stats } from '../../common/process/gatk/mergeMutect2Stats'
-include { concatVCF } from '../../local/process/concatVCF'
+//include { concatVCF } from '../../local/process/concatVCF'
 include { learnReadOrientationModel } from '../../common/process/gatk/learnReadOrientationModel'
 include { getPileupSummaries } from '../../common/process/gatk/getPileupSummaries'
 include { gatherPileupSummaries } from '../../common/process/gatk/gatherPileupSummaries'
@@ -58,13 +58,13 @@ workflow mutect2PairsFlow {
     mutect2.out.stats
   )
 
-  concatVCF(
-    mutect2.out.vcf,
-    bed,
-    fasta,
-    fai
-  )
-  chVersions = chVersions.mix(concatVCF.out.versions)
+  // concatVCF(
+  //   mutect2.out.vcf,
+  //   bed,
+  //   fasta,
+  //   fai
+  // )
+  // chVersions = chVersions.mix(concatVCF.out.versions)
 
   /*
    * PILEUP SUMMARY
@@ -102,7 +102,7 @@ workflow mutect2PairsFlow {
    * FILTER MUTECT CALL
    */
 
-  concatVCF.out.vcf
+  mutect2.out.vcf
     .join(mergeMutect2Stats.out.mergedStatsFile)
     .set{mutect2CallsToFilter}
 
@@ -110,7 +110,7 @@ workflow mutect2PairsFlow {
     mutect2CallsToFilter.combine(Channel.from('NO_FILE')) :
     mutect2CallsToFilter.join(calculateContamination.out.contaminationTable)
 
-  learnReadOrientationModel.out.readOrientation.view()
+  mutect2CallsToFilter.view()
 
   filterMutect2Calls(
     mutect2CallsToFilter,
@@ -124,15 +124,18 @@ workflow mutect2PairsFlow {
   )
   chVersions = chVersions.mix(filterMutect2Calls.out.versions)
 
-  collectVCFmetrics(
-    filterMutect2Calls.out.vcf,
-    //filterMutect2Calls.out.unfilteredVcf
-  )
-
   filterMutect2Calls.out.vcf.view()
 
-  bcftoolsNorm(
+  collectVCFmetrics(
     filterMutect2Calls.out.vcf,
+  )
+
+  filterMutect2Calls.out.vcf
+  .map{ it -> [it[0], it[3], it[4]] }
+  .set{ chFiltSimple }
+
+  bcftoolsNorm(
+    chFiltSimple,
     fasta
     )
 

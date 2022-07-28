@@ -3,7 +3,7 @@
  */
 
 process haplotypeCaller {
-  tag "${fileID}"
+  tag "${prefix}"
   label 'gatk'
   label 'medMemSq'
   label 'lowCpu'
@@ -18,7 +18,7 @@ process haplotypeCaller {
   path(dict)
 
   output:
-  tuple val(meta), path("*.g.vcf"), emit: gvcf
+  tuple val(meta), path("*.g.vcf"), path("*.g.vcf.idx"), emit: gvcf
   path("versions.txt"), emit: versions
 
   when:
@@ -27,9 +27,7 @@ process haplotypeCaller {
   script:
   def args = task.ext.args ?: ''
   def args2 = task.ext.args2 ?: ''
-  //def prefix = task.ext.prefix ?: "${meta.id}"
-
-  fileID = "${meta.status}" == "pair" ? "${meta.tumor_id}_vs_${meta.normal_id}" : "${meta.status}" == "tumor" ? "${meta.tumor_id}" : "${meta.normal_id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
 
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
@@ -38,7 +36,7 @@ process haplotypeCaller {
     -I ${bam} \
     ${args} \
     ${args2} \
-    -O ${fileID}.g.vcf \
+    -O ${prefix}.g.vcf \
     -ERC GVCF
 
   echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt

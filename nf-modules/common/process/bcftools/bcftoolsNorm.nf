@@ -6,10 +6,10 @@ process bcftoolsNorm {
   label 'bcftools'
   label 'medCpu'
   label 'medMem'
-  tag "${fileID}"
+  tag "${prefix}"
 
   input:
-  tuple val(meta), path(vcf)
+  tuple val(meta), path(vcf), path(index)
   path(fasta)
 
   output:
@@ -20,13 +20,10 @@ process bcftoolsNorm {
   task.ext.when == null || task.ext.when
 
   script:
-  //prefix = task.ext.prefix ?: "${meta.id}"
-
-  fileID = "${meta.status}" == "pair" ? "${meta.tumor_id}_vs_${meta.normal_id}" : "${meta.status}" == "tumor" ? "${meta.tumor_id}" : "${meta.normal_id}"
-
+  prefix = task.ext.prefix ?: "${meta.id}"
   """
-  bcftools norm -Oz -m -both -f ${fasta} --threads ${task.cpus} ${vcf[0]} -o ${fileID}_norm.vcf.gz
-  tabix ${fileID}_norm.vcf.gz
+  bcftools norm -Oz -m -both -f ${fasta} --threads ${task.cpus} ${vcf} -o ${prefix}_norm.vcf.gz
+  tabix ${prefix}_norm.vcf.gz
 
   echo \$(bcftools --version | head -1) > versions.txt
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt
