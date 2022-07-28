@@ -3,7 +3,7 @@
  */
 
 process manta {
-  tag "${meta.status}"
+  tag "${prefix}"
   label 'manta'
   label 'highCpu'
   label 'highMem'
@@ -23,9 +23,9 @@ process manta {
 
   script:
   def beforeScript = task.ext.beforeScript ?: ''
+  prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   vcftype = "${meta.status}" == "tumor" ? "tumor" : "diploid"
-  fileID = "${meta.status}" == "pair" ? "${meta.tumor_id}_vs_${meta.normal_id}" : "${meta.status}" == "tumor" ? "${meta.tumor_id}" : "${meta.normal_id}"
   inputs = "${meta.status}" == "pair" ? "--normalBam ${bam[1]} --tumorBam ${bam[0]}" : "${meta.status}" == "tumor" ? "--tumorBam ${bam}" : "--bam  ${bam}"
   """
   ${beforeScript}
@@ -38,17 +38,17 @@ process manta {
   python Manta/runWorkflow.py -m local -j ${task.cpus}
 
   mv Manta/results/variants/candidateSmallIndels.vcf.gz \
-    Manta_${fileID}.candidateSmallIndels.vcf.gz
+    Manta_${prefix}.candidateSmallIndels.vcf.gz
   mv Manta/results/variants/candidateSmallIndels.vcf.gz.tbi \
-    Manta_${fileID}.candidateSmallIndels.vcf.gz.tbi
+    Manta_${prefix}.candidateSmallIndels.vcf.gz.tbi
   mv Manta/results/variants/candidateSV.vcf.gz \
-    Manta_${fileID}.candidateSV.vcf.gz
+    Manta_${prefix}.candidateSV.vcf.gz
   mv Manta/results/variants/candidateSV.vcf.gz.tbi \
-    Manta_${fileID}.candidateSV.vcf.gz.tbi
+    Manta_${prefix}.candidateSV.vcf.gz.tbi
   mv Manta/results/variants/${vcftype}SV.vcf.gz \
-    Manta_${fileID}.${vcftype}SV.vcf.gz
+    Manta_${prefix}.${vcftype}SV.vcf.gz
   mv Manta/results/variants/${vcftype}SV.vcf.gz.tbi \
-    Manta_${fileID}.${vcftype}SV.vcf.gz.tbi
+    Manta_${prefix}.${vcftype}SV.vcf.gz.tbi
   configManta.py --version &> versions.txt 2>&1 || true
   """
 }
