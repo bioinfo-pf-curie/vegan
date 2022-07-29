@@ -27,7 +27,7 @@ process filterMutect2Calls {
   script:
   def args = task.ext.args ?: ''
   def args2 = task.ext.args2 ?: ''
-  prefix = task.ext.prefix ?: "${meta.tumor_id}_vs_${meta.normal_id}"
+  def prefix = task.ext.prefix ?: "${meta.tumor_id}_vs_${meta.normal_id}"
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     FilterMutectCalls \

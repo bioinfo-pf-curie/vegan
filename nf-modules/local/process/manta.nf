@@ -3,7 +3,7 @@
  */
 
 process manta {
-  tag "${prefix}"
+  tag "${meta.id}"
   label 'manta'
   label 'highCpu'
   label 'highMem'
@@ -23,7 +23,7 @@ process manta {
 
   script:
   def beforeScript = task.ext.beforeScript ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   vcftype = "${meta.status}" == "tumor" ? "tumor" : "diploid"
   inputs = "${meta.status}" == "pair" ? "--normalBam ${bam[1]} --tumorBam ${bam[0]}" : "${meta.status}" == "tumor" ? "--tumorBam ${bam}" : "--bam  ${bam}"

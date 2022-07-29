@@ -23,7 +23,7 @@ process preseq {
   script:
   def defectMode = task.attempt > 1 ? '-D' : ''
   def peOpts = meta.singleEnd ? '' : '-pe'
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   """
   echo \$(preseq 2>&1 | awk '\$0~"Version"{print "Preseq",\$2}') > versions.txt

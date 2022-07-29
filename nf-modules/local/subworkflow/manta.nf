@@ -8,7 +8,6 @@ workflow mantaFlow {
 
     take:
     bamTN
-    bam
     bed
     fasta
     fastaFai
@@ -22,11 +21,11 @@ workflow mantaFlow {
       .map{ it -> [it[0], [it[1], it[3]], [it[2], it[4]]] }
       .set{ chBamManta }
 
-    chBamMantaCombined = chBamManta.mix(bam)
+    //chBamMantaCombined = chBamManta.mix(bam)
     //chBamMantaCombined.view()
 
       manta(
-        chBamMantaCombined,
+        chBamManta,
         bed,
         fasta,
         fastaFai

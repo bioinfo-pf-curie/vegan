@@ -21,7 +21,7 @@ process tabix {
 
   script:
   def args = task.ext.args ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   compress = vcf.getExtension() == "vcf" ? "bgzip < ${vcf} > ${vcf}.gz" : ""
   """
   $compress

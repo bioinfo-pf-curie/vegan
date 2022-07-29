@@ -24,7 +24,7 @@ process applyBQSR {
 
   script:
   def args = task.ext.args ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
        ApplyBQSR \

@@ -25,7 +25,7 @@ process msisensorproMsi {
 
   script:
   def args = task.ext.args   ?: ''
-  prefix   = task.ext.prefix ?: "${meta.id}"
+  def prefix   = task.ext.prefix ?: "${meta.id}"
   def fasta = fasta ? "-g ${fasta}" : ""
   //def intervals = intervals ? " -e ${intervals} " : ""
   """

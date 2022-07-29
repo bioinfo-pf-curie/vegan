@@ -22,7 +22,7 @@ process snpSiftAnnotate {
 
   script:
   def args = task.ext.args ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}.ann"
+  def prefix = task.ext.prefix ?: "${meta.id}.ann"
   """
   SnpSift -Xmx${task.memory.toGiga()}g \\
     annotate \\
