@@ -28,7 +28,7 @@ process baseRecalibrator {
 
   script:
   def args = task.ext.args ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
   knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
   """

@@ -23,7 +23,7 @@ process collectWgsMetrics {
 
   script:
   def preproc = bed ? "gatk BedToIntervalList -I ${bed} -O intervals.bed -SD ${dict}" : ""
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   def args2 = task.ext.args2 ?: ''
   """

@@ -22,7 +22,7 @@ process bwaMem2{
 
   script:
   def args = task.ext.args ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
   refName=\$(basename \${localIndex})

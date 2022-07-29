@@ -22,7 +22,7 @@ process snpSiftExtractFields {
   script:
   def args = task.ext.args ?: ''
   def args2 = task.ext.args2 ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   SnpSift -Xmx${task.memory.toGiga()}g \
     extractFields \

@@ -7,7 +7,7 @@ process snpEff {
   label 'lowMem'
   label 'lowCpu'
 
-  tag "${prefix}"
+  tag "${meta.id}"
 
   input:
   tuple val(meta), path(vcf)
@@ -27,7 +27,7 @@ process snpEff {
   script:
   def args = task.ext.args ?: ''
   def cacheCmd = cache ? "-dataDir \${PWD}/${cache}" : ""
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   snpEff -Xmx${task.memory.toGiga()}g \\
     ${db} \\

@@ -16,7 +16,7 @@ process intersectBed {
   task.ext.when == null || task.ext.when
 
   script:
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   echo \$(bedtools --version 2>&1) &> versions.txt
   intersectBed -abam ${bam} -b ${targetBed} > ${prefix}.onTarget.bam
