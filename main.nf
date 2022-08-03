@@ -136,8 +136,8 @@ chPon                   = params.pon                   ? Channel.fromPath(params
 chPonIndex              = params.ponIndex              ? Channel.fromPath(params.ponIndex, checkIfExists: true).collect()               : Channel.value([]) //optional
 chKnownIndels           = params.knownIndels           ? Channel.fromPath(params.knownIndels, checkIfExists: true).collect()            : Channel.value([]) //optional
 chKnownIndelsIndex      = params.knownIndelsIndex      ? Channel.fromPath(params.knownIndelsIndex, checkIfExists: true).collect()       : Channel.value([]) //optional
-chSnpeffDb              = params.snpeffDb              ? Channel.of(params.snpeffDb)                                                    : Channel.empty()
-chSnpeffCache           = params.snpeffCache           ? Channel.fromPath(params.snpeffCache, checkIfExists: true).collect()            : Channel.value([])
+chSnpeffDb              = params.snpeffDb              ? Channel.value(params.snpeffDb)                                                    : Channel.empty()
+chSnpeffCache           = params.snpeffCache           ? Channel.fromPath(params.snpeffCache, checkIfExists: true).collect()            : Channel.value([]) //optional
 chCosmicDb              = params.cosmicDb              ? Channel.fromPath(params.cosmicDb, checkIfExists: true).collect()               : Channel.empty()
 chCosmicDbIndex         = params.cosmicDbIndex         ? Channel.fromPath(params.cosmicDbIndex, checkIfExists: true).collect()          : Channel.empty()
 chIcgcDb                = params.icgcDb                ? Channel.fromPath(params.icgcDb, checkIfExists: true).collect()                 : Channel.empty()
@@ -235,7 +235,8 @@ include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
 include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
-include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
+include { annotateGermlineFlow } from './nf-modules/local/subworkflow/annotateGermline'
+include { tableReportFlow as  tableReportFlowSomatic } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
 include { msiFlow } from './nf-modules/local/subworkflow/msi'
@@ -389,8 +390,6 @@ workflow {
       return [meta, it[1], it[2] ]
     }.set{ chTumorBam }
 
-  //chTumorBam.view()
-
   //[meta], normal_bam, normal_bai
   chProcBam
     .combine(chProcBam)
@@ -475,15 +474,40 @@ workflow {
   )
   }
 
+  // Annotation germline vcf
+  if('snpeff' in tools){
+  annotateGermlineFlow(
+    haplotypeCallerFlow.out.vcfNorm,
+    chSnpeffDb,
+    chSnpeffCache,
+    chCosmicDb,
+    chCosmicDbIndex,
+    chIcgcDb,
+    chIcgcDbIndex,
+    chCancerhotspotsDb,
+    chCancerhotspotsDbIndex,
+    chGnomadDb,
+    chGnomadDbIndex,
+    chDbnsfp,
+    chDbnsfpIndex
+  )
+  }
+
   /*
   ================================================================================
                                    TABLE REPORT
   ================================================================================
   */
 
-  tableReportFlow(
-    annotateSomaticFlow.out.vcf
+  tableReportCh = annotateSomaticFlow.out.vcf.mix(annotateGermlineFlow.out.vcf)
+
+  tableReportFlowSomatic(
+    tableReportCh
   )
+
+  // tableReportFlowGermline(
+  //   annotateGermlineFlow.out.vcf
+  // )
 
   /*
   ================================================================================
