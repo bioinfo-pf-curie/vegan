@@ -9,7 +9,7 @@ process manta {
   label 'highMem'
 
   input:
-  tuple val(meta), path(bam), path(bai)
+  tuple val(meta), path(tumor_bam), path(tumor_bai), path(normal_bam), path(normal_bai)
   path(targetBed)
   path(fasta)
   path(fastaFai)
@@ -25,18 +25,22 @@ process manta {
   def beforeScript = task.ext.beforeScript ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
-  vcftype = "${meta.status}" == "tumor" ? "tumor" : "diploid"
-  inputs = "${meta.status}" == "pair" ? "--normalBam ${bam[1]} --tumorBam ${bam[0]}" : "${meta.status}" == "tumor" ? "--tumorBam ${bam}" : "--bam  ${bam}"
+  vcftype = "${meta.status}" == "tumor" ? "" : "diploid"
   """
   ${beforeScript}
   configManta.py \
-    ${inputs} \
+    --normalBam ${normal_bam} \
+    --tumorBam ${tumor_bam} \
     --reference ${fasta} \
     ${args} \
     --runDir Manta
 
   python Manta/runWorkflow.py -m local -j ${task.cpus}
 
+  mv Manta/results/variants/somaticSV.vcf.gz \
+  Manta_${meta.tumor_id}_vs_${meta.normal_id}.somaticSV.vcf.gz
+  mv Manta/results/variants/somaticSV.vcf.gz.tbi \
+  Manta_${meta.tumor_id}_vs_${meta.normal_id}.somaticSV.vcf.gz.tbi
   mv Manta/results/variants/candidateSmallIndels.vcf.gz \
     Manta_${prefix}.candidateSmallIndels.vcf.gz
   mv Manta/results/variants/candidateSmallIndels.vcf.gz.tbi \
