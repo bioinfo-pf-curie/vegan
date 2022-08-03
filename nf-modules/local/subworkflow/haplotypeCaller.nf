@@ -64,8 +64,6 @@ workflow haplotypeCallerFlow {
     chGenoVCF
   )
 
-  chGenoVCF.view()
-  chGenoSimple.view()
 
   bcftoolsNorm(
     chGenoSimple,

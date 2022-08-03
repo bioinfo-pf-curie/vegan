@@ -7,7 +7,7 @@ process getPileupSummaries {
   label 'minCpu'
   label 'extraMem'
 
-  tag "${meta.tumor_id}_vs_${meta.normal_id}_${intervalBed.baseName}"
+  tag "${meta.tumor_id}_vs_${meta.normal_id}"
 
   input:
   tuple val(meta), path(bamTumor),path(baiTumor), path(bamNormal), path(baiNormal)
@@ -33,6 +33,6 @@ process getPileupSummaries {
     -I ${bamTumor} \
     -V ${germlineResource} \
     ${args} \
-    -O ${intervalBed.baseName}_${meta.tumor_id}_pileupsummaries.table
+    -O ${meta.tumor_id}_vs_${meta.normal_id}_pileupsummaries.table
   """
 }
