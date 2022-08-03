@@ -1,5 +1,5 @@
 /*
- * VCF somatic annotation sub-workflow
+ * VCF germline annotation sub-workflow
  */
 
 include { snpEff } from '../../common/process/snpEff/snpEff'
@@ -9,7 +9,7 @@ include { snpSiftAnnotate as snpSiftCancerHotspots } from '../../common/process/
 include { snpSiftAnnotate as snpSiftGnomAD } from '../../common/process/snpSift/snpSiftAnnotate'
 include { snpSiftDbnsfp } from '../../common/process/snpSift/snpSiftDbnsfp'
 
-workflow annotateSomaticFlow {
+workflow annotateGermlineFlow {
 
   take:
   vcf
