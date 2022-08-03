@@ -110,7 +110,6 @@ workflow mutect2PairsFlow {
     mutect2CallsToFilter.combine(Channel.from('NO_FILE')) :
     mutect2CallsToFilter.join(calculateContamination.out.contaminationTable)
 
-  mutect2CallsToFilter.view()
 
   filterMutect2Calls(
     mutect2CallsToFilter,
@@ -123,8 +122,6 @@ workflow mutect2PairsFlow {
     learnReadOrientationModel.out.readOrientation
   )
   chVersions = chVersions.mix(filterMutect2Calls.out.versions)
-
-  filterMutect2Calls.out.vcf.view()
 
   collectVCFmetrics(
     filterMutect2Calls.out.vcf,
