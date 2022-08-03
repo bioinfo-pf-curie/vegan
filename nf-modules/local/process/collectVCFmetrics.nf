@@ -3,7 +3,7 @@ process collectVCFmetrics {
   label 'minMem'
   label 'onlyLinux'
 
-  tag "${meta.id}"
+  tag "${prefix}"
 
   input:
   tuple val(meta), path(vcf), path(index), file(vcfFilt), path(indexFilt), file(conta)
@@ -12,7 +12,7 @@ process collectVCFmetrics {
   path("*.mqc"), emit: mqc
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   def filtOpt = vcfFilt.name != [] ? "-f $vcfFilt" : ""
   def contaOpt = conta.name != [] && !params.skipMutectContamination ? "-c $conta" : ""
   """

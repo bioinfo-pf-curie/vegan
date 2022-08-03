@@ -6,7 +6,7 @@ process bcftoolsNorm {
   label 'bcftools'
   label 'medCpu'
   label 'medMem'
-  tag "${meta.id}"
+  tag "${prefix}"
 
   input:
   tuple val(meta), path(vcf), path(index)
@@ -20,7 +20,7 @@ process bcftoolsNorm {
   task.ext.when == null || task.ext.when
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   """
   bcftools norm -Oz -m -both -f ${fasta} --threads ${task.cpus} ${vcf} -o ${prefix}_norm.vcf.gz
   tabix ${prefix}_norm.vcf.gz
