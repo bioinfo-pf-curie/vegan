@@ -20,7 +20,6 @@ class NFTools {
          return colors as LinkedHashMap
      }
 
-
     /**********************************************
      *
      * Welcome and Logs
@@ -84,8 +83,6 @@ class NFTools {
         ).make(context)
         log.info txtTemplate.toString()
     }
-
-
 
     /**
      * Has the run name been specified by the user?
@@ -167,7 +164,6 @@ Available Profiles
    -profile cluster                     Run the workflow on the cluster, instead of locally
 """)
     }
-
 
     /**
      * Generate Help message
@@ -286,8 +282,6 @@ Available Profiles
         </dl>
     """.stripIndent()}
      }
-
-
 
      /****************************************
       *
@@ -449,23 +443,26 @@ Available Profiles
        * @return
        */
 
-      public static Object getIntermediatesData(samplePlan, extension, params) {
+      public static Object getIntermediatesData(samplePlan, List extension, params) {
           return Channel
             .fromPath(samplePlan)
             .splitCsv(header: false)
             .map { row ->
 	          def meta = [:]
+              checkNumberOfItem(row, 2 + extension.size(), params)
               meta.id = row[0]
               meta.name = row[1]
-	      def inputFile1 = returnFile(row[2], params)
-
-              if (hasExtension(inputFile1, extension)){
-                  checkNumberOfItem(row, 3, params)
-		  return [meta, [inputFile1]]
-              } else {
-                Nextflow.exit(1, "File: ${inputFile1} is not a ${extension} file. See --help for more information")
+	      def inputFiles=[]
+	      for (int i=0; i<extension.size(); i++){
+                def ifile=returnFile(row[i+2], params)
+                if (hasExtension(ifile, extension[i])){
+	          inputFiles[i]=ifile
+                } else{
+                  Nextflow.exit(1, "File: ${ifile} is not a ${extension[i]} file. See --help for more information")
+                }
               }
-	    }
+              return [meta, inputFiles]
+            }
       }
  
 

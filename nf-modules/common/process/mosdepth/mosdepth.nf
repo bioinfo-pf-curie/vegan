@@ -1,6 +1,5 @@
 /*
- * getSeqDepth:
- * External parameters :
+ * Mostdepth - calculate sequencing depth
  */
 
 process mosdepth {
@@ -24,8 +23,9 @@ process mosdepth {
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
+  bedOpts = bed ? "--by ${bed}" : ''
   """
   mosdepth --version &> versions.txt 2>&1 || true
-  mosdepth -t ${task.cpus} -n --quantize 0:1:10:50:100: ${args} ${prefix} ${bamFiltered}
+  mosdepth -t ${task.cpus} ${args} ${bedOpts} ${prefix} ${bamFiltered}
   """
 }
