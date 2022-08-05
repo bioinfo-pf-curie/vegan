@@ -1,2 +1,2 @@
-D262E01_N,D262E01_nromal,/bioinfo/users/tgutman/Documents/Tom/data/2010492_sub/target_normal.bam,/bioinfo/users/tgutman/Documents/Tom/data/2010492_sub/target_normal.bam.bai
-D262E02_T,D262E02_tumor,/bioinfo/users/tgutman/Documents/Tom/data/2010492_sub/target_tumor.bam,/bioinfo/users/tgutman/Documents/Tom/data/2010492_sub/target_tumor.bam.bai
+D262E01_N,D262E01_normal,test/data/exoBench/D262E01_N_hg19.sort.bam,test/data/exoBench/D262E01_N_hg19.sort.bam.bai
+D262E02_T,D262E02_tumor,test/data/exoBench/D262E02_T_hg19_sorted.bam,test/data/exoBench/D262E02_T_hg19_sorted.bam.bai
