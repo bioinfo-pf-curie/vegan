@@ -195,10 +195,25 @@ workflowSummaryCh = NFTools.summarize(summary, workflow, params)
 */
 
 // Load raw reads
-chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
+if (params.step == "mapping"){
+  chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
+}else if (params.step == "filtering"){
+  chRawReads = Channel.empty()
+  chAlignedBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam','.bai'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+  chAlignedBam.view()
+}else if (params.step == "calling"){
+  chRawReads = Channel.empty()
+  chAlignedBam = Channel.empty()
+  chFilteredBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam','.bai'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+}else if (params.step == "annotate"){
+  chRawReads = Channel.empty()
+  chAlignedBam = Channel.empty()
+  chFilteredBam = Channel.empty()
+  chAllVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params)
+}
 
 // Make samplePlan if not available
-chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPaths, params.singleEnd)
+//chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPaths, params.singleEnd)
 
 // Load design file
 if (params.design){
@@ -273,27 +288,27 @@ workflow {
     )
 
     // PROCESS: fastqc
-    if (! params.skipFastqc){
-      fastqc(
-        chRawReads
-      )
-      chFastqcMqc = fastqc.out.results.collect()
-      chVersions = chVersions.mix(fastqc.out.versions)
-    }
+    fastqc(
+      chRawReads
+    )
+    chFastqcMqc = fastqc.out.results.collect()
+    chVersions = chVersions.mix(fastqc.out.versions)
 
     //*******************************************
     // SUB-WORFKLOW : MAPPING WITH BWA-MEM/BWA-MEM2/DRAGMAP
 
-    chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex :
-      params.aligner == 'bwa-mem2' ? chBwaMem2Index :
-      chdragmapIndex
+    if (params.step == "mapping"){
+      chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex :
+        params.aligner == 'bwa-mem2' ? chBwaMem2Index :
+        chdragmapIndex
 
-    mappingFlow(
-      chRawReads,
-      chAlignerIndex
-    )
-    chAlignedBam = mappingFlow.out.bam
-    chVersions = chVersions.mix(mappingFlow.out.versions)
+      mappingFlow(
+        chRawReads,
+        chAlignerIndex
+      )
+      chAlignedBam = mappingFlow.out.bam
+      chVersions = chVersions.mix(mappingFlow.out.versions)
+    }
 
     //*******************************************
     // Process : Preseq
@@ -309,12 +324,14 @@ workflow {
     //*******************************************
     // SUB-WORKFLOW : bamFiltering
 
-    bamFiltersFlow(
-      chAlignedBam,
-      chBed
-    )
-    chVersions = chVersions.mix(bamFiltersFlow.out.versions)
-    chFilteredBam = bamFiltersFlow.out.bam
+    if (params.step == "mapping" || params.step == "filtering"){
+      bamFiltersFlow(
+        chAlignedBam,
+        chBed
+      )
+      chVersions = chVersions.mix(bamFiltersFlow.out.versions)
+      chFilteredBam = bamFiltersFlow.out.bam
+    }
 
     //*******************************************
     //SUB-WORKFLOW : bamQcFlow
@@ -346,23 +363,19 @@ workflow {
     //*****************************
     // GATK4 - PRE-PROCESSING
 
-    if('haplotypecaller' in tools || 'mutect2' in tools){
-      bqsrFlow(
-        chFilteredBam,
-        chBed,
-        chDbsnp,
-        chDbsnpIndex,
-        chFasta,
-        chFastaFai,
-        chKnownIndels,
-        chKnownIndelsIndex,
-        chDict
-      )
-      chVersions = chVersions.mix(bqsrFlow.out.versions)
-      chProcBam = bqsrFlow.out.bqsrBam
-    }else{
-      chProcBam = chFilteredBam
-    }
+    bqsrFlow(
+      chFilteredBam,
+      chBed,
+      chDbsnp,
+      chDbsnpIndex,
+      chFasta,
+      chFastaFai,
+      chKnownIndels,
+      chKnownIndelsIndex,
+      chDict
+    )
+    chVersions = chVersions.mix(bqsrFlow.out.versions)
+    chProcBam = params.skipBQSR ? chFilteredBam : bqsrFlow.out.bqsrBam
 
   /*
   ================================================================================
@@ -370,37 +383,40 @@ workflow {
   ================================================================================
   */
 
-  //[meta], tumor_bam, tumor_bai, normal_bam, normal_bai
-  chProcBam
-    .combine(chProcBam)
-    .combine(chDesign.paired)
-    .filter { it[0].id == it[6] && it[3].id == it[7] }
-    .map{ it ->
-      meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
-      return [meta, it[1], it[2], it[4], it[5] ]
-    }.set{ chPairBam }
+  if (params.step == "mapping" || params.step == "filtering" | params.step == "calling"){
+    //[meta], tumor_bam, tumor_bai, normal_bam, normal_bai
+    chProcBam
+      .combine(chProcBam)
+      .combine(chDesign.paired)
+      .filter { it[0].id == it[6] && it[3].id == it[7] }
+      .map{ it ->
+        meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
+        return [meta, it[1], it[2], it[4], it[5] ]
+      }.set{ chPairBam }
 
-  //[meta], tumor_bam, tumor_bai
-  chProcBam
-    .combine(chProcBam)
-    .combine(chDesign.paired)
-    .filter { it[0].id == it[6] && it[3].id == it[7] }
-    .map{ it ->
-      meta = [tumor_id:it[6], normal_id:it[7], status: "tumor", id:it[8], sex:it[9]]
-      return [meta, it[1], it[2] ]
-    }.set{ chTumorBam }
+    //[meta], tumor_bam, tumor_bai
+    chProcBam
+      .combine(chProcBam)
+      .combine(chDesign.paired)
+      .filter { it[0].id == it[6] && it[3].id == it[7] }
+      .map{ it ->
+        meta = [tumor_id:it[6], normal_id:it[7], status: "tumor", id:it[8], sex:it[9]]
+        return [meta, it[1], it[2] ]
+      }.set{ chTumorBam }
 
-  //[meta], normal_bam, normal_bai
-  chProcBam
-    .combine(chProcBam)
-    .combine(chDesign.paired)
-    .filter { it[0].id == it[6] && it[3].id == it[7] }
-    .map{ it ->
-      meta = [tumor_id:it[6], normal_id:it[7], status: "normal", id:it[8], sex:it[9]]
-      return [meta, it[4], it[5] ]
-    }.set{ chNormalBam }
+    //[meta], normal_bam, normal_bai
+    chProcBam
+      .combine(chProcBam)
+      .combine(chDesign.paired)
+      .filter { it[0].id == it[6] && it[3].id == it[7] }
+      .map{ it ->
+        meta = [tumor_id:it[6], normal_id:it[7], status: "normal", id:it[8], sex:it[9]]
+        return [meta, it[4], it[5] ]
+      }.set{ chNormalBam }
+    chSingleBam = chNormalBam.mix(chTumorBam)
 
-  chSingleBam = chNormalBam.mix(chTumorBam)
+    chAllVcf = Channel.empty()
+  }
 
   /*
   ================================================================================
@@ -408,11 +424,8 @@ workflow {
   ================================================================================
   */
 
-  chAllVcf = Channel.empty()
-
   //*******************************************
   //SUB-WORKFLOW : HaplotypeCaller
-
 
   if('haplotypecaller' in tools){
     haplotypeCallerFlow(
