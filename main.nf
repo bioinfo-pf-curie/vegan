@@ -331,7 +331,6 @@ workflow {
       )
       chVersions = chVersions.mix(bamFiltersFlow.out.versions)
       chFilteredBam = bamFiltersFlow.out.bam
-    }
 
     //*******************************************
     //SUB-WORKFLOW : bamQcFlow
@@ -375,7 +374,11 @@ workflow {
       chDict
     )
     chVersions = chVersions.mix(bqsrFlow.out.versions)
-    chProcBam = params.skipBQSR ? chFilteredBam : bqsrFlow.out.bqsrBam
+
+    }
+
+    chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bqsrBam
+
 
   /*
   ================================================================================
