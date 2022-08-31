@@ -1,5 +1,5 @@
 /*
- * somatic variant calling with Mutect2
+ * Somatic variant calling with Mutect2
  */
 
 process mutect2 {
@@ -20,10 +20,10 @@ process mutect2 {
   path panelOfNormalsIndex
 
   output:
-  tuple val(meta), path("*.vcf.gz"), path("*.tbi")    , emit: vcf
-  tuple val(meta), path("*.stats")  , emit: stats
-  tuple val(meta), path("*f1r2.tar.gz"), emit: f1r2
-  path("versions.txt")              , emit: versions
+  tuple val(meta), path("*.vcf.gz"), path("*.tbi"), emit: vcf
+  tuple val(meta), path("*.stats")                , emit: stats
+  tuple val(meta), path("*f1r2.tar.gz")           , emit: f1r2, optional: true
+  path("versions.txt")                            , emit: versions
 
   when:
   task.ext.when == null || task.ext.when
