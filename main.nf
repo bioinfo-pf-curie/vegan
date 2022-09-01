@@ -209,7 +209,7 @@ if (params.step == "mapping"){
   chRawReads = Channel.empty()
   chAlignedBam = Channel.empty()
   chFilteredBam = Channel.empty()
-  chAllVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params)
+  chAllVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
 }
 
 // Make samplePlan if not available
@@ -249,9 +249,12 @@ include { identitoFlow } from './nf-modules/common/subworkflow/identito'
 include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
+include { annotateSomaticFlow as  annotateStepFlow} from './nf-modules/local/subworkflow/annotateSomatic'
 include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
 include { annotateGermlineFlow } from './nf-modules/local/subworkflow/annotateGermline'
-include { tableReportFlow as  tableReportFlowSomatic } from './nf-modules/local/subworkflow/tableReport'
+include { tableReportFlow as tableReportFlowStep } from './nf-modules/local/subworkflow/tableReport'
+include { tableReportFlow as tableReportFlowSomatic } from './nf-modules/local/subworkflow/tableReport'
+include { tableReportFlow as tableReportFlowGermline } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
 include { msiFlow } from './nf-modules/local/subworkflow/msi'
@@ -377,7 +380,10 @@ workflow {
 
     }
 
-    chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bqsrBam
+    if (params.step != "annotate"){
+      chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bqsrBam
+
+    }
 
 
   /*
@@ -403,7 +409,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [tumor_id:it[6], normal_id:it[7], status: "tumor", id:it[8], sex:it[9]]
+        meta = [status: "tumor", id:it[6], sex:it[9]]
         return [meta, it[1], it[2] ]
       }.set{ chTumorBam }
 
@@ -413,7 +419,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [tumor_id:it[6], normal_id:it[7], status: "normal", id:it[8], sex:it[9]]
+        meta = [status: "normal", id:it[7], sex:it[9]]
         return [meta, it[4], it[5] ]
       }.set{ chNormalBam }
     chSingleBam = chNormalBam.mix(chTumorBam)
@@ -430,40 +436,42 @@ workflow {
   //*******************************************
   //SUB-WORKFLOW : HaplotypeCaller
 
-  if('haplotypecaller' in tools){
-    haplotypeCallerFlow(
-      chSingleBam,
-      chBed,
-      chDbsnp,
-      chDbsnpIndex,
-      chFasta,
-      chFastaFai,
-      chDict
-    )
-    chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-    chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
+  if (params.step == "mapping" || params.step == "filtering" | params.step == "calling"){
+
+    if('haplotypecaller' in tools){
+      haplotypeCallerFlow(
+        chSingleBam,
+        chBed,
+        chDbsnp,
+        chDbsnpIndex,
+        chFasta,
+        chFastaFai,
+        chDict
+      )
+      chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
+      chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
+    }
+
+    //*******************************************
+    //SUB-WORKFLOW : Mutect2
+
+    if('mutect2' in tools){
+      mutect2PairsFlow(
+        chPairBam,
+        chBed,
+        chFasta,
+        chFastaFai,
+        chDict,
+        chGermlineResource,
+        chGermlineResourceIndex,
+        chPon,
+        chPonIndex,
+        chIntervals
+      )
+      chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
+      chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
+    }
   }
-
-  //*******************************************
-  //SUB-WORKFLOW : Mutect2
-
-  if('mutect2' in tools){
-    mutect2PairsFlow(
-      chPairBam,
-      chBed,
-      chFasta,
-      chFastaFai,
-      chDict,
-      chGermlineResource,
-      chGermlineResourceIndex,
-      chPon,
-      chPonIndex,
-      chIntervals
-    )
-    chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-    chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
-  }
-
 
   /*
   ================================================================================
@@ -471,8 +479,29 @@ workflow {
   ================================================================================
   */
 
+  chAllVcf.view()
+
   // Annotation somatic vcf
-  if('snpeff' in tools){
+  if('snpeff' in tools && params.step == 'annotate'){
+  annotateStepFlow(
+    chAllVcf,
+    chSnpeffDb,
+    chSnpeffCache,
+    chCosmicDb,
+    chCosmicDbIndex,
+    chIcgcDb,
+    chIcgcDbIndex,
+    chCancerhotspotsDb,
+    chCancerhotspotsDbIndex,
+    chGnomadDb,
+    chGnomadDbIndex,
+    chDbnsfp,
+    chDbnsfpIndex
+  )
+  }
+
+  // Annotation somatic vcf
+  if('snpeff' in tools && params.step != 'annotate'){
   annotateSomaticFlow(
     mutect2PairsFlow.out.vcfFilteredNorm,
     chSnpeffDb,
@@ -491,7 +520,7 @@ workflow {
   }
 
   // Annotation germline vcf
-  if('snpeff' in tools){
+  if('snpeff' in tools && params.step != 'annotate'){
   annotateGermlineFlow(
     haplotypeCallerFlow.out.vcfNorm,
     chSnpeffDb,
@@ -509,22 +538,29 @@ workflow {
   )
   }
 
+
   /*
   ================================================================================
                                    TABLE REPORT
   ================================================================================
   */
 
-  tableReportCh = annotateSomaticFlow.out.vcf.mix(annotateGermlineFlow.out.vcf)
+  if('snpeff' in tools && params.step == 'annotate'){
+  tableReportFlowStep(
+    annotateStepFlow.out.vcf
+  )
+  }
+  //tableReportCh = annotateSomaticFlow.out.vcf.mix(annotateGermlineFlow.out.vcf)
 
+  if('snpeff' in tools && params.step != 'annotate'){
   tableReportFlowSomatic(
-    tableReportCh
+    annotateSomaticFlow.out.vcf
   )
 
-  // tableReportFlowGermline(
-  //   annotateGermlineFlow.out.vcf
-  // )
-
+  tableReportFlowGermline(
+    annotateGermlineFlow.out.vcf
+  )
+  }
   /*
   ================================================================================
                                          TMB
@@ -533,7 +569,7 @@ workflow {
 
   //annotateSomaticFlow.out.vcf.view()
 
-  if('tmb' in tools){
+  if('tmb' in tools && params.step != 'annotate'){
   tmbFlow(
     annotateSomaticFlow.out.vcf,
     chBed
@@ -561,7 +597,7 @@ workflow {
 
   // STEP MANTA.1 - SINGLE MODE
 
-  if ('manta' in tools){
+  if ('manta' in tools && params.step != 'annotate'){
     mantaFlow(
       chPairBam,
       chBed,
