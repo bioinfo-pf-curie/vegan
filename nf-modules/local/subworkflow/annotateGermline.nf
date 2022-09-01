@@ -43,48 +43,12 @@ workflow annotateGermlineFlow {
   chAnnotVcf = snpEff.out.vcf
 
   /*
-   * COSMIC annotations
-   */
-
-  snpSiftCosmic(
-    chAnnotVcf,
-    cosmic.combine(cosmicIndex)
-  )
-  chVersions = chVersions.mix(snpSiftCosmic.out.versions)
-  chAnnotVcf = 'cosmic' in annotDb ? snpSiftCosmic.out.vcf : chAnnotVcf
-
-  /*
-   * ICGC annotations
-   */
-
-  // icgc.view()
-  // icgcIndex.view()
-
-  snpSiftIcgc(
-    chAnnotVcf,
-    icgc.combine(icgcIndex)
-  )
-  chVersions = chVersions.mix(snpSiftIcgc.out.versions)
-  chAnnotVcf = 'icgc' in annotDb ? snpSiftIcgc.out.vcf : chAnnotVcf
-
-  /*
-   * CancerHotspots annotations
-   */
-
-  snpSiftCancerHotspots(
-    chAnnotVcf,
-    cancerHotspots.combine(cancerHotspotsIndex)
-  )
-  chVersions = chVersions.mix(snpSiftCancerHotspots.out.versions)
-  chAnnotVcf = 'cancerhotspots' in annotDb ? snpSiftCancerHotspots.out.vcf : chAnnotVcf
-
-  /*
    * GnomAD annotations
    */
 
   snpSiftGnomAD(
     chAnnotVcf,
-    gnomAd.combine(gnomAdIndex)
+    gnomAd.combine(gnomAdIndex).collect()
   )
   chVersions = chVersions.mix(snpSiftGnomAD.out.versions)
   chAnnotVcf = 'gnomad' in annotDb ? snpSiftGnomAD.out.vcf : chAnnotVcf
@@ -95,7 +59,7 @@ workflow annotateGermlineFlow {
 
   snpSiftDbnsfp(
     chAnnotVcf,
-    dbnsfp.combine(dbnsfpIndex)
+    dbnsfp.combine(dbnsfpIndex).collect()
   )
   chVersions = chVersions.mix(snpSiftDbnsfp.out.versions)
   chAnnotVcf = 'dbnsfp' in annotDb ? snpSiftDbnsfp.out.vcf : chAnnotVcf
