@@ -10,8 +10,9 @@ process msisensorproMsi {
 
   input:
   tuple val(meta), path(tumor), path(tumorIndex), path(normal), path(normalIndex)
-  path (fasta)
-  path (msisensorScan)
+  path(fasta)
+  path(msisensorScan)
+  path(bed)
 
   output:
   tuple val(meta), path("${prefix}")         , emit: outputReport
@@ -27,7 +28,7 @@ process msisensorproMsi {
   def args = task.ext.args   ?: ''
   def prefix   = task.ext.prefix ?: "${meta.id}"
   def fasta = fasta ? "-g ${fasta}" : ""
-  //def intervals = intervals ? " -e ${intervals} " : ""
+  def bed = bed ? " -e ${bed} " : ""
   """
   msisensor-pro \\
       msi \\
@@ -35,6 +36,7 @@ process msisensorproMsi {
       -n ${normal} \\
       -t ${tumor} \\
       ${fasta} \\
+      ${bed} \\
       -o $prefix \\
       -b ${task.cpus} \\
       $args
