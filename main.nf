@@ -666,6 +666,8 @@ workflow {
       chFastqcMqc.collect().ifEmpty([]),
       chMappingMqc.collect().ifEmpty([]),
       chMappingStats.collect().ifEmpty([]),
+      chFragSizeMqc.collect().ifEmpty([]),
+      chWgsMetricsMqc.collect().ifEmpty([]),
       chPreseqMqc.collect().ifEmpty([]),
       chOntargetStatsMqc.collect().ifEmpty([]),
       chFilteringStatsMqc.collect().ifEmpty([]),
