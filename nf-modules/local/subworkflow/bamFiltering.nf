@@ -27,10 +27,8 @@ workflow bamFiltersFlow {
     )
     chVersions = chVersions.mix(sambambaMarkdup.out.versions)
 
-
     // Reduce to the Target
     if(params.targetBed){
-
       intersectBed(
         sambambaMarkdup.out.bam,
         bed.collect()
@@ -46,8 +44,10 @@ workflow bamFiltersFlow {
 
       chVersions = chVersions.mix(intersectBed.out.versions)
       chBam = intersectBed.out.bam
+      chOnTargetStats = samtoolsFlagstatTarget.out.stats
     }else{
       chBam = sambambaMarkdup.out.bam
+      chOnTargetStats = Channel.empty()
     }
 
     // Filter with samtools
@@ -79,7 +79,8 @@ workflow bamFiltersFlow {
     emit:
     bam = samtoolsFilter.out.bam.join(samtoolsIndexFilter.out.bai)
     //markdupMetrics = sambambaMarkdup.out.metrics
-    flagstat  = samtoolsFlagstatFilter.out.stats
+    ontargetFlagstats = chOnTargetStats.map{it -> it[1]}
+    filteringFlagstats  = samtoolsFlagstatFilter.out.stats.map{it -> it[1]}
     idxstats  = samtoolsIdxstats.out.stats
     stats  = samtoolsStats.out.stats
     versions = chVersions

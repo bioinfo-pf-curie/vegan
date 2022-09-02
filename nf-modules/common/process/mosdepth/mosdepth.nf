@@ -14,7 +14,7 @@ process mosdepth {
 
   output:
   path("*.*.txt"), emit: metrics
-  path("*{.bed.gz,.bed.gz.csi}"), emit: mosdepthBed
+  path("*{.bed.gz,.bed.gz.csi}"), emit: bedcov
   path("versions.txt"), emit: versions
 
   when:

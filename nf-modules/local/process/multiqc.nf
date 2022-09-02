@@ -15,6 +15,16 @@ process multiqc {
   path metadata
   path multiqcConfig
   path ('fastqc/*')
+  path ('mapping/*')
+  path ('mapping/*')
+  path ('preseq/*')
+  path ('preprocessing/*')
+  path ('preprocessing/*')
+  path ('coverage/*')
+  path ('coverage/*')
+  path ('identito/*')
+  path ('vcfMetrics/*')
+  path ('vcfMetrics/*')
   path ('softwareVersions/*')
   path ('workflowSummary/*')
   path warnings

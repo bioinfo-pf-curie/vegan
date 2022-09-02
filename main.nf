@@ -119,7 +119,7 @@ if ((params.reads && params.samplePlan) || (params.readPaths && params.samplePla
 =====================================
 */
 
-chMetatdata             = params.metadata              ? Channel.fromPath(params.metadata, checkIfExists: true).collect()               : Channel.empty()
+chMetadata              = params.metadata              ? Channel.fromPath(params.metadata, checkIfExists: true).collect()               : Channel.empty()
 chChrLength             = params.chrLength             ? Channel.fromPath(params.chrLength, checkIfExists: true).collect()              : Channel.empty()
 chFasta                 = params.fasta                 ? Channel.fromPath(params.fasta, checkIfExists: true).collect()                  : Channel.empty()
 chFastaFai              = params.fastaFai              ? Channel.fromPath(params.fastaFai, checkIfExists: true).collect()               : Channel.empty()
@@ -213,7 +213,7 @@ if (params.step == "mapping"){
 }
 
 // Make samplePlan if not available
-//chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPaths, params.singleEnd)
+chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPaths, params.singleEnd)
 
 // Load design file
 if (params.design){
@@ -279,10 +279,19 @@ workflow {
 
   main:
     // Init MultiQC Channels
-    //chRawReads.view()
     chFastqcMqc = Channel.empty()
+    chMappingMqc = Channel.empty()
+    chMappingStats = Channel.empty()
+    chOntargetStatsMqc = Channel.empty()
+    chFilteringStatsMqc = Channel.empty()
     chPreseqMqc = Channel.empty()
     chIdentitoMqc = Channel.empty()
+    chGeneCovMqc = Channel.empty()
+    chMosdepthMqc = Channel.empty()
+    chFragSizeMqc = Channel.empty()
+    chWgsMetricsMqc = Channel.empty()
+    chHaplotypecallerMetricsMqc = Channel.empty()
+    chMutect2MetricsMqc = Channel.empty()
 
     // subroutines
     outputDocumentation(
@@ -310,6 +319,8 @@ workflow {
         chAlignerIndex
       )
       chAlignedBam = mappingFlow.out.bam
+      chMappingMqc = mappingFlow.out.logs
+      chMappingStats = mappingFlow.out.stats
       chVersions = chVersions.mix(mappingFlow.out.versions)
     }
 
@@ -333,56 +344,59 @@ workflow {
         chBed
       )
       chVersions = chVersions.mix(bamFiltersFlow.out.versions)
+      chOntargetStatsMqc = bamFiltersFlow.out.ontargetFlagstats
+      chFilteringStatsMqc = bamFiltersFlow.out.filteringFlagstats
       chFilteredBam = bamFiltersFlow.out.bam
 
-    //*******************************************
-    //SUB-WORKFLOW : bamQcFlow
+      //*******************************************
+      //SUB-WORKFLOW : bamQcFlow
 
-    if (!params.skipQC){
-      bamQcFlow(
+      if (!params.skipQC){
+        bamQcFlow(
+          chFilteredBam,
+          chBed,
+          chGtf,
+          chFasta,
+          chDict
+        )
+        chGeneCovMqc = bamQcFlow.out.geneCovMqc
+        chMosdepthMqc = bamQcFlow.out.seqDepth
+        chFragSizeMqc = bamQcFlow.out.fragSize
+        chWgsMetricsMqc = bamQcFlow.out.wgsMetrics
+        chVersions = chVersions.mix(bamQcFlow.out.versions)
+      }
+
+      // SUBWORKFLOW: Identito - polym and Monitoring
+      if (!params.skipIdentito){
+        identitoFlow(
+          chFilteredBam,
+          chFasta.collect(),
+          chFastaFai.collect(),
+          chPolyms.collect()
+        )
+        chIdentitoMqc = identitoFlow.out.results.collect()
+        chVersions = chVersions.mix(identitoFlow.out.versions)
+      }
+
+      //*****************************
+      // GATK4 - PRE-PROCESSING
+
+      bqsrFlow(
         chFilteredBam,
         chBed,
-        chGtf,
+        chDbsnp,
+        chDbsnpIndex,
         chFasta,
+        chFastaFai,
+        chKnownIndels,
+        chKnownIndelsIndex,
         chDict
       )
-      chVersions = chVersions.mix(bamQcFlow.out.versions)
-    }
-
-    // SUBWORKFLOW: Identito - polym and Monitoring
-    if (!params.skipIdentito){
-      identitoFlow(
-        chFilteredBam,
-        chFasta.collect(),
-        chFastaFai.collect(),
-        chPolyms.collect()
-      )
-
-      chIdentitoMqc = identitoFlow.out.results.collect()
-      chVersions = chVersions.mix(identitoFlow.out.versions)
-    }
-
-    //*****************************
-    // GATK4 - PRE-PROCESSING
-
-    bqsrFlow(
-      chFilteredBam,
-      chBed,
-      chDbsnp,
-      chDbsnpIndex,
-      chFasta,
-      chFastaFai,
-      chKnownIndels,
-      chKnownIndelsIndex,
-      chDict
-    )
-    chVersions = chVersions.mix(bqsrFlow.out.versions)
-
+      chVersions = chVersions.mix(bqsrFlow.out.versions)
     }
 
     if (params.step != "annotate"){
       chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bqsrBam
-
     }
 
 
@@ -449,6 +463,7 @@ workflow {
         chDict
       )
       chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
+      chHaplotypecallerMetricsMqc = haplotypeCallerFlow.out.mqc
       chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
     }
 
@@ -469,6 +484,7 @@ workflow {
         chIntervals
       )
       chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
+      chMutect2MetricsMqc = mutect2PairsFlow.out.mqc
       chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
     }
   }
@@ -479,63 +495,61 @@ workflow {
   ================================================================================
   */
 
-  chAllVcf.view()
-
   // Annotation somatic vcf
   if('snpeff' in tools && params.step == 'annotate'){
-  annotateStepFlow(
-    chAllVcf,
-    chSnpeffDb,
-    chSnpeffCache,
-    chCosmicDb,
-    chCosmicDbIndex,
-    chIcgcDb,
-    chIcgcDbIndex,
-    chCancerhotspotsDb,
-    chCancerhotspotsDbIndex,
-    chGnomadDb,
-    chGnomadDbIndex,
-    chDbnsfp,
-    chDbnsfpIndex
-  )
+    annotateStepFlow(
+      chAllVcf,
+      chSnpeffDb,
+      chSnpeffCache,
+      chCosmicDb,
+      chCosmicDbIndex,
+      chIcgcDb,
+      chIcgcDbIndex,
+      chCancerhotspotsDb,
+      chCancerhotspotsDbIndex,
+      chGnomadDb,
+      chGnomadDbIndex,
+      chDbnsfp,
+      chDbnsfpIndex
+    )
   }
 
   // Annotation somatic vcf
   if('snpeff' in tools && params.step != 'annotate'){
-  annotateSomaticFlow(
-    mutect2PairsFlow.out.vcfFilteredNorm,
-    chSnpeffDb,
-    chSnpeffCache,
-    chCosmicDb,
-    chCosmicDbIndex,
-    chIcgcDb,
-    chIcgcDbIndex,
-    chCancerhotspotsDb,
-    chCancerhotspotsDbIndex,
-    chGnomadDb,
-    chGnomadDbIndex,
-    chDbnsfp,
-    chDbnsfpIndex
-  )
+    annotateSomaticFlow(
+      mutect2PairsFlow.out.vcfFilteredNorm,
+      chSnpeffDb,
+      chSnpeffCache,
+      chCosmicDb,
+      chCosmicDbIndex,
+      chIcgcDb,
+      chIcgcDbIndex,
+      chCancerhotspotsDb,
+      chCancerhotspotsDbIndex,
+      chGnomadDb,
+      chGnomadDbIndex,
+      chDbnsfp,
+      chDbnsfpIndex
+    )
   }
 
   // Annotation germline vcf
   if('snpeff' in tools && params.step != 'annotate'){
-  annotateGermlineFlow(
-    haplotypeCallerFlow.out.vcfNorm,
-    chSnpeffDb,
-    chSnpeffCache,
-    chCosmicDb,
-    chCosmicDbIndex,
-    chIcgcDb,
-    chIcgcDbIndex,
-    chCancerhotspotsDb,
-    chCancerhotspotsDbIndex,
-    chGnomadDb,
-    chGnomadDbIndex,
-    chDbnsfp,
-    chDbnsfpIndex
-  )
+    annotateGermlineFlow(
+      haplotypeCallerFlow.out.vcfNorm,
+      chSnpeffDb,
+      chSnpeffCache,
+      chCosmicDb,
+      chCosmicDbIndex,
+      chIcgcDb,
+      chIcgcDbIndex,
+      chCancerhotspotsDb,
+      chCancerhotspotsDbIndex,
+      chGnomadDb,
+      chGnomadDbIndex,
+      chDbnsfp,
+      chDbnsfpIndex
+    )
   }
 
 
@@ -546,20 +560,19 @@ workflow {
   */
 
   if('snpeff' in tools && params.step == 'annotate'){
-  tableReportFlowStep(
-    annotateStepFlow.out.vcf
-  )
+    tableReportFlowStep(
+      annotateStepFlow.out.vcf
+    )
   }
   //tableReportCh = annotateSomaticFlow.out.vcf.mix(annotateGermlineFlow.out.vcf)
 
   if('snpeff' in tools && params.step != 'annotate'){
-  tableReportFlowSomatic(
-    annotateSomaticFlow.out.vcf
-  )
-
-  tableReportFlowGermline(
-    annotateGermlineFlow.out.vcf
-  )
+    tableReportFlowSomatic(
+      annotateSomaticFlow.out.vcf
+    )
+    tableReportFlowGermline(
+      annotateGermlineFlow.out.vcf
+    )
   }
   /*
   ================================================================================
@@ -567,13 +580,11 @@ workflow {
   ================================================================================
   */
 
-  //annotateSomaticFlow.out.vcf.view()
-
   if('tmb' in tools && params.step != 'annotate'){
-  tmbFlow(
-    annotateSomaticFlow.out.vcf,
-    chBed
-  )
+    tmbFlow(
+      annotateSomaticFlow.out.vcf,
+      chBed
+    )
   }
 
   /*
@@ -583,10 +594,10 @@ workflow {
   */
 
   if('msisensor' in tools){
-  msiFlow(
-    chPairBam,
-    chFasta
-  )
+    msiFlow(
+      chPairBam,
+      chFasta
+    )
   }
 
   /*
@@ -604,7 +615,6 @@ workflow {
       chFasta,
       chFastaFai
     )
-
     chVersions = chVersions.mix(mantaFlow.out.versions)
   }
 
@@ -615,24 +625,22 @@ workflow {
   ================================================================================
   */
 
-  //chPairBam.view()
-
   if('facets' in tools){
-  facetsFlow(
-    chPairBam,
-    chDbsnp
-  )
+    facetsFlow(
+      chPairBam,
+      chDbsnp
+    )
   }
 
   if('ascat' in tools){
-  ascatFlow(
-    chSingleBam,
-    chAcLoci,
-    chAcLociGC,
-    chDict,
-    chFasta,
-    chFastaFai
-  )
+    ascatFlow(
+      chSingleBam,
+      chAcLoci,
+      chAcLociGC,
+      chDict,
+      chFasta,
+      chFastaFai
+    )
   }
 
   /*
@@ -641,30 +649,36 @@ workflow {
   ================================================================================
   */
 
-    // MULTIQC
-
-    // Warnings that will be printed in the mqc report
-    // chWarn = Channel.empty()
-    //
-    // if (!params.skipMultiQC){
-    //
-    //   getSoftwareVersions(
-    //     chVersions.unique().collectFile()
-    //   )
-    //
-    //   multiqc(
-    //     customRunName,
-    //     chSplan.collect(),
-    //     chMetadata.ifEmpty([]),
-    //     chMultiqcConfig.ifEmpty([]),
-    //     chFastqcMqc.ifEmpty([]),
-    //     getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
-    //     workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
-    //     chWarn.collect().ifEmpty([])
-    //   )
-    //
-    //   mqcReport = multiqc.out.report.toList()
-    // }
+  // Warnings that will be printed in the mqc report
+  chWarn = Channel.empty()
+    
+  if (!params.skipMultiQC){
+    getSoftwareVersions(
+      chVersions.unique().collectFile()
+    )
+    
+    multiqc(
+      customRunName,
+      chSplan.collect(),
+      chMetadata.ifEmpty([]),
+      chMultiqcConfig.ifEmpty([]),
+      chFastqcMqc.collect().ifEmpty([]),
+      chMappingMqc.collect().ifEmpty([]),
+      chMappingStats.collect().ifEmpty([]),
+      chPreseqMqc.collect().ifEmpty([]),
+      chOntargetStatsMqc.collect().ifEmpty([]),
+      chFilteringStatsMqc.collect().ifEmpty([]),
+      chGeneCovMqc.collect().ifEmpty([]),
+      chMosdepthMqc.collect().ifEmpty([]),
+      chIdentitoMqc.collect().ifEmpty([]),
+      chHaplotypecallerMetricsMqc.collect().ifEmpty([]),
+      chMutect2MetricsMqc.collect().ifEmpty([]),
+      getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
+      workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
+      chWarn.collect().ifEmpty([])
+    )
+     mqcReport = multiqc.out.report.toList()
+   }
 }
 
 workflow.onComplete {

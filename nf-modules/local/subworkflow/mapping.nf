@@ -8,6 +8,7 @@ include { dragmap } from '../../common/process/dragmap/dragmap'
 include { samtoolsSort } from '../../common/process/samtools/samtoolsSort'
 include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
+include { samtoolsFlagstat } from '../../common/process/samtools/samtoolsFlagstat'
 
 workflow mappingFlow {
 
@@ -66,8 +67,13 @@ workflow mappingFlow {
   )
   chVersions = chVersions.mix(samtoolsIndex.out.versions)
 
+  samtoolsFlagstat(
+    samtoolsSort.out.bam
+  )
+
   emit:
   bam = samtoolsSort.out.bam.join(samtoolsIndex.out.bai)
   logs = chMappingLogs
+  stats = samtoolsFlagstat.out.stats.map{it-> it[1]}
   versions = chVersions
 }

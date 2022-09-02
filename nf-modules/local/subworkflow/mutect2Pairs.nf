@@ -72,7 +72,7 @@ workflow mutect2PairsFlow {
 
    learnReadOrientationModel(
      mutect2.out.f1r2
-     )
+   )
 
   getPileupSummaries(
     bam,
@@ -81,7 +81,7 @@ workflow mutect2PairsFlow {
     germlineResourceIndex,
     bed
   )
-  //chVersions = chVersions.mix(getPileupSummaries.out.versions)
+  chVersions = chVersions.mix(getPileupSummaries.out.versions)
 
   gatherPileupSummaries(
     getPileupSummaries.out.pileupSummaries,
@@ -96,7 +96,7 @@ workflow mutect2PairsFlow {
   calculateContamination(
     bam.join(gatherPileupSummaries.out.mergedPileupFileCh)
   )
-  //chVersions = chVersions.mix(calculateContamination.out.versions)
+  chVersions = chVersions.mix(calculateContamination.out.versions)
 
   /*
    * FILTER MUTECT CALL
