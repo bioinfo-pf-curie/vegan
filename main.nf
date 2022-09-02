@@ -596,7 +596,8 @@ workflow {
   if('msisensor' in tools){
     msiFlow(
       chPairBam,
-      chFasta
+      chFasta,
+      chBed
     )
   }
 

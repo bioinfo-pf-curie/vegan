@@ -11,8 +11,8 @@ process identitoClustering {
   path(matrix)
 
   output:
-  path("*.{tsv,csv,png,txt}"), emit: results
-  //path("versions.txt"), emit: versions
+  path("*.{tsv,csv,png}"), optional: true, emit: results
+  path("versions.txt"), emit: versions
 
   script:
   """
