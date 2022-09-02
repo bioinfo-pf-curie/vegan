@@ -28,7 +28,6 @@ process collectWgsMetrics {
   def args2 = task.ext.args2 ?: ''
   """
   ${preproc}
-  gatk CollectWgsMetrics --help &> versions.txt 2>&1 || true
   gatk --java-options -Xmx${task.memory.toGiga()}g \
        ReorderSam \
        ${args} \
@@ -43,5 +42,6 @@ process collectWgsMetrics {
        -O ${bamFiltered.baseName}_collect_wgs_metrics.txt \
        -R ${fasta} \
        ${args2}
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

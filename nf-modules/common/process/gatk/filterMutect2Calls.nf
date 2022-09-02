@@ -41,6 +41,6 @@ process filterMutect2Calls {
   awk '\$0~"^#" || \$7 == "PASS"{print}' <(bgzip -dc ${meta.tumor_id}_vs_${meta.normal_id}_Mutect2_filtered.vcf.gz) | bgzip > ${meta.tumor_id}_vs_${meta.normal_id}_Mutect2_filtered_pass.vcf.gz
   tabix ${meta.tumor_id}_vs_${meta.normal_id}_Mutect2_filtered_pass.vcf.gz
 
-  gatk FilterMutectCalls --version 2>&1 | sed 's/^.*(GATK) v/GATK /; s/Version: //; s/ .*\$//' | tail -3 > versions.txt
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

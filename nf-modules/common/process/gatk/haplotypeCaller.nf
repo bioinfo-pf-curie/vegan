@@ -39,6 +39,6 @@ process haplotypeCaller {
     -O ${prefix}.g.vcf \
     -ERC GVCF
 
-  echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

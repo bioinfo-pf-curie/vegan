@@ -18,6 +18,7 @@ process getPileupSummaries {
 
   output:
   tuple val(meta), path("*_pileupsummaries.table"), emit: pileupSummaries
+  path("versions.txt"), emit: versions
 
   when:
   task.ext.when == null || task.ext.when
@@ -34,5 +35,6 @@ process getPileupSummaries {
     -V ${germlineResource} \
     ${args} \
     -O ${meta.tumor_id}_vs_${meta.normal_id}_pileupsummaries.table
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

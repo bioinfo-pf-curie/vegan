@@ -42,7 +42,6 @@ process baseRecalibrator {
       ${dbsnpOptions} \
       ${knownOptions} \
       --verbosity INFO
-
-  echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

@@ -33,6 +33,6 @@ process applyBQSR {
        --output ${prefix}.recal.bam \
        ${args} \
        --bqsr-recal-file ${recalTable}
-  gatk ApplyBQSR --help &> "versions.txt" 2>&1 || true
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
  }
