@@ -29,10 +29,15 @@ workflow ascatFlow {
 
     countsCh = alleleCounter.out.alleleCounterOutCh
 
-    countsCh.combine(countsCh)
-    .filter {it[0].tumor_id == it[1].baseName && it[0].normal_id == it[3].baseName}
-    .map { it ->  return [it[0], it[1], it[3] ]}
-    .set{ countsCombinedCh }
+    countsCh
+      .combine(countsCh)
+      .filter { it[0].pair_id == it[2].pair_id && it[0].status == "tumor" && it[2].status == "normal"}
+      .map{ it ->
+        meta = [tumor_id:it[0].id, normal_id:it[2].id, status: "pair", id:it[2].pair_id, sex:it[0].sex]
+      return [meta, it[1], it[3]]}
+      .set{ countsCombinedCh }
+
+    countsCombinedCh.view()
 
     convertAlleleCounts(
       countsCombinedCh
