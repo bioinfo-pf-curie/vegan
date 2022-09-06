@@ -423,7 +423,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [status: "tumor", id:it[6], sex:it[9]]
+        meta = [status: "tumor", id:it[6], pair_id: it[8], sex:it[9]]
         return [meta, it[1], it[2] ]
       }.set{ chTumorBam }
 
@@ -433,7 +433,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [status: "normal", id:it[7], sex:it[9]]
+        meta = [status: "normal", id:it[7], pair_id: it[8], sex:it[9]]
         return [meta, it[4], it[5] ]
       }.set{ chNormalBam }
     chSingleBam = chNormalBam.mix(chTumorBam)
@@ -652,12 +652,12 @@ workflow {
 
   // Warnings that will be printed in the mqc report
   chWarn = Channel.empty()
-    
+
   if (!params.skipMultiQC){
     getSoftwareVersions(
       chVersions.unique().collectFile()
     )
-    
+
     multiqc(
       customRunName,
       chSplan.collect(),
