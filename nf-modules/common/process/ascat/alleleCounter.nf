@@ -7,7 +7,7 @@ process alleleCounter {
   label 'lowMem'
   label 'minCpu'
 
-  tag "${prefix}"
+  tag "${meta.id}"
 
   input:
   tuple val(meta), path(bam), path(bai)
@@ -17,7 +17,7 @@ process alleleCounter {
   path(fastaFai)
 
   output:
-  tuple val(meta), path("${prefix}.alleleCount"), emit: alleleCounterOutCh
+  tuple val(meta), path("${meta.id}.alleleCount"), emit: alleleCounterOutCh
   path("versions.txt"),emit: version
 
   when:
@@ -30,7 +30,8 @@ process alleleCounter {
     -l ${acLoci} \
     -r ${fasta} \
     -b ${bam} \
-    -o ${prefix}.alleleCount;
+    -o ${meta.id}.alleleCount;
   alleleCounter --version &> versions.txt 2>&1 || true
+  echo "test"
   """
 }
