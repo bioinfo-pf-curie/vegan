@@ -18,7 +18,7 @@ process ascat {
 
   output:
   tuple val("ASCAT"), val(meta), path("${meta.tumor_id}.*.{png,txt}"),emit: ascatOutCh
-  path("vesions.txt"),emit: versions
+  path("versions.txt"),emit: versions
 
   when:
   task.ext.when == null || task.ext.when
