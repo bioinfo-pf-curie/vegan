@@ -7,7 +7,8 @@ include { intersectBed } from '../../common/process/bedtools/intersectBed'
 include { samtoolsFilter } from '../../common/process/samtools/samtoolsFilter'
 include { samtoolsIndex as samtoolsIndexTarget } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsIndex as samtoolsIndexFilter } from '../../common/process/samtools/samtoolsIndex'
-include { samtoolsFlagstat as samtoolsFlagstatTarget } from '../../common/process/samtools/samtoolsFlagstat'
+include { samtoolsFlagstat as samtoolsFlagstatMarkdup } from '../../common/process/samtools/samtoolsFlagstat'
+include { samtoolsFlagstat as samtoolsFlagstatOnTarget } from '../../common/process/samtools/samtoolsFlagstat'
 include { samtoolsFlagstat as samtoolsFlagstatFilter  } from '../../common/process/samtools/samtoolsFlagstat'
 include { samtoolsIdxstats } from '../../common/process/samtools/samtoolsIdxstats'
 include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
@@ -27,28 +28,22 @@ workflow bamFiltersFlow {
     )
     chVersions = chVersions.mix(sambambaMarkdup.out.versions)
 
-    // Reduce to the Target
-    if(params.targetBed){
-      intersectBed(
-        sambambaMarkdup.out.bam,
-        bed.collect()
-      )
+    samtoolsFlagstatMarkdup(
+      sambambaMarkdup.out.bam.map{it->[it[0], it[1]]}
+    )
 
-      samtoolsIndexTarget(
-        intersectBed.out.bam
-      )
+    // Reduce to the target for WES analysis
+    intersectBed(
+      sambambaMarkdup.out.bam,
+      bed
+    )
+    chVersions = chVersions.mix(intersectBed.out.versions)
 
-      samtoolsFlagstatTarget(
-        intersectBed.out.bam
-      )
-
-      chVersions = chVersions.mix(intersectBed.out.versions)
-      chBam = intersectBed.out.bam
-      chOnTargetStats = samtoolsFlagstatTarget.out.stats
-    }else{
-      chBam = sambambaMarkdup.out.bam
-      chOnTargetStats = Channel.empty()
-    }
+    samtoolsFlagstatOnTarget(
+      intersectBed.out.bam
+    )
+    chVersions = chVersions.mix(samtoolsFlagstatOnTarget.out.versions)
+    chBam = params.targetBed ? intersectBed.out.bam : sambambaMarkdup.out.bam
 
     // Filter with samtools
     samtoolsFilter(
@@ -60,26 +55,30 @@ workflow bamFiltersFlow {
     samtoolsIndexFilter(
       samtoolsFilter.out.bam
     )
+    chVersions = chVersions.mix(samtoolsIndexFilter.out.versions)
 
     // flagstat
     samtoolsFlagstatFilter(
       samtoolsFilter.out.bam
     )
+    chVersions = chVersions.mix(samtoolsFlagstatFilter.out.versions)
 
     // IdxStats
     samtoolsIdxstats(
       samtoolsFilter.out.bam
     )
+    chVersions = chVersions.mix(samtoolsIdxstats.out.versions)
 
     // Stats
     samtoolsStats(
       samtoolsFilter.out.bam
     )
+    chVersions = chVersions.mix(samtoolsStats.out.versions)
 
     emit:
     bam = samtoolsFilter.out.bam.join(samtoolsIndexFilter.out.bai)
-    //markdupMetrics = sambambaMarkdup.out.metrics
-    ontargetFlagstats = chOnTargetStats.map{it -> it[1]}
+    markdupFlagstats = samtoolsFlagstatMarkdup.out.stats.map{it -> it[1]}
+    onTargetFlagstats = samtoolsFlagstatOnTarget.out.stats.map{it -> it[1]}
     filteringFlagstats  = samtoolsFlagstatFilter.out.stats.map{it -> it[1]}
     idxstats  = samtoolsIdxstats.out.stats
     stats  = samtoolsStats.out.stats

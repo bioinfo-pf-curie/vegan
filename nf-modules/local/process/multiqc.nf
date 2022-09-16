@@ -22,6 +22,7 @@ process multiqc {
   path ('preseq/*')
   path ('preprocessing/*')
   path ('preprocessing/*')
+  path ('preprocessing/*')
   path ('coverage/*')
   path ('coverage/*')
   path ('identito/*')

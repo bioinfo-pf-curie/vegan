@@ -282,7 +282,8 @@ workflow {
     chFastqcMqc = Channel.empty()
     chMappingMqc = Channel.empty()
     chMappingStats = Channel.empty()
-    chOntargetStatsMqc = Channel.empty()
+    chMarkdupStatsMqc = Channel.empty()
+    chOnTargetStatsMqc = Channel.empty()
     chFilteringStatsMqc = Channel.empty()
     chPreseqMqc = Channel.empty()
     chIdentitoMqc = Channel.empty()
@@ -344,7 +345,8 @@ workflow {
         chBed
       )
       chVersions = chVersions.mix(bamFiltersFlow.out.versions)
-      chOntargetStatsMqc = bamFiltersFlow.out.ontargetFlagstats
+      chMarkdupStatsMqc = bamFiltersFlow.out.markdupFlagstats
+      chOnTargetStatsMqc = bamFiltersFlow.out.onTargetFlagstats
       chFilteringStatsMqc = bamFiltersFlow.out.filteringFlagstats
       chFilteredBam = bamFiltersFlow.out.bam
 
@@ -669,7 +671,8 @@ workflow {
       chFragSizeMqc.collect().ifEmpty([]),
       chWgsMetricsMqc.collect().ifEmpty([]),
       chPreseqMqc.collect().ifEmpty([]),
-      chOntargetStatsMqc.collect().ifEmpty([]),
+      chMarkdupStatsMqc.collect().ifEmpty([]),
+      chOnTargetStatsMqc.collect().ifEmpty([]),
       chFilteringStatsMqc.collect().ifEmpty([]),
       chGeneCovMqc.collect().ifEmpty([]),
       chMosdepthMqc.collect().ifEmpty([]),
