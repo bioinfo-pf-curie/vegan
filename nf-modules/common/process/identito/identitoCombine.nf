@@ -11,8 +11,11 @@ process identitoCombine {
   path(matrix)
 
   output:
-  path("*.tsv"), emit: results
+  path("*.tsv"), emit: tsv
   path("versions.txt"), emit: versions
+
+  when:
+  task.ext.when == null || task.ext.when
 
   script:
   """

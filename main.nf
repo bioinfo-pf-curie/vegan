@@ -369,16 +369,14 @@ workflow {
       }
 
       // SUBWORKFLOW: Identito - polym and Monitoring
-      if (!params.skipIdentito){
-        identitoFlow(
-          chFilteredBam,
-          chFasta.collect(),
-          chFastaFai.collect(),
-          chPolyms.collect()
-        )
-        chIdentitoMqc = identitoFlow.out.results.collect()
-        chVersions = chVersions.mix(identitoFlow.out.versions)
-      }
+      identitoFlow(
+        chFilteredBam,
+        chFasta.collect(),
+        chFastaFai.collect(),
+        chPolyms.collect()
+      )
+      chIdentitoMqc = identitoFlow.out.tsv
+      chVersions = chVersions.mix(identitoFlow.out.versions)
 
       //*****************************
       // GATK4 - PRE-PROCESSING

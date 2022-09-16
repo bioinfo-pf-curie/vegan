@@ -25,15 +25,16 @@ workflow identitoFlow {
     chVersions = chVersions.mix(identitoPolym.out.versions)
 
     identitoCombine(
-      identitoPolym.out.polyms.collect()
+      identitoPolym.out.tsv.collect()
     )
     chVersions = chVersions.mix(identitoCombine.out.versions)
 
     identitoClustering(
-      identitoCombine.out.results.collect()
+      identitoCombine.out.tsv.collect()
     )
 
     emit:
+    tsv = identitoCombine.out.tsv
     results = identitoClustering.out.results
     versions  = chVersions
 }
