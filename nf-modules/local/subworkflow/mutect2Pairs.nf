@@ -134,11 +134,11 @@ workflow mutect2PairsFlow {
   bcftoolsNorm(
     chFiltSimple,
     fasta
-    )
+  )
 
   computeTransition(
     bcftoolsNorm.out.vcf
-    )
+  )
 
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 

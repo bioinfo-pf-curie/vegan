@@ -15,8 +15,11 @@ process identitoPolym {
   path(polyms)
 
   output:
-  path("*_matrix.tsv"), emit: polyms
+  path("*_matrix.tsv"), emit: tsv
   path("versions.txt"), emit: versions
+
+  when:
+  task.ext.when == null || task.ext.when
 
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
