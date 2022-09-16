@@ -76,8 +76,8 @@ for sample in $all_samples; do
 
 
   #duplicates
-  if [[ -e MarkDuplicates/${sample}.md.flagstats ]]; then
-    nb_dups=$(grep duplicates MarkDuplicates/${sample}.md.flagstats | awk '{print $1}')
+  if [[ -e preprocessing/${sample}.md.flagstats ]]; then
+    nb_dups=$(grep duplicates preprocessing/${sample}.md.flagstats | awk '{print $1}')
     perc_dups=$(echo "${nb_dups} ${nb_mapped}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
   else
     nb_dups='NA'
