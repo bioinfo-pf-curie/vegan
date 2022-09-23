@@ -282,8 +282,7 @@ workflow {
     chFastqcMqc = Channel.empty()
     chMappingMqc = Channel.empty()
     chMappingStats = Channel.empty()
-    chMarkdupStatsMqc = Channel.empty()
-    chOnTargetStatsMqc = Channel.empty()
+    chOntargetStatsMqc = Channel.empty()
     chFilteringStatsMqc = Channel.empty()
     chPreseqMqc = Channel.empty()
     chIdentitoMqc = Channel.empty()
@@ -350,6 +349,7 @@ workflow {
       chFilteringStatsMqc = bamFiltersFlow.out.filteringFlagstats
       chFilteredBam = bamFiltersFlow.out.bam
 
+
       //*******************************************
       //SUB-WORKFLOW : bamQcFlow
 
@@ -369,14 +369,16 @@ workflow {
       }
 
       // SUBWORKFLOW: Identito - polym and Monitoring
-      identitoFlow(
-        chFilteredBam,
-        chFasta.collect(),
-        chFastaFai.collect(),
-        chPolyms.collect()
-      )
-      chIdentitoMqc = identitoFlow.out.tsv
-      chVersions = chVersions.mix(identitoFlow.out.versions)
+      if (!params.skipIdentito){
+        identitoFlow(
+          chFilteredBam,
+          chFasta.collect(),
+          chFastaFai.collect(),
+          chPolyms.collect()
+        )
+        chIdentitoMqc = identitoFlow.out.results.collect()
+        chVersions = chVersions.mix(identitoFlow.out.versions)
+      }
 
       //*****************************
       // GATK4 - PRE-PROCESSING
@@ -534,7 +536,7 @@ workflow {
   }
 
   // Annotation germline vcf
-  if('snpeff' in tools && params.step != 'annotate'){
+  if('snpeff' in tools && 'haplotypecaller' in tools && params.step != 'annotate'){
     annotateGermlineFlow(
       haplotypeCallerFlow.out.vcfNorm,
       chSnpeffDb,
@@ -566,10 +568,13 @@ workflow {
   }
   //tableReportCh = annotateSomaticFlow.out.vcf.mix(annotateGermlineFlow.out.vcf)
 
-  if('snpeff' in tools && params.step != 'annotate'){
+  if('snpeff' in tools && 'mutect2' in tools && params.step != 'annotate'){
     tableReportFlowSomatic(
       annotateSomaticFlow.out.vcf
     )
+  }
+
+  if('snpeff' in tools && 'haplotypecaller' in tools && params.step != 'annotate'){
     tableReportFlowGermline(
       annotateGermlineFlow.out.vcf
     )
