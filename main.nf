@@ -598,7 +598,7 @@ workflow {
   ================================================================================
   */
 
-  if('msisensor' in tools){
+  if('msisensor' in tools && params.step != 'annotate'){
     msiFlow(
       chPairBam,
       chFasta,
@@ -631,14 +631,14 @@ workflow {
   ================================================================================
   */
 
-  if('facets' in tools){
+  if('facets' in tools && params.step != 'annotate'){
     facetsFlow(
       chPairBam,
       chDbsnp
     )
   }
 
-  if('ascat' in tools){
+  if('ascat' in tools && params.step != 'annotate'){
     ascatFlow(
       chSingleBam,
       chAcLoci,
