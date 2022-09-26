@@ -203,6 +203,5 @@ if(opt$assembly=="mm10" | opt$assembly=="mm9")
 if(opt$assembly=="hg19" | opt$assembly=="hg18")
     tab[which(tab$chrom=="23"),"chrom"]="X"
 
-write.table(tab, paste0(outDir,"/",name,"cnv_segments.transformed.txt"),
+write.table(tab, paste0(outDir,"/",name,"_cnv_segments.transformed.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
-
