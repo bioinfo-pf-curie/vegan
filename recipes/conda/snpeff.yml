@@ -5,4 +5,4 @@ channels:
   - defaults
 dependencies:
   - bioconda::snpeff=5.1=hdfd78af_1
-  - bioconda::tabix=0.2.6=ha92aebf_0
+  - bioconda::tabix=1.11=hdfd78af_0
