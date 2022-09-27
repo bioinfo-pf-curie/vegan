@@ -5,4 +5,4 @@ channels:
   - defaults
 dependencies:
   - bioconda::dragmap=1.2.1=h72d16da_1
-  - bioconda::samtools=1.10=h2e538c0_3
+  - bioconda::samtools=1.15.1=h6899075_1
