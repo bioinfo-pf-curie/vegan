@@ -524,6 +524,8 @@ workflow {
     )
   }
 
+  annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
+
   /*
   ================================================================================
                                          TMB
@@ -532,7 +534,7 @@ workflow {
 
   if('tmb' in tools || params.step == 'annotate'){
     tmbFlow(
-      annotateFlow.out.vcf,
+      chTMB,
       chBed
     )
   }
@@ -603,7 +605,7 @@ workflow {
   // Warnings that will be printed in the mqc report
   chWarn = Channel.empty()
 
-  if (!params.skipMultiQC){
+  if (!params.skipMultiQC && params.step != 'calling' && params.step != 'annotate' ){
     getSoftwareVersions(
       chVersions.unique().collectFile()
     )
