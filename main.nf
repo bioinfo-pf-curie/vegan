@@ -410,7 +410,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
+        def meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
         return [meta, it[1], it[2], it[4], it[5] ]
       }.set{ chPairBam }
 
@@ -420,7 +420,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [status: "tumor", id:it[6], pair_id: it[8], sex:it[9]]
+        def meta = [status: "tumor", id:it[6], pair_id: it[8], sex:it[9]]
         return [meta, it[1], it[2] ]
       }.set{ chTumorBam }
 
@@ -430,7 +430,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [status: "normal", id:it[7], pair_id: it[8], sex:it[9]]
+        def meta = [status: "normal", id:it[7], pair_id: it[8], sex:it[9]]
         return [meta, it[4], it[5] ]
       }.set{ chNormalBam }
     chSingleBam = chNormalBam.mix(chTumorBam)
