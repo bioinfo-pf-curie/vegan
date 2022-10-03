@@ -89,4 +89,4 @@ which allows to simply set the `PATH` environment from which all dependancies mu
 
 ## 4) Reference genomes
 
-See [`docs/reference_genomes.md`](reference_genomes.md)
+See [`docs/referenceGenomes.md`](referenceGenomes.md)
