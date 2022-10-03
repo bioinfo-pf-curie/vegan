@@ -12,7 +12,7 @@ Build a new conda environment before running the pipeline. Use the option `--con
 
 ###  `multiconda`
 
-Build a new conda environment for each process before running the pipeline. Use the option `--condaCacheDir` to change the default conda cache directory.
+Build a new conda environment for each process before running the pipeline. Use the option `--condaCacheDir` to change the default conda cache directory or use existing conda environments.
 
 ###  `path`
 
@@ -22,7 +22,7 @@ Use a global path for all tools. Use the option `--globalPath` to define the pat
 
 Use the paths defined in configuration for each tool.
 
-First, create a folder tree that looks like this 
+First, create a folder tree that looks like this
 
 ```
 ├── path
