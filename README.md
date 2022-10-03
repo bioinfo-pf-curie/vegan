@@ -45,6 +45,10 @@ It comes with conda / singularity containers making installation easier and resu
 17. Tumor Mutational Burden ([`pyTMB`](https://github.com/bioinfo-pf-curie/TMB))
 18. Present all QC results in a final report ([`MultiQC`](http://multiqc.info/))
 
+### Flowchart
+
+![vegan flowchart](docs/images/flowchart.jpg)
+
 ### Quick help
 
 ```bash
