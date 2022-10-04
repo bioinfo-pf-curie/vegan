@@ -23,6 +23,6 @@ workflow tmbFlow {
   chVersions = chVersions.mix(tmb.out.versions)
 
   emit:
-  logs = tmb.out.tmb
+  report = tmb.out.tmb
   versions = chVersions
 }

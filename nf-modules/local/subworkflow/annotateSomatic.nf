@@ -102,5 +102,6 @@ workflow annotateSomaticFlow {
 
   emit:
   vcf = chAnnotVcf
+  snpEffReport = snpEff.out.report
   versions = chVersions
 }

@@ -28,6 +28,10 @@ process multiqc {
   path ('identito/*')
   path ('vcfMetrics/*')
   path ('vcfMetrics/*')
+  path ('tstv/*')
+  path ('snpEff/*')
+  path ('msi/*')
+  path ('tmb/*')
   path ('softwareVersions/*')
   path ('workflowSummary/*')
   path warnings
