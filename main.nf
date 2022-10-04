@@ -287,6 +287,8 @@ workflow {
     chWgsMetricsMqc = Channel.empty()
     chHaplotypecallerMetricsMqc = Channel.empty()
     chMutect2MetricsMqc = Channel.empty()
+    chTsTvMqc = Channel.empty()
+    chSnpEffMqc = Channel.empty()
 
     // subroutines
     outputDocumentation(
@@ -461,6 +463,7 @@ workflow {
       )
       chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
       chHaplotypecallerMetricsMqc = haplotypeCallerFlow.out.mqc
+      chTsTvMqc = haplotypeCallerFlow.out.transition
       chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
     }
 
@@ -482,6 +485,7 @@ workflow {
       )
       chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
       chMutect2MetricsMqc = mutect2PairsFlow.out.mqc
+      chTsTvMqc = chTsTvMqc.mix(mutect2PairsFlow.out.transition)
       chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
     }
   }
@@ -509,6 +513,7 @@ workflow {
       chDbnsfp,
       chDbnsfpIndex
     )
+    chSnpEffMqc = annotateFlow.out.snpEffReport
   }
 
 
@@ -629,6 +634,8 @@ workflow {
       chIdentitoMqc.collect().ifEmpty([]),
       chHaplotypecallerMetricsMqc.collect().ifEmpty([]),
       chMutect2MetricsMqc.collect().ifEmpty([]),
+      chTsTvMqc.collect().ifEmpty([]),
+      chSnpEffMqc.collect().ifEmpty([]),
       getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
       workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
       chWarn.collect().ifEmpty([])
