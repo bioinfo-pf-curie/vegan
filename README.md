@@ -25,27 +25,36 @@ It comes with conda / singularity containers making installation easier and resu
 8. Calculate genes and genome coverage ([`mosdepth`](https://github.com/brentp/mosdepth))
 9. Identity monitoring and samples similarity ([`bcftools`](http://samtools.github.io/bcftools/bcftools.html) / [`R`](https://www.r-project.org/))
 10. GATK preprocessing ([`GATK`](https://gatk.broadinstitute.org/hc/en-us/articles/360035890531-Base-Quality-Score-Recalibration-BQSR-))
-11. Germline Variants calling ([`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller))
+11. Germline Variants calling ([`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller) / [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
   - HaplotypeCaller
   - GenotypeGVCFs
-12. Somatic Variants calling ([`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2))
+  - bcftools norm
+12. Somatic Variants calling ([`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) / [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
   - Mutect2
   - MergeMutectStats
+  - learnReadOrientationModel
   - GetPileupSummaries
   - GatherPileupSummaries
   - CalculateContamination
   - FilterMutectCalls
-13. Variants annotation ([`snpeff`](https://pcingola.github.io/SnpEff/))
+  - bcftools norm
+13. Variants annotation ([`SnpEff`](https://pcingola.github.io/SnpEff/) / [`SnpSift`](https://github.com/pcingola/SnpSift))
 14. Copy-number analysis ([`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software), [`FACETS`](https://github.com/mskcc/facets))
 15. Structural variants analysis ([`MANTA`](https://github.com/Illumina/manta))
-16. Present all QC results in a final report ([`MultiQC`](http://multiqc.info/))
+16. Microsatellite instability analysis ([`MSIsensor-pro`](https://github.com/xjtu-omics/msisensor-pro))
+17. Tumor Mutational Burden ([`pyTMB`](https://github.com/bioinfo-pf-curie/TMB))
+18. Present all QC results in a final report ([`MultiQC`](http://multiqc.info/))
+
+### Flowchart
+
+![vegan flowchart](docs/images/flowchart.jpg)
 
 ### Quick help
 
 ```bash
->>nextflow ~/GitLab/vegan/main.nf --help
-N E X T F L O W  ~  version 20.10.0
-Launching `/data/users/nservant/GitLab/vegan/main.nf` [ridiculous_borg] - revision: a44a457623
+nextflow run main.nf --help
+N E X T F L O W  ~  version 21.10.6
+Launching `/bioinfo/users/tgutman/Documents/Tom/Pipelines/new_vegan/vegan/main.nf` [lethal_torricelli] - revision: 4d570988d2
 ------------------------------------------------------------------------
 
     _   _   _____          __     __  _____    ____      _      _   _
@@ -55,124 +64,129 @@ Launching `/data/users/nservant/GitLab/vegan/main.nf` [ridiculous_borg] - revisi
    |_| \_| |_|                \_/    |_____|  \____| /_/   \_\ |_| \_|
 
 
-                   VEGAN v1.0.0
+                   VEGAN v2.0.0dev
 ------------------------------------------------------------------------
-========================================================================
-Usage:
 
-The typical command for running the pipeline is as follows:
+    Usage:
 
-nextflow run main.nf --reads/--samplePlan PATH --design PATH --profile STRING --genome STRING
+    The typical command for running the pipeline is as follows:
+
+    nextflow run main.nf --profile STRING --samplePlan PATH --design PATH --step STRING --genome STRING --genomeAnnotationPath PATH
 
 MANDATORY ARGUMENTS:
-    --design     PATH                                                                              Path to design file specifying the metadata associated with the samples
-    --genome     STRING [hg19, hg38]                                                               Name of the reference genome.
-    --profile    STRING [conda, cluster, docker, multiconda, conda, path, multipath, singularity]  Configuration profile to use. Can use multiple (comma separated).
-    --reads      PATH                                                                              Path to input data (must be surrounded with quotes)
-    --samplePlan PATH                                                                              Path to sample plan (csv format) with raw reads (if `--reads` is not specified), or intermediate 
-                                                                                                   files according to the `--step` parameter
+    --design                   PATH                                                                              Path to designf ile specifying the metadata ssociated with the samples
+    --genome                   STRING [hg19, hg19_base, hg38, hg38_base, mm10, mm39,...]                         Name of the reference genome.
+    --genomeAnnotationPath PATH                                                                                  PATH to the reference genome folder.
+    --profile                  STRING [test, multiconda, singularity, cluster, docker, conda, path, multipath]   Configuration profile to use. Can use multiple (comma separated).
+    --samplePlan               PATH                                                                              Path to sample plan (csv format) raw reads (if `--reads` is not secified), or intermediate files according to the `--step` parameter
+    --step                     STRING [mapping, filtering, calling, annotate]                                    Specify starting step
 
 MAIN OPTIONS:
-    --noIntervals                                                                   Disable usage of intervals
-    --step        STRING [mapping, recalibrate, variantcalling]                     Specify starting step
-    --tools       STRING [facets, ascat, haplotypecaller, manta, mutect2, snpeff]   Specify tools to use for variant calling
-    --singleEnd                                                                     For single-end input data
+    --outDir                   PATH                                                                              The output directory where the results will be saved
+    --reads                    PATH                                                                              Path to input data (must be surrounded with quotes)
+    --targetBed                PATH                                                                              Target Bed file for targeted or whole exome sequencing
+    --tools                    STRING [haplotypecaller, mutect2, manta, snpeff, facets, ascat, tmb, msisensor]   Specify tools to use for variant calling
 
 ALIGNMENT:
-    --bwaOptions               STRING    Define BWA-mem option for read mapping
-    --saveAlignedIntermediates           Save intermediates alignment files
+    --aligner                  STRING [bwa-mem, bwa-mem2, dragmap]   Specify tools to use for mapping
+    --mapQual                  INTEGER                               inimum mapping quality to consider for an alignment
+    --saveAlignedIntermediates                                       Save intermediates alignment files
 
 FILTERING:
-    --targetBed  PATH                                              Target Bed file for targeted or whole exome sequencing
-    --SNVFilters STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SNV
-    --SVFilters  STRING [mapq, duplicates, singleton, multihits]   Specify which filter(s) to use for SV
-    --mapQual    INTEGER                                           Minimum mapping quality
+    --keepDups                                                       Specify to keep duplicate reads when filtering the alignment
+    --keepMultiHits                                                  Specify to keep multi hit reads when filtering the alignment
+    --keepSingleton                                                  Specify to keep singleton reads when filtering the alignment
 
 VARIANT CALLING:
-    --baseQual INTEGER   Minimum base quality used by Facets for CNV calling
-    --saveGVCF           Save gvcf output from HaplotypeCaller
+    --baseQual                 INTEGER                               Minimum base quality used by Facets for CNV calling
+    --orientationBiais                                               Specify to use the orientation Biais filter for Mutect2 calls (for FFPE samples)
+    --saveVcfIntermediates                                           Save intermediate vcf files
+    --saveVcfMetrics                                                 Save complementary vcf metrics files
+
+
+ANNOTATION:
+    --annotDb STRING [cosmic, icgc, cancerhotspots, gnomad, dbnsfp]   Annotation databases to use with SnpEff and SnpSift
+    --ffpe                                                            Specify to use the ffpe parameters and filters for TMB computation
 
 SKIP OPTIONS:
-    --skipBQSR               Disable BQSR
-    --skipIdentito           Disable Identito
-    --skipMultiqc            Disable MultiQC
-    --skipPreseq             Disable Preseq
-    --skipQC                 Disable all QCs
-
-REFERENCES:
-    --acLoci                PATH     acLoci file
-    --acLociGC              PATH     acLociGC file
-    --bwaIndex              PATH     BWA indexes for reads alignment
-    --dbsnp                 PATH     DBSNP file
-    --dbsnpIndex            PATH     DBSNP index file
-    --dict                  PATH     Dict from the fasta reference
-    --fasta                 PATH     Fasta reference
-    --fastafai              PATH     Fasta reference index
-    --germlineResource      PATH     Germline Resource File
-    --germlineResourceIndex PATH     Germline Resource Index File
-    --intervals             PATH     List of genomic intervals to split the processing
-    --knownIndels           PATH     knownIndels File
-    --knownIndelsIndex      PATH     knownIndels Index File
-    --pon                   PATH     Panel-of-normals VCF (bgzipped, indexed)
-    --ponIndex              PATH     Index of pon panel-of-normals VCF
-    --snpEffCache           PATH     Specity the path to snpEff cache
-    --snpeffDb              STRING   snpeffDb version. Initialized from genomes configuration by default
+    --skipBQSR                                                        Disable BQSR
+    --skipFastqc                                                      Disable Fastqc
+    --skipIdentito                                                    Disable Identito
+    --skipMultiqc                                                     Disable MultiQC
+    --skipPreseq                                                      Disable Preseq
+    --skipQC                                                          Disable all QCs
 
 OTHER OPTIONS:
-    --multiqcConfig        PATH      Specify a custom config file for MultiQC
-    --name                 STRING    Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
-    --nucleotidesPerSecond DECIMAL   To estimate interval size
-    --outDir               PATH      The output directory where the results will be saved
-    --sequencingCenter     STRING    Name of sequencing center to be displayed in BAM file
-======================================================================
+    --multiqcConfig            PATH                                   Specify a custom config file for MultiQC
+    --name                     STRING                                 Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
+    --nucleotidesPerSecond     DECIMAL                                To estimate interval size
+    --sequencingCenter         STRING                                 Name of sequencing center to be displayed in BAM file
+    --singleEnd                                                       For single-end input data
 
-    Available Profiles
-      -profile test                     Run the test dataset
-      -profile conda                    Build a new conda environment before running the pipeline. Use `--condaCacheDir` to define the conda cache path
-      -profile multiconda               Build a new conda environment per process before running the pipeline. Use `--condaCacheDir` to define the conda cache path
-      -profile path                     Use the installation path defined for all tools. Use `--globalPath` to define the insallation path
-      -profile multipath                Use the installation paths defined for each tool. Use `--globalPath` to define the insallation path
-      -profile docker                   Use the Docker images for each process
-      -profile singularity              Use the Singularity images for each process. Use `--singularityPath` to define the insallation path
-      -profile cluster                  Run the workflow on the cluster, instead of locally
-
+=======================================================
+Available Profiles
+   -profile test                        Run the test dataset
+   -profile conda                       Build a new conda environment before running the pipeline. Use `--condaCacheDir` to define the conda cache path
+   -profile multiconda                  Build a new conda environment per process before running the pipeline. Use `--condaCacheDir` to define the conda cache path
+   -profile path                        Use the installation path defined for all tools. Use `--globalPath` to define the insallation path
+   -profile multipath                   Use the installation paths defined for each tool. Use `--globalPath` to define the insallation path
+   -profile docker                      Use the Docker images for each process
+   -profile singularity                 Use the Singularity images for each process. Use `--singularityPath` to define the insallation path
+   -profile cluster                     Run the workflow on the cluster, instead of locally
 ```
-
 ### Quick run
 
 The pipeline can be run on any infrastructure from a list of input files or from a sample plan as follow
 
 #### Run the pipeline on the test dataset
-See the conf/test.conf to set your test dataset.
+
+The test dataset is a downsampled Whole Exome Sequencing.
+It can be launched with the following command.
 
 ```
-nextflow run main.nf -profile test,multiconda --genomeAnnotationPath ANNOTATION_PATH
+nextflow run main.nf -profile test,multiconda \
+   --step mapping \ # or filtering, calling, annotate
+   --condaCacheDir /bioinfo/local/curie/ngs-data-analysis/centos/tools/containers/conda/vegan-2.0.0/ \
+   --genomeAnnotationPath /data/annotations/pipelines/
+```
+
+#### Run the pipeline for WES analysis from a sample plan with specified tools and genome on the cluster, using singularity containers
+
+```
+nextflow run main.nf -profile singularity,cluster \
+    --samplePlan samples-WES.csv \
+    --design samples.design.csv \
+    --step mapping \
+    --singularityImagePath /bioinfo/local/curie/ngs-data-analysis/centos/tools/containers/singularity/vegan-2.0.0/images/ \
+    --targetBed capture.bed \
+    --tools manta,mutect2,snpeff,facets,tmb,haplotypecaller,msisensor \
+    --genome hg19 --genomeAnnotationPath /data/annotations/pipelines/ \
+    -resume
+```
+
+
+#### Run the pipeline on the cluster, using existing conda
+
+```
+nextflow run main.nf -profile multiconda,cluster \
+    --samplePlan samples-WES.csv \
+    --design samples.design.csv \
+    --step mapping \
+    --targetBed capture.bed \
+    --tools manta,mutect2,snpeff,facets,tmb,haplotypecaller,msisensor,ascat \
+    --genome hg19_base \
+    --genomeAnnotationPath /data/annotations/pipelines/ \
+    --condaCacheDir /bioinfo/local/curie/ngs-data-analysis/centos/tools/containers/conda/vegan-1.2.0/ \
 
 ```
 
-#### Run the pipeline for WES analysis using singularity containers
-
-```
-nextflow run main.nf -profile singularity,cluster --input samples-WES.tsv --targetBed capture.bed --tools mutect2,snpeff --genome hg19 -resume
-```
-
-#### Run the pipeline from a sample plan with specified tools and genome on the cluster, using the Singularity containers
-
-```
-nextflow run main.nf -profile singularity,cluster --input samples-WGS.tsv --tools manta,mutect2,haplotypecaller,ascat,snpeff --genome hg19 -resume
-
-```
-
-#### Run the pipeline on the cluster, building a new conda environment
-
-```
-nextflow run main.nf -profile multiconda,cluster --input samples-WGS.tsv --tools manta,mutect2,haplotypecaller,ascat,snpeff --genome hg38 -resume
-
-```
+To build new conda environments, point to an empty folder for `--condaCacheDir` parameter
 
 #### Defining the '-profile'
 By default (whithout any profile), Nextflow will excute the pipeline locally, expecting that all tools are available from your `PATH` variable.
-In addition, we set up a few profiles that should allow you i/ to use containers instead of local installation, ii/ to run the pipeline on a cluster instead of on a local architecture.
+In addition, we set up a few profiles that should allow you
+- 1) to use containers instead of local installation,
+- 2) to run the pipeline on a cluster instead of on a local architecture.
 The description of each profile is available on the help message (see above).
 
 Here are a few examples of how to set the profile option. See the [full documentation](docs/profiles) for details.
@@ -182,10 +196,10 @@ Here are a few examples of how to set the profile option. See the [full document
 -profile path --globalPath INSTALLATION_PATH
 
 ## Run the pipeline on the cluster, using the Singularity containers
--profile cluster,singularity --singularityPath SINGULARITY_PATH
+-profile cluster,singularity --singularityImagePath SINGULARITY_PATH
 
-## Run the pipeline on the cluster, building a new conda environment
--profile cluster,conda --condaCacheDir CONDA_CACHE
+## Run the pipeline on the cluster, building new conda environments
+-profile cluster,multiconda --condaCacheDir CONDA_CACHE
 
 ```
 #### Sample Plan
@@ -217,7 +231,7 @@ If the design file is not specified, the pipeline will run until the alignment. 
 
 #### Credits
 
-This pipeline has been written by the Institut Curie bioinformatics platform (F. Allain, T. Gutman, P. La Rosa, P. Hupe, N. Servant) and was funded by the European Union’s Horizon 2020 research and innovation programme and the Canadian Institutes of Health Research under the grant agreement No 825835 in the framework of the [European-Canadian Cancer Network](https://eucancan.com/)
+This pipeline has been written by the Institut Curie bioinformatics platform (T. Gutman, F. Allain, , P. La Rosa, P. Hupe, N. Servant) and was funded by the European Union’s Horizon 2020 research and innovation programme and the Canadian Institutes of Health Research under the grant agreement No 825835 in the framework of the [European-Canadian Cancer Network](https://eucancan.com/)
 
 #### Contacts
 
