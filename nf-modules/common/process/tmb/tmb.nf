@@ -29,7 +29,7 @@ process tmb {
       --dbConfig ${dbconfig} \
       --varConfig ${varconfig} \
       ${target_bed} \
-      $args > ${meta.tumor_id}"_vs_"${meta.normal_id}"_tmb.txt"
+      $args > ${prefix}_tmb.txt
 
   pyTMB.py --version > versions.txt
   """
