@@ -7,9 +7,9 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/)
 and processes whole-exome sequencing (WES), or whole-genome sequencing (WGS) data following the steps presented in the main README file.
 
 Briefly, the workflow runs several quality controls from the raw and aligned data in order to validate both frozen and FFPE samples.
-Then, several tools can be run in order to detect germline single nucleotide variants (SNVs) with [`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller), somatic SNVs with [`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2), structural variants (SVs) with [`MANTA`](https://github.com/Illumina/manta) or copy number variants (CNV) with [`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software) and [`FACETS`](https://github.com/mskcc/facets).
+Then, several tools can be run in order to detect germline single nucleotide variants (SNVs) with [`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller), somatic SNVs with [`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2), structural variants (SVs) with [`MANTA`](https://github.com/Illumina/manta) or copy number variants (CNV) with [`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software) and [`FACETS`](https://github.com/mskcc/facets). Finaly, complementary analysis based on variant calling can also be performed. Annotation can be done with [`SnpEff`](https://pcingola.github.io/SnpEff/) and [`SnpSift`](https://github.com/pcingola/SnpSift). Tumor Mutational Burden is assessed with [`pyTMB`](https://github.com/bioinfo-pf-curie/TMB) tool and Microsatellite Instability is assesed with [`MSIsensor-pro`](https://github.com/xjtu-omics/msisensor-pro).
 
-The directories listed below will be created in the output directory after the pipeline has finished. 
+The directories listed below will be created in the output directory after the pipeline has finished.
 
 
 ## FastQC
@@ -17,10 +17,10 @@ The directories listed below will be created in the output directory after the p
 
 For further reading and documentation see the [FastQC help](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/Help/).
 
-> **NB:** The FastQC plots displayed in the MultiQC report shows the input reads. In theory, they should be already trimmed for adapter sequence and potentially regions with low quality. 
+> **NB:** The FastQC plots displayed in the MultiQC report shows the input reads. In theory, they should be already trimmed for adapter sequence and potentially regions with low quality.
 For details about reads trimming, see the `raw_qc` pipeline.
 
-**Output directory: `preprocessing/metrics/fastqc`**
+**Output directory: `fastqc`**
 
 * `[SAMPLE]_fastqc.html`
   * FastQC report, containing quality metrics for your untrimmed raw fastq files
@@ -32,7 +32,7 @@ For details about reads trimming, see the `raw_qc` pipeline.
 
 ### Alignment
 
-Raw reads are aligned on the reference genome with `BWA-mem`. The mapping statistics (`Total Reads`, `Aligned Reads`, `High-Quality Alignment`, `Low-Quality Alignment`) are also presented in the main summary table.  
+Raw reads are aligned on the reference genome by default with `BWA-mem`. The mapping statistics (`Total Reads`, `Aligned Reads`, `High-Quality Alignment`, `Low-Quality Alignment`) are also presented in the main summary table.  
 Note that if multiple sequencing lanes from the same samples (same sampleID, sampleName) are specified, the bam files are merged just after `BWA-mem`.
 
 **Output directory: `preprocessing/bams/bwa/`**
@@ -44,21 +44,21 @@ The mapping statistics are presented in the MultiQC report as follows.
 In general, we expect more than 80% of aligned reads. Samples with less than 50% of mapped reads should be further investigated, and check for adapter content, contamination, etc.
 
   >**NB:** Note that by default, these mapping files are not saved. Use `--saveAlignedIntermediates` to save them.
-  
+
   ![MultiQC - Bowtie2 stats plot](images/bwalogs.png)
 
 ### Duplicates
 
-[Sambamba](https://lomereiter.github.io/sambamba/) is used to mark the duplicates. 
+[Sambamba](https://lomereiter.github.io/sambamba/) is used to mark the duplicates.
 The results are presented in the `General Metrics` table.
 
-**Output directory: `preprocessing/bams/markDuplicates`** 
+**Output directory: `preprocessing/bams/markDuplicates`**
 
 * `[SAMPLE].md.bam`
   * Aligned reads marked for duplicates
 * `stats/[SAMPLE].md.flagstats`
   * Number of alignments for each FLAG type
-  
+
   >**NB:** Note that by default, these mapping files are not saved. Use `--saveAlignedIntermediates` to save them.
 
 ### Reads on target
@@ -66,36 +66,35 @@ The results are presented in the `General Metrics` table.
 In the context of WES analysis, the aligned reads are intersected with their targets, defined with the `--targetBed` parameter.
 The percentage of reads on targets are presented in the `General Metrics` table.
 
-**Output directory: `preprocessing/bams/onTarget`** 
+**Output directory: `preprocessing/bams/onTarget`**
 
 * `[SAMPLE].onTarget.bam`
   * Aligned reads restricted to the genomic targets.
 * `stats/[SAMPLE].onTarget.flagstat`
   * Number of alignments for each FLAG type
-  
+
   >**NB:** Note that by default, these mapping files are not saved. Use `--saveAlignedIntermediates` to save them.
 
 ### Filtering
 
 Aligned reads are then filtered-out in order to remove non informative reads for the downstream analysis.  
-Importantly, `VEGAN` allows to precisely defined the filtering strategy for both SNV/CNV analysis (`--SNVFilters`) **and** for SV analysis (`--SVFilters`).
 
 The aligned reads can be filtered out as follow :
 - `mapq` : discard reads aligned with a mapping quality lower than `--mapQual`
-- `duplicates` : discard reads flagged as duplicates
-- `singleton` : discard reads for which the paired mate is not aligned
-- `multihits` : discard reads aligned several times on the genome
+- `--keepDups false` : discard reads flagged as duplicates
+- `--keepSingleton false` : discard reads for which the paired mate is not aligned
+- `--keepMultiHits` : discard reads aligned several times on the genome
 
-By default the SNVFilters is defined to remove low mapq and dupicated reads, while the SVFilters only remove duplicated reads.  
+By default the filters are defined to remove low mapq, dupicated, singleton and multi hit reads.  
 The fraction of remaining reads after filtering is also presented in the `General Metrics` table.
 
 **Output directory: `preprocessing/bams/filtering/`**
 
-* `[SAMPLE].filtered.[SNV/SV].bam` and `[SAMPLE].filtered.[SNV/SV].bam.bai`
+* `[SAMPLE].filtered.bam` and `[SAMPLE].filtered.bam.bai`
   * Aligned and filtered reads with BAM index
-* `[SAMPLE].filtered.[SNV/SV].idxstats`
+* `[SAMPLE].filtered.idxstats`
   * Alignment summary statistics
-* `[SAMPLE].filtered.[SNV/SV].flagstats`
+* `[SAMPLE].filtered.flagstats`
   * Number of alignments for each FLAG type
 
 ## Quality controls
@@ -110,9 +109,9 @@ The [Preseq](http://smithlabresearch.org/software/preseq/) package is aimed at p
 
 * `[SAMPLE]_ccurve.txt`
   * Preseq expected future yield file.
-  
+
   ![MultiQC - Preseq library complexity plot](images/preseq_plot.png)
-  
+
 ### Fragment length
 
 The fragment length is calculated from paired-end reads as the distance between the two mates with [`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-). The mean value is presented in the `General Metrics` table and the distribution is presented by MultiQC as follow :
@@ -131,14 +130,14 @@ The fragment length is calculated from paired-end reads as the distance between 
 The mean sequencing depth and the percentage of the genome (or targets) covered at soem threshold (X) are calculated with [`mosdepth`](https://github.com/brentp/mosdepth).  
 The coverage at 30X, 50X (hidden column) and 100X are available in the `General Metrics` table.
 
-  ![MultiQC - Sequencing depth and genomic coverage](images/mosdepth-coverage-dist-id.png) 
+  ![MultiQC - Sequencing depth and genomic coverage](images/mosdepth-coverage-dist-id.png)
 
 In addition, the same analysis is repeated for exonic regions only. In the context of WES analysis, only the exonic regions overlapping with the targets are used.  
 The results are presented in the 'Genes Coverage' section of the MultiQC report.
 
   ![MultiQC - Sequencing depth and genes coverage](images/genescov.png)
 
-**Output directory: `preprocessing/metrics/depth`** 
+**Output directory: `preprocessing/metrics/depth`**
 
 * `*global*` files are the `mosdepth` outputs for stantard coverage on the genome
 * `*regions*` files are the `mosdepth` outputs for the gene coverage
@@ -152,16 +151,16 @@ In the case of FFPE samples for which the fragment size is usually smaller, this
 ### Identity monitoring
 
 In order to check the association between pairs of normal/tumor samples, a list of common SNPs (`--polym`) is used to cluster all the samples.  
-The results are displayed as a heatmap with a color code representing the distance (1 - Jaccard) between two samples.
+The results are displayed as a dendrogram.
 
-**Output directory: `preprocessing/metrics/identito`** 
+**Output directory: `Identito`**
 
 * `[SAMPLE].matrix.tsv`
   * results of the SNPs calling for the list of SNPs
 * `clustering_plot_identito.csv`
-  * distance matrix between each sample
+  * Identito dendrogram
 
-  ![MultiQC - Sequencing depth and genes coverage](images/identito.png)
+  ![MultiQC - Sequencing depth and genes coverage](images/clustering_identito.png)
 
 ## SNVs calling
 
@@ -180,7 +179,6 @@ These files are used as inputs of all germline and somatic SNVs calling.
 
 Germline variants are then called using [`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller) following good practices (HaplotypeCaller, GenotypeGVCFs).
 The number of detected variants are presented as a table in the MultiQC report.  
-Note that by default the `gvcf` files are not stored unless the option `--saveGVCF` is used.
 
 **Output directory: `HaplotypeCaller`**
 
@@ -190,52 +188,58 @@ Note that by default the `gvcf` files are not stored unless the option `--saveGV
 ### Somatic mutations
 
 The somatic mutations calling requires pairs of normal/tumor samples defined in the `design` file.  
-The [`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) tool is used to call somatic variants following the GATK good practices (Mutect2, MergeMutectStats, GetPileupSummaries, GatherPileupSummaries, CalculateContamination, FilterMutectCall).
+The [`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) tool is used to call somatic variants following the GATK good practices (Mutect2, MergeMutectStats, GetPileupSummaries, GatherPileupSummaries, CalculateContamination, LearnReadOrientationModel, FilterMutectCall).
 
-**Output directory: `Mutect2`** 
+**Output directory: `Mutect2`**
 
 * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_unfiltered.vcf.gz` and `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_unfiltered.vcf.gz.tbi`
   * Mutect2 somatic variants before filtering with Tabix index
 * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered.vcf.gz` and `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered.vcf.gz.tbi`
   * Mutect2 somatic variants after filtering with Tabix index
-
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered_pass_norm.vcf.gz` and `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered_pass_norm.vcf.gz.tbi`
+  * Mutect2 somatic variants after filtering for PASS variants only and normalization with `bcftools norm` and with Tabix index
 
 ### Transition/Transversion
 
 For each filtered vcf files, the current workflow calculate the number of transition (A>G,T>C,C>T,G>A), transversions (A>C,T>G,C>A,G>T,A>T,T>A,C>G,G>C) and short insertions/delations (indels).
 The results are available as table and presented in MultiQC.
 
-**Output directory: `HaplotypeCaller/transition`** 
+**Output directory: `HaplotypeCaller/[SAMPLE]/tstv`**
 
 * `[SAMPLE]_filtered.vcf.Mutect2.table.tsv`
   * Number of bases substitution and indels for each type
 
-**Output directory: `Mutect2/transition`**
+**Output directory: `Mutect2/[SAMPLE]/tstv`**
 
 * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_filtered.vcf.Mutect2.table.tsv`
   * Number of bases substitution and indels for each type
-  
+
 
   ![MultiQC - Transition/Transversion/Indels](images/transition.png)
 
 ### Variants annotation
 
-Each filtered VCF file is then annotated using [`snpeff`](https://pcingola.github.io/SnpEff/).
+Each filtered VCF file is then annotated using [`snpeff`](https://pcingola.github.io/SnpEff/) and [`SnpSift`](https://github.com/pcingola/SnpSift).
 All annotated vcf files are saved and the following summary metrics are displayed in MultiQC.
 
-**Output directory: `HaplotypeCaller/snpEff`**
+**Output directory: `snpEff/[SAMPLE]`**
 
-* `[SAMPLE]_HaplotypeCaller_snpeff.ann.vcf.gz`
-  * HaplotypeCaller annotated variants
-  
-**Output directory: `Mutect2/snpEff`**
+* `[SAMPLE]_snpeff.ann.vcf.gz`
+  * annotated variants with SnpEff
+* `[SAMPLE]_dbNSFP.vcf.gz`
+  * annotated variants with SnpSift and DBNSFP database
+* `[SAMPLE]_GnomAD.vcf.gz`
+  * annotated variants with SnpSift and Gnomad database
+* `[SAMPLE]_CancerHotspots.vcf.gz`
+  * annotated variants with SnpSift and CancerHotspots database
+* `[SAMPLE]_ICGC.vcf.gz`
+  * annotated variants with SnpSift and ICGC database
+* `[SAMPLE]_COSMIC.vcf.gz`
+  * annotated variants with SnpSift and COSMIC database
 
-* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered_snpeff.ann.vcf.gz`
-  * Mutect2 filtered and annotated somatic variants
+![MultiQC - SnpEff - variants by genomic region](images/snpeff_variant_effects_region.png)
 
-![MultiQC - SnpEff - variants by genomic region](images/snpeff_variant_effects_region.png) 
-
-![MultiQC - SnpEff - variants by impact](images/snpeff_variant_effects_impact.png) 
+![MultiQC - SnpEff - variants by impact](images/snpeff_variant_effects_impact.png)
 
 ![MultiQC - SnpEff - variants by effect types](images/snpeff_effects.png)
 
@@ -249,10 +253,12 @@ ASCAT and Facets are two software for performing allele-specific copy number ana
 
 **Output directory: `Facets`**
 
-* `[TUMORSAMPLE]_subclonal_allele_spe_cnv_[CELLULARITY]cellularity_[PLOIDY]ploidy.txt`
-  * Facets main table results
-* `[TUMORSAMPLE]_subclonal_allele_spe_cnv_[CELLULARITY]cellularity_[PLOIDY]ploidy.pdf`
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_cnv_amp_del.txt`
+  * list of amplification and deletion of potential interest.
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_cnv.pdf`
   * CNVs plot
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_cnv_ploidy_cellularity.txt`
+  * table with cellularity and ploidy for this sample.
 
 **Output directory: `ASCAT`**
 
@@ -275,7 +281,7 @@ ASCAT and Facets are two software for performing allele-specific copy number ana
 * `[TUMORSAMPLE].LogR.PCFed.txt`
   * file with information about LogR
 * `[TUMORSAMPLE].BAF.PCFed.txt`
-  * file with information about BAF	
+  * file with information about BAF
 * `[TUMORSAMPLE].purityploidy.txt`
   * file with information about purity ploidy
 
@@ -289,7 +295,7 @@ The output is a tab delimited text file with the following columns:
 
 ## SVs calling
 
-Structural variants and indels are called using [`MANTA`](https://github.com/Illumina/manta) with or without matched control.
+Structural variants and indels are called using [`MANTA`](https://github.com/Illumina/manta) with matched control.
 It is optimized for analysis of germline variation in small sets of individuals and somatic variation in tumor/normal sample pairs.
 
 For all samples :
@@ -321,6 +327,33 @@ For Tumor/Normal pair :
     * `VCF` with Tabix index
   * `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].somaticSV.vcf.gz` and `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].somaticSV.vcf.gz.tbi`
     * `VCF` with Tabix index
+
+## Complementary analysis:
+### Microsatellite instability
+
+Mictosatellite instability is assesed with [`MSIsensor-pro`](https://github.com/xjtu-omics/msisensor-pro).
+
+**Output directory: `MSI/[SAMPLE]`**
+  * `[SAMPLE]`
+    * The final report contain all detected microsatellites , the unstable(somatic) microsatellites and the MSI score.
+  * `[SAMPLE]_dis`
+  * `[SAMPLE]_germline`
+  * `[SAMPLE]_somatic`
+
+### TMB
+Tumor Mutational Burden is assesed with [`pyTMB`](https://github.com/bioinfo-pf-curie/TMB)?
+
+**Output directory: `MSI/[SAMPLE]`**
+  * `[SAMPLE]_tmb.txt`
+    * results file
+
+### Table Report
+
+This final step transforms the fully annotated vcf into a tabulated file to ease the analysis of the results.
+
+**Output directory: `tableReport/[SAMPLE]`**
+  * `[SAMPLE].tsv`
+    * results file
 
 ## MultiQC
 
