@@ -289,6 +289,8 @@ workflow {
     chMutect2MetricsMqc = Channel.empty()
     chTsTvMqc = Channel.empty()
     chSnpEffMqc = Channel.empty()
+    chMSIMqc = Channel.empty()
+    chTMBMqc = Channel.empty()
 
     // subroutines
     outputDocumentation(
@@ -542,6 +544,7 @@ workflow {
       chTMB,
       chBed
     )
+    chTMBMqc = tmbFlow.out.report.map{it->it[1]}
   }
 
   /*
@@ -556,6 +559,7 @@ workflow {
       chFasta,
       chBed
     )
+    chMSIMqc = msiFlow.out.report.map{it->it[1]}
   }
 
   /*
@@ -636,6 +640,8 @@ workflow {
       chMutect2MetricsMqc.collect().ifEmpty([]),
       chTsTvMqc.collect().ifEmpty([]),
       chSnpEffMqc.collect().ifEmpty([]),
+      chMSIMqc.collect().ifEmpty([]),
+      chTMBMqc.collect().ifEmpty([]),
       getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
       workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
       chWarn.collect().ifEmpty([])

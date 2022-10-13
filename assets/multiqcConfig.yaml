@@ -294,6 +294,28 @@ custom_data:
             id: 'transition'
             scale: 'Set1'
 
+    tmb:
+        file_format: 'csv'
+        section_name: 'TMB'
+        description: 'Tumor Mutational Burden'
+        plot_type: 'bargraph'
+        pconfig:
+            namespace: 'tmb'
+            title: 'TMB'
+            id: 'tmb'
+            scale: 'Set1'
+
+    msi:
+        file_format: 'csv'
+        section_name: 'MSI'
+        description: 'Microsatellite instability extracted from MSIsensor-pro'
+        plot_type: 'bargraph'
+        pconfig:
+            namespace: 'tmb'
+            title: 'TMB'
+            id: 'msi'
+            scale: 'Set1'
+
 sp:
   my_stats:
       fn: '*.stats'
@@ -313,6 +335,11 @@ sp:
       fn: '*_HaplotypeCaller_callingMetrics.mqc'
   transition:
       fn: '*.table.tsv'
+  tmb:
+      fn: 'tmb_scores.mqc'
+  msi:
+      fn: 'msi_scores.mqc'
+
 ignore_images: true
 
 table_cond_formatting_rules:
@@ -401,6 +428,10 @@ report_section_order:
     order: 50
   transition:
     order: 40
+  msi:
+    order: -900
+  tmb:
+    order: -1000
   software_versions:
     order: -2000
   summary:
