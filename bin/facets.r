@@ -211,7 +211,7 @@ if(opt$assembly=="hg19" | opt$assembly=="hg18")
 write.table(tab, paste0(outDir,"/",name,"_cnv_segments.transformed.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
 
-max_size <- 10000
+max_size <- 10000000
 
 tab_amp_del <- tab[which(tab$call =="DEL" | (tab$call == "AMP" & (as.numeric(tab$loc.end) - as.numeric(tab$loc.start)) <= max_size)),]
 
