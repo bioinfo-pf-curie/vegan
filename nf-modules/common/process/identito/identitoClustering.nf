@@ -20,6 +20,6 @@ process identitoClustering {
   script:
   """
   echo \$(R --version | awk 'NR==1{print \$1,\$3}') > versions.txt
-  apComputeClust.R --input ${matrix} --dist ejaccard
+  computeClust.R --input ${matrix} --dist ejaccard
   """
 }

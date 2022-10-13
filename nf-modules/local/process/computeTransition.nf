@@ -21,8 +21,7 @@ process computeTransition {
   prefix = task.ext.prefix ?: "${meta.id}"
   """
   id=\$(bcftools query -l ${vcf} | tail -n1)
-  apParseTransition.py -i ${vcf} --sample \$id -o ${prefix}.transi.tsv
-  apTransition.R ${prefix}.transi.tsv ${prefix}.table.tsv
-  echo "tafsta"
+  parseTransition.py -i ${vcf} --sample \$id -o ${prefix}.transi.tsv
+  transitionTable.r ${prefix}.transi.tsv ${prefix}.table.tsv
   """
 }
