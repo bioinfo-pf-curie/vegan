@@ -82,6 +82,8 @@ params.acLociGC = NFTools.getGenomeAttribute(params, 'acLociGC')
 params.polyms = NFTools.getGenomeAttribute(params, 'polyms')
 params.germlineResource = NFTools.getGenomeAttribute(params, 'germlineResource')
 params.germlineResourceIndex = NFTools.getGenomeAttribute(params, 'germlineResourceIndex')
+params.pileupSum = NFTools.getGenomeAttribute(params, 'pileupSum')
+params.pileupSumIndex = NFTools.getGenomeAttribute(params, 'pileupSumIndex')
 params.intervals = NFTools.getGenomeAttribute(params, 'intervals')
 params.knownIndels = NFTools.getGenomeAttribute(params, 'knownIndels')
 params.knownIndelsIndex = NFTools.getGenomeAttribute(params, 'knownIndelsIndex')
@@ -132,6 +134,8 @@ chAcLociGC              = params.acLociGC              ? Channel.fromPath(params
 chPolyms                = params.polyms                ? Channel.fromPath(params.polyms, checkIfExists: true).collect()                 : Channel.value([]) //optional
 chGermlineResource      = params.germlineResource      ? Channel.fromPath(params.germlineResource, checkIfExists: true).collect()       : Channel.value([]) //optional
 chGermlineResourceIndex = params.germlineResourceIndex ? Channel.fromPath(params.germlineResourceIndex, checkIfExists: true).collect()  : Channel.value([]) //optional
+chPileupSum      = params.pileupSum      ? Channel.fromPath(params.pileupSum, checkIfExists: true).collect()       : Channel.value([]) //optional
+chPileupSumIndex = params.pileupSumIndex ? Channel.fromPath(params.pileupSumIndex, checkIfExists: true).collect()  : Channel.value([]) //optional
 chPon                   = params.pon                   ? Channel.fromPath(params.pon, checkIfExists: true).collect()                    : Channel.value([]) //optional
 chPonIndex              = params.ponIndex              ? Channel.fromPath(params.ponIndex, checkIfExists: true).collect()               : Channel.value([]) //optional
 chKnownIndels           = params.knownIndels           ? Channel.fromPath(params.knownIndels, checkIfExists: true).collect()            : Channel.value([]) //optional
@@ -481,6 +485,8 @@ workflow {
         chDict,
         chGermlineResource,
         chGermlineResourceIndex,
+        chPileupSum,
+        chPileupSumIndex,
         chPon,
         chPonIndex,
         chIntervals
