@@ -14,8 +14,6 @@ process filterMutect2Calls {
   path(dict)
   path(fasta)
   path(fastaFai)
-  path(germlineResource)
-  path(germlineResourceIndex)
   path(intervals)
   path(readOrientation)
 

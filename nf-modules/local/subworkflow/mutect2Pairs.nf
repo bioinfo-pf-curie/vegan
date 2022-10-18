@@ -116,8 +116,6 @@ workflow mutect2PairsFlow {
     dict,
     fasta,
     fai,
-    germlineResource,
-    germlineResourceIndex,
     intervals,
     learnReadOrientationModel.out.readOrientation
   )
