@@ -19,6 +19,7 @@ version-2.0.0
 
 NEW FEATURES
 
+  - WARNING - the --interval option is not supported in this version. The processing of WGS can thus be a bit long
   - move code to DSL2
   - rework of steps. Now 4 functional points of entry in vegan (mapping, filtering, calling and annotate)
   - update of SnpEff paremeters
