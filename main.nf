@@ -109,8 +109,28 @@ chOutputDocsImages = file("$baseDir/docs/images/", checkIfExists: true)
 ==========================
 */
 
-if ((params.reads && params.samplePlan) || (params.readPaths && params.samplePlan)){
-  exit 1, "Input reads must be defined using either '--reads' or '--samplePlan' parameter. Please choose one way"
+if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!params.dbsnp || !params.knownIndels || !params.dbsnpIndex || !params.knownIndelsIndex)){
+  exit 1, "Missing annotation file(s) for GATK Base Recalibrator (dbSNP, knownIndels): Please use '--skipBQSR'"
+}
+
+if (!params.skipMutectContamination && 'mutect2' in tools && !params.germlineResource){
+  exit 1, "Missing annotation file(s) for Mutect2 filtering (germlineResource): Please use '--skipMutectContamination'"
+}
+
+if (tools && ('ascat' in tools) && (!params.acLoci || !params.acLociGC)) {
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for ASCAT (acLoci, acLociGC).
+========================================================================"""
+  tools.removeAll(["ascat"])
+}
+
+if (tools && ('facets' in tools) && (!params.dbsnp)) {
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for Facets (dbsnp).
+========================================================================"""
+  tools.removeAll(["facets"])
 }
 
 /*
