@@ -1,9 +1,24 @@
 ***********************************
+version-2.1.0
+
+NEW FEATURES
+
+  - change annotation file for Mutect2 calling
+  - update versions of following tools:
+    - preseq 2.0.3 -> 3.2.0
+    - samtools 1.10 -> 1.15.1
+    - bcftools 1.10.2 -> 1.15.1
+    - picard 2.19.0 -> 2.27.4
+    - multiqc 1.9 -> 1.13
+    - mosdepth 0.2.9 -> 0.3.1
+    - gatk 4.1.6.0 -> 4.2.6.1
+    - r-base 3.6.3 -> 4.1.3
+
+***********************************
 version-2.0.0
 
 NEW FEATURES
 
-  - WARNING - the --interval option is not supported in this version. The processing of WGS can thus be a bit long
   - move code to DSL2
   - rework of steps. Now 4 functional points of entry in vegan (mapping, filtering, calling and annotate)
   - update of SnpEff paremeters

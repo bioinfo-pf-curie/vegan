@@ -24,9 +24,9 @@ From: 4geniac/almalinux:8.6_conda-py39_4.12.0
     dnf clean all \
     && conda env create -f /opt/gatk.yml \
     && mkdir -p /opt/etc \
-    && echo -e "#! /bin/bash\n\n# script to activate the conda environment gatk-4.1.9.0" > ~/.bashrc \
+    && echo -e "#! /bin/bash\n\n# script to activate the conda environment gatk" > ~/.bashrc \
     && conda init bash \
-    && echo "conda activate gatk-4.1.9.0" >> ~/.bashrc \
+    && echo "conda activate gatk" >> ~/.bashrc \
     && cp ~/.bashrc /opt/etc/bashrc \
     && conda clean -a 
 
