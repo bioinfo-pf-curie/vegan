@@ -4,8 +4,8 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - bioconda::mosdepth=0.3.1=ha7ba039_0
-  - conda-forge::r-base=3.6.3=hd23ff56_6
-  - conda-forge::r-data.table=1.13.6=r36hcfec24a_0
-  - conda-forge::r-optparse=1.6.6=r36h6115d3f_1
-  - conda-forge::r-ggplot2=3.3.2=r36hc72bb7e_1
+  - bioconda::mosdepth=0.3.1=h01d7912_2
+  - conda-forge::r-base=4.1.3=h06d3f91_1
+  - conda-forge::r-data.table=1.14.2=r41hcfec24a_0
+  - conda-forge::r-optparse=1.7.3=r41hc72bb7e_0
+  - conda-forge::r-ggplot2=3.3.6=r41hc72bb7e_0
