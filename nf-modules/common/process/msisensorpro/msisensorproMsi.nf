@@ -4,7 +4,7 @@
 
 process msisensorproMsi {
   tag "$meta.id"
-  label 'minCup'
+  label 'minCpu'
   label 'lowMem'
   label 'msisensorpro'
 
