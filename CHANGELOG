@@ -1,9 +1,48 @@
 ***********************************
+version-2.0.0
+
+NEW FEATURES
+
+  - WARNING - the --interval option is not supported in this version. The processing of WGS can thus be a bit long
+  - move code to DSL2
+  - rework of steps. Now 4 functional points of entry in vegan (mapping, filtering, calling and annotate)
+  - update of SnpEff paremeters
+  - new tools added: TMB, MSI
+  - new output files for Facets (ploidy&cellularity file and amp_del file)
+  - tables listing annotated variants for each sample and for Germline and Somatic variants
+  - new annotations with SnpSift and COSMIC, ICGC, Gnomad, CancerHotspot and DBNSFP are available
+  - simplifications of filtering. Now SV and SNVs are filtered the same way
+  - new parameters to save intermediates BAM, vcf or metrics
+  - new --ffpe parameter
+  - Mutect2 workflow now includes LearnReadOrientationModel step to
+  - new parameter --annotDb to define which Databases to use for the annotation step
+  - update versions of following tools:
+    - SnpEff & SnpSift 4.3 -> 5.1
+    - tabix 0.2.6 -> 1.11
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - updated documentation and --help message
+  - refactor outputs
+  - remove intervals handling for WGS
+
+BUG FIXES
+
+  - resolve bug in Facets with output names
+
+***********************************
+version-1.2.1
+
+NEW FEATURES
+
+  - support for Mouse genome with no population annotation (Mutect2)
+
+***********************************
 version-1.2.0
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
-  - Updata genome conf
+  - Update genome conf
   - Update mem for Mutect2/bwa-mem
   - Update identito output
   - Export unfiltered bam files by default
@@ -62,4 +101,3 @@ version-0.1.0
 NEW FEATURES
 
   - First version of the vegan pipeline
-
