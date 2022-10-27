@@ -1,8 +1,7 @@
 process collectVCFmetrics {
   label 'minCpu'
   label 'minMem'
-  label 'onlyLinux'
-
+  label 'unix'
   tag "${prefix}"
 
   input:

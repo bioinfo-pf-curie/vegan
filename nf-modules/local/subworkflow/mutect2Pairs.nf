@@ -24,6 +24,8 @@ workflow mutect2PairsFlow {
   dict
   germlineResource
   germlineResourceIndex
+  pileupSum
+  pileupSumIndex
   panelsOfNormals
   panelsOfNormalsIndex
   intervals
@@ -77,8 +79,8 @@ workflow mutect2PairsFlow {
   getPileupSummaries(
     bam,
     intervals,
-    germlineResource,
-    germlineResourceIndex,
+    pileupSum,
+    pileupSumIndex,
     bed
   )
   chVersions = chVersions.mix(getPileupSummaries.out.versions)
@@ -116,8 +118,6 @@ workflow mutect2PairsFlow {
     dict,
     fasta,
     fai,
-    germlineResource,
-    germlineResourceIndex,
     intervals,
     learnReadOrientationModel.out.readOrientation
   )

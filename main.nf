@@ -82,6 +82,8 @@ params.acLociGC = NFTools.getGenomeAttribute(params, 'acLociGC')
 params.polyms = NFTools.getGenomeAttribute(params, 'polyms')
 params.germlineResource = NFTools.getGenomeAttribute(params, 'germlineResource')
 params.germlineResourceIndex = NFTools.getGenomeAttribute(params, 'germlineResourceIndex')
+params.pileupSum = NFTools.getGenomeAttribute(params, 'pileupSum')
+params.pileupSumIndex = NFTools.getGenomeAttribute(params, 'pileupSumIndex')
 params.intervals = NFTools.getGenomeAttribute(params, 'intervals')
 params.knownIndels = NFTools.getGenomeAttribute(params, 'knownIndels')
 params.knownIndelsIndex = NFTools.getGenomeAttribute(params, 'knownIndelsIndex')
@@ -109,8 +111,28 @@ chOutputDocsImages = file("$baseDir/docs/images/", checkIfExists: true)
 ==========================
 */
 
-if ((params.reads && params.samplePlan) || (params.readPaths && params.samplePlan)){
-  exit 1, "Input reads must be defined using either '--reads' or '--samplePlan' parameter. Please choose one way"
+if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!params.dbsnp || !params.knownIndels || !params.dbsnpIndex || !params.knownIndelsIndex)){
+  exit 1, "Missing annotation file(s) for GATK Base Recalibrator (dbSNP, knownIndels): Please use '--skipBQSR'"
+}
+
+if (!params.skipMutectContamination && 'mutect2' in tools && !params.germlineResource){
+  exit 1, "Missing annotation file(s) for Mutect2 filtering (germlineResource): Please use '--skipMutectContamination'"
+}
+
+if (tools && ('ascat' in tools) && (!params.acLoci || !params.acLociGC)) {
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for ASCAT (acLoci, acLociGC).
+========================================================================"""
+  tools.removeAll(["ascat"])
+}
+
+if (tools && ('facets' in tools) && (!params.dbsnp)) {
+  log.info """\
+========================================================================
+  ${colors.redBold}WARNING${colors.reset}: Missing annotation file(s) for Facets (dbsnp).
+========================================================================"""
+  tools.removeAll(["facets"])
 }
 
 /*
@@ -132,6 +154,8 @@ chAcLociGC              = params.acLociGC              ? Channel.fromPath(params
 chPolyms                = params.polyms                ? Channel.fromPath(params.polyms, checkIfExists: true).collect()                 : Channel.value([]) //optional
 chGermlineResource      = params.germlineResource      ? Channel.fromPath(params.germlineResource, checkIfExists: true).collect()       : Channel.value([]) //optional
 chGermlineResourceIndex = params.germlineResourceIndex ? Channel.fromPath(params.germlineResourceIndex, checkIfExists: true).collect()  : Channel.value([]) //optional
+chPileupSum      = params.pileupSum      ? Channel.fromPath(params.pileupSum, checkIfExists: true).collect()       : Channel.value([]) //optional
+chPileupSumIndex = params.pileupSumIndex ? Channel.fromPath(params.pileupSumIndex, checkIfExists: true).collect()  : Channel.value([]) //optional
 chPon                   = params.pon                   ? Channel.fromPath(params.pon, checkIfExists: true).collect()                    : Channel.value([]) //optional
 chPonIndex              = params.ponIndex              ? Channel.fromPath(params.ponIndex, checkIfExists: true).collect()               : Channel.value([]) //optional
 chKnownIndels           = params.knownIndels           ? Channel.fromPath(params.knownIndels, checkIfExists: true).collect()            : Channel.value([]) //optional
@@ -200,7 +224,6 @@ if (params.step == "mapping"){
 }else if (params.step == "filtering"){
   chRawReads = Channel.empty()
   chAlignedBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam','.bai'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
-  chAlignedBam.view()
 }else if (params.step == "calling"){
   chRawReads = Channel.empty()
   chAlignedBam = Channel.empty()
@@ -249,12 +272,8 @@ include { identitoFlow } from './nf-modules/common/subworkflow/identito'
 include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
-include { annotateSomaticFlow as  annotateStepFlow} from './nf-modules/local/subworkflow/annotateSomatic'
-include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
-include { annotateGermlineFlow } from './nf-modules/local/subworkflow/annotateGermline'
-include { tableReportFlow as tableReportFlowStep } from './nf-modules/local/subworkflow/tableReport'
-include { tableReportFlow as tableReportFlowSomatic } from './nf-modules/local/subworkflow/tableReport'
-include { tableReportFlow as tableReportFlowGermline } from './nf-modules/local/subworkflow/tableReport'
+include { annotateSomaticFlow as  annotateFlow} from './nf-modules/local/subworkflow/annotateSomatic'
+include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
 include { msiFlow } from './nf-modules/local/subworkflow/msi'
@@ -292,6 +311,10 @@ workflow {
     chWgsMetricsMqc = Channel.empty()
     chHaplotypecallerMetricsMqc = Channel.empty()
     chMutect2MetricsMqc = Channel.empty()
+    chTsTvMqc = Channel.empty()
+    chSnpEffMqc = Channel.empty()
+    chMSIMqc = Channel.empty()
+    chTMBMqc = Channel.empty()
 
     // subroutines
     outputDocumentation(
@@ -415,7 +438,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
+        def meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
         return [meta, it[1], it[2], it[4], it[5] ]
       }.set{ chPairBam }
 
@@ -425,7 +448,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [status: "tumor", id:it[6], pair_id: it[8], sex:it[9]]
+        def meta = [status: "tumor", id:it[6], pair_id: it[8], sex:it[9]]
         return [meta, it[1], it[2] ]
       }.set{ chTumorBam }
 
@@ -435,7 +458,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [status: "normal", id:it[7], pair_id: it[8], sex:it[9]]
+        def meta = [status: "normal", id:it[7], pair_id: it[8], sex:it[9]]
         return [meta, it[4], it[5] ]
       }.set{ chNormalBam }
     chSingleBam = chNormalBam.mix(chTumorBam)
@@ -466,6 +489,7 @@ workflow {
       )
       chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
       chHaplotypecallerMetricsMqc = haplotypeCallerFlow.out.mqc
+      chTsTvMqc = haplotypeCallerFlow.out.transition
       chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
     }
 
@@ -481,12 +505,15 @@ workflow {
         chDict,
         chGermlineResource,
         chGermlineResourceIndex,
+        chPileupSum,
+        chPileupSumIndex,
         chPon,
         chPonIndex,
         chIntervals
       )
       chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
       chMutect2MetricsMqc = mutect2PairsFlow.out.mqc
+      chTsTvMqc = chTsTvMqc.mix(mutect2PairsFlow.out.transition)
       chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
     }
   }
@@ -498,8 +525,8 @@ workflow {
   */
 
   // Annotation somatic vcf
-  if('snpeff' in tools && params.step == 'annotate'){
-    annotateStepFlow(
+  if('snpeff' in tools || params.step == 'annotate'){
+    annotateFlow(
       chAllVcf,
       chSnpeffDb,
       chSnpeffCache,
@@ -514,44 +541,7 @@ workflow {
       chDbnsfp,
       chDbnsfpIndex
     )
-  }
-
-  // Annotation somatic vcf
-  if('snpeff' in tools && params.step != 'annotate'){
-    annotateSomaticFlow(
-      mutect2PairsFlow.out.vcfFilteredNorm,
-      chSnpeffDb,
-      chSnpeffCache,
-      chCosmicDb,
-      chCosmicDbIndex,
-      chIcgcDb,
-      chIcgcDbIndex,
-      chCancerhotspotsDb,
-      chCancerhotspotsDbIndex,
-      chGnomadDb,
-      chGnomadDbIndex,
-      chDbnsfp,
-      chDbnsfpIndex
-    )
-  }
-
-  // Annotation germline vcf
-  if('snpeff' in tools && 'haplotypecaller' in tools && params.step != 'annotate'){
-    annotateGermlineFlow(
-      haplotypeCallerFlow.out.vcfNorm,
-      chSnpeffDb,
-      chSnpeffCache,
-      chCosmicDb,
-      chCosmicDbIndex,
-      chIcgcDb,
-      chIcgcDbIndex,
-      chCancerhotspotsDb,
-      chCancerhotspotsDbIndex,
-      chGnomadDb,
-      chGnomadDbIndex,
-      chDbnsfp,
-      chDbnsfpIndex
-    )
+    chSnpEffMqc = annotateFlow.out.snpEffReport
   }
 
 
@@ -561,35 +551,26 @@ workflow {
   ================================================================================
   */
 
-  if('snpeff' in tools && params.step == 'annotate'){
-    tableReportFlowStep(
-      annotateStepFlow.out.vcf
-    )
-  }
-  //tableReportCh = annotateSomaticFlow.out.vcf.mix(annotateGermlineFlow.out.vcf)
-
-  if('snpeff' in tools && 'mutect2' in tools && params.step != 'annotate'){
-    tableReportFlowSomatic(
-      annotateSomaticFlow.out.vcf
+  if('snpeff' in tools || params.step == 'annotate'){
+    tableReportFlow(
+      annotateFlow.out.vcf
     )
   }
 
-  if('snpeff' in tools && 'haplotypecaller' in tools && params.step != 'annotate'){
-    tableReportFlowGermline(
-      annotateGermlineFlow.out.vcf
-    )
-  }
+  annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
+
   /*
   ================================================================================
                                          TMB
   ================================================================================
   */
 
-  if('tmb' in tools && params.step != 'annotate'){
+  if('tmb' in tools || params.step == 'annotate'){
     tmbFlow(
-      annotateSomaticFlow.out.vcf,
+      chTMB,
       chBed
     )
+    chTMBMqc = tmbFlow.out.report.map{it->it[1]}
   }
 
   /*
@@ -604,6 +585,7 @@ workflow {
       chFasta,
       chBed
     )
+    chMSIMqc = msiFlow.out.report.map{it->it[1]}
   }
 
   /*
@@ -658,7 +640,7 @@ workflow {
   // Warnings that will be printed in the mqc report
   chWarn = Channel.empty()
 
-  if (!params.skipMultiQC){
+  if (!params.skipMultiQC && params.step != 'calling' && params.step != 'annotate' ){
     getSoftwareVersions(
       chVersions.unique().collectFile()
     )
@@ -682,6 +664,10 @@ workflow {
       chIdentitoMqc.collect().ifEmpty([]),
       chHaplotypecallerMetricsMqc.collect().ifEmpty([]),
       chMutect2MetricsMqc.collect().ifEmpty([]),
+      chTsTvMqc.collect().ifEmpty([]),
+      chSnpEffMqc.collect().ifEmpty([]),
+      chMSIMqc.collect().ifEmpty([]),
+      chTMBMqc.collect().ifEmpty([]),
       getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
       workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
       chWarn.collect().ifEmpty([])

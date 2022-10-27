@@ -27,7 +27,7 @@ workflow mappingFlow {
     chVersions = chVersions.mix(bwaMem.out.versions)
     chBams = bwaMem.out.bam
     chMappingLogs = bwaMem.out.logs
-  }else if (param.aligner == 'bwa-mem2'){
+  }else if (params.aligner == 'bwa-mem2'){
     bwaMem2(
       reads,
       index.collect()

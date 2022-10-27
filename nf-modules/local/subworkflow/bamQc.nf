@@ -11,45 +11,45 @@ include { collectWgsMetrics } from '../../common/process/gatk/collectWgsMetrics'
 workflow bamQcFlow {
 
   take:
-    bamFiltered
-    bed
-    gtf
-    fasta
-    dict
+  bamFiltered
+  bed
+  gtf
+  fasta
+  dict
 
   main:
-    chVersions = Channel.empty()
+  chVersions = Channel.empty()
 
-    if (!params.singleEnd){
-      collectInsertSizeMetrics(
-        bamFiltered
-      )
-      chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
-    }
-
-    mosdepth(
-      bamFiltered,
-      bed
+  if (!params.singleEnd){
+    collectInsertSizeMetrics(
+      bamFiltered
     )
-    chVersions = chVersions.mix(mosdepth.out.versions)
+    chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
+  }
 
-    prepareExonInfo(
-      gtf,
-      bed
-    )
+  mosdepth(
+    bamFiltered,
+    bed
+  )
+  chVersions = chVersions.mix(mosdepth.out.versions)
 
-    genesCoverage(
-      bamFiltered,
-      prepareExonInfo.out.exonBed.collect()
-    )
+  prepareExonInfo(
+    gtf,
+    bed
+  )
 
-    collectWgsMetrics(
-      bamFiltered,
-      bed,
-      fasta,
-      dict
-    )
-    chVersions = chVersions.mix(collectWgsMetrics.out.versions)
+  genesCoverage(
+    bamFiltered,
+    prepareExonInfo.out.exonBed.collect()
+  )
+
+  collectWgsMetrics(
+    bamFiltered,
+    bed,
+    fasta,
+    dict
+  )
+  chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
   emit:
     fragSize = collectInsertSizeMetrics.out.results

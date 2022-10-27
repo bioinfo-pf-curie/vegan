@@ -28,9 +28,6 @@ process genotypeGVCFs {
   prefix = task.ext.prefix ?: "${meta.id}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
-    IndexFeatureFile -I ${gvcf}
-
-  gatk --java-options -Xmx${task.memory.toGiga()}g \
     GenotypeGVCFs \
     -R ${fasta} \
     ${args} \

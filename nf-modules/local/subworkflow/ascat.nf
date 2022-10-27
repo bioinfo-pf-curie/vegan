@@ -37,8 +37,6 @@ workflow ascatFlow {
       return [meta, it[1], it[3]]}
       .set{ countsCombinedCh }
 
-    countsCombinedCh.view()
-
     convertAlleleCounts(
       countsCombinedCh
       )
