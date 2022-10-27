@@ -24,6 +24,8 @@ workflow mutect2PairsFlow {
   dict
   germlineResource
   germlineResourceIndex
+  pileupSum
+  pileupSumIndex
   panelsOfNormals
   panelsOfNormalsIndex
   intervals
@@ -72,16 +74,16 @@ workflow mutect2PairsFlow {
 
    learnReadOrientationModel(
      mutect2.out.f1r2
-     )
+   )
 
   getPileupSummaries(
     bam,
     intervals,
-    germlineResource,
-    germlineResourceIndex,
+    pileupSum,
+    pileupSumIndex,
     bed
   )
-  //chVersions = chVersions.mix(getPileupSummaries.out.versions)
+  chVersions = chVersions.mix(getPileupSummaries.out.versions)
 
   gatherPileupSummaries(
     getPileupSummaries.out.pileupSummaries,
@@ -96,7 +98,7 @@ workflow mutect2PairsFlow {
   calculateContamination(
     bam.join(gatherPileupSummaries.out.mergedPileupFileCh)
   )
-  //chVersions = chVersions.mix(calculateContamination.out.versions)
+  chVersions = chVersions.mix(calculateContamination.out.versions)
 
   /*
    * FILTER MUTECT CALL
@@ -110,21 +112,16 @@ workflow mutect2PairsFlow {
     mutect2CallsToFilter.combine(Channel.from('NO_FILE')) :
     mutect2CallsToFilter.join(calculateContamination.out.contaminationTable)
 
-  mutect2CallsToFilter.view()
 
   filterMutect2Calls(
     mutect2CallsToFilter,
     dict,
     fasta,
     fai,
-    germlineResource,
-    germlineResourceIndex,
     intervals,
     learnReadOrientationModel.out.readOrientation
   )
   chVersions = chVersions.mix(filterMutect2Calls.out.versions)
-
-  filterMutect2Calls.out.vcf.view()
 
   collectVCFmetrics(
     filterMutect2Calls.out.vcf,
@@ -137,11 +134,11 @@ workflow mutect2PairsFlow {
   bcftoolsNorm(
     chFiltSimple,
     fasta
-    )
+  )
 
   computeTransition(
     bcftoolsNorm.out.vcf
-    )
+  )
 
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 

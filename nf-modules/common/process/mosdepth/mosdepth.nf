@@ -14,14 +14,14 @@ process mosdepth {
 
   output:
   path("*.*.txt"), emit: metrics
-  path("*{.bed.gz,.bed.gz.csi}"), emit: mosdepthBed
+  path("*{.bed.gz,.bed.gz.csi}"), emit: bedcov
   path("versions.txt"), emit: versions
 
   when:
   task.ext.when == null || task.ext.when
 
   script:
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   bedOpts = bed ? "--by ${bed}" : ''
   """

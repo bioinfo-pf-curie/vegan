@@ -4,7 +4,7 @@
 
 process msisensorproScan {
   label 'minCpu'
-  label 'LowMem'
+  label 'lowMem'
   label 'msisensorpro'
 
   input:

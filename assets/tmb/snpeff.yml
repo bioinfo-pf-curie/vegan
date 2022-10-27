@@ -95,8 +95,7 @@ isNonSynonymous:
 ## Databases
 cancerDb:
   cosmic:
-    - cosmic_coding_ID
-    - cosmic_noncoding_ID
+    - COSMIC
 
 polymDb:
   1k:
@@ -107,4 +106,4 @@ polymDb:
     - kg_SAS_AF
 
   gnomad:
-    - gnomAD_genomes_AF
+    - AF

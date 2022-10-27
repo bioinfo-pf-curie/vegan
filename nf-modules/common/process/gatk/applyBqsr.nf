@@ -24,7 +24,7 @@ process applyBQSR {
 
   script:
   def args = task.ext.args ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
        ApplyBQSR \
@@ -33,6 +33,6 @@ process applyBQSR {
        --output ${prefix}.recal.bam \
        ${args} \
        --bqsr-recal-file ${recalTable}
-  gatk ApplyBQSR --help &> "versions.txt" 2>&1 || true
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
  }

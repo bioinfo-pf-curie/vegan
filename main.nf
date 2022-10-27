@@ -82,6 +82,8 @@ params.acLociGC = NFTools.getGenomeAttribute(params, 'acLociGC')
 params.polyms = NFTools.getGenomeAttribute(params, 'polyms')
 params.germlineResource = NFTools.getGenomeAttribute(params, 'germlineResource')
 params.germlineResourceIndex = NFTools.getGenomeAttribute(params, 'germlineResourceIndex')
+params.pileupSum = NFTools.getGenomeAttribute(params, 'pileupSum')
+params.pileupSumIndex = NFTools.getGenomeAttribute(params, 'pileupSumIndex')
 params.intervals = NFTools.getGenomeAttribute(params, 'intervals')
 params.knownIndels = NFTools.getGenomeAttribute(params, 'knownIndels')
 params.knownIndelsIndex = NFTools.getGenomeAttribute(params, 'knownIndelsIndex')
@@ -139,7 +141,7 @@ if (tools && ('facets' in tools) && (!params.dbsnp)) {
 =====================================
 */
 
-chMetatdata             = params.metadata              ? Channel.fromPath(params.metadata, checkIfExists: true).collect()               : Channel.empty()
+chMetadata              = params.metadata              ? Channel.fromPath(params.metadata, checkIfExists: true).collect()               : Channel.empty()
 chChrLength             = params.chrLength             ? Channel.fromPath(params.chrLength, checkIfExists: true).collect()              : Channel.empty()
 chFasta                 = params.fasta                 ? Channel.fromPath(params.fasta, checkIfExists: true).collect()                  : Channel.empty()
 chFastaFai              = params.fastaFai              ? Channel.fromPath(params.fastaFai, checkIfExists: true).collect()               : Channel.empty()
@@ -152,12 +154,14 @@ chAcLociGC              = params.acLociGC              ? Channel.fromPath(params
 chPolyms                = params.polyms                ? Channel.fromPath(params.polyms, checkIfExists: true).collect()                 : Channel.value([]) //optional
 chGermlineResource      = params.germlineResource      ? Channel.fromPath(params.germlineResource, checkIfExists: true).collect()       : Channel.value([]) //optional
 chGermlineResourceIndex = params.germlineResourceIndex ? Channel.fromPath(params.germlineResourceIndex, checkIfExists: true).collect()  : Channel.value([]) //optional
+chPileupSum      = params.pileupSum      ? Channel.fromPath(params.pileupSum, checkIfExists: true).collect()       : Channel.value([]) //optional
+chPileupSumIndex = params.pileupSumIndex ? Channel.fromPath(params.pileupSumIndex, checkIfExists: true).collect()  : Channel.value([]) //optional
 chPon                   = params.pon                   ? Channel.fromPath(params.pon, checkIfExists: true).collect()                    : Channel.value([]) //optional
 chPonIndex              = params.ponIndex              ? Channel.fromPath(params.ponIndex, checkIfExists: true).collect()               : Channel.value([]) //optional
 chKnownIndels           = params.knownIndels           ? Channel.fromPath(params.knownIndels, checkIfExists: true).collect()            : Channel.value([]) //optional
 chKnownIndelsIndex      = params.knownIndelsIndex      ? Channel.fromPath(params.knownIndelsIndex, checkIfExists: true).collect()       : Channel.value([]) //optional
-chSnpeffDb              = params.snpeffDb              ? Channel.of(params.snpeffDb)                                                    : Channel.empty()
-chSnpeffCache           = params.snpeffCache           ? Channel.fromPath(params.snpeffCache, checkIfExists: true).collect()            : Channel.value([])
+chSnpeffDb              = params.snpeffDb              ? Channel.value(params.snpeffDb)                                                    : Channel.empty()
+chSnpeffCache           = params.snpeffCache           ? Channel.fromPath(params.snpeffCache, checkIfExists: true).collect()            : Channel.value([]) //optional
 chCosmicDb              = params.cosmicDb              ? Channel.fromPath(params.cosmicDb, checkIfExists: true).collect()               : Channel.empty()
 chCosmicDbIndex         = params.cosmicDbIndex         ? Channel.fromPath(params.cosmicDbIndex, checkIfExists: true).collect()          : Channel.empty()
 chIcgcDb                = params.icgcDb                ? Channel.fromPath(params.icgcDb, checkIfExists: true).collect()                 : Channel.empty()
@@ -220,7 +224,6 @@ if (params.step == "mapping"){
 }else if (params.step == "filtering"){
   chRawReads = Channel.empty()
   chAlignedBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam','.bai'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
-  chAlignedBam.view()
 }else if (params.step == "calling"){
   chRawReads = Channel.empty()
   chAlignedBam = Channel.empty()
@@ -229,11 +232,11 @@ if (params.step == "mapping"){
   chRawReads = Channel.empty()
   chAlignedBam = Channel.empty()
   chFilteredBam = Channel.empty()
-  chAllVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params)
+  chAllVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
 }
 
 // Make samplePlan if not available
-//chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPaths, params.singleEnd)
+chSplan = NFTools.getSamplePlan(params.samplePlan, params.reads, params.readPaths, params.singleEnd)
 
 // Load design file
 if (params.design){
@@ -269,7 +272,7 @@ include { identitoFlow } from './nf-modules/common/subworkflow/identito'
 include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
-include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
+include { annotateSomaticFlow as  annotateFlow} from './nf-modules/local/subworkflow/annotateSomatic'
 include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
@@ -295,10 +298,23 @@ workflow {
 
   main:
     // Init MultiQC Channels
-    //chRawReads.view()
     chFastqcMqc = Channel.empty()
+    chMappingMqc = Channel.empty()
+    chMappingStats = Channel.empty()
+    chOntargetStatsMqc = Channel.empty()
+    chFilteringStatsMqc = Channel.empty()
     chPreseqMqc = Channel.empty()
     chIdentitoMqc = Channel.empty()
+    chGeneCovMqc = Channel.empty()
+    chMosdepthMqc = Channel.empty()
+    chFragSizeMqc = Channel.empty()
+    chWgsMetricsMqc = Channel.empty()
+    chHaplotypecallerMetricsMqc = Channel.empty()
+    chMutect2MetricsMqc = Channel.empty()
+    chTsTvMqc = Channel.empty()
+    chSnpEffMqc = Channel.empty()
+    chMSIMqc = Channel.empty()
+    chTMBMqc = Channel.empty()
 
     // subroutines
     outputDocumentation(
@@ -326,6 +342,8 @@ workflow {
         chAlignerIndex
       )
       chAlignedBam = mappingFlow.out.bam
+      chMappingMqc = mappingFlow.out.logs
+      chMappingStats = mappingFlow.out.stats
       chVersions = chVersions.mix(mappingFlow.out.versions)
     }
 
@@ -349,52 +367,63 @@ workflow {
         chBed
       )
       chVersions = chVersions.mix(bamFiltersFlow.out.versions)
+      chMarkdupStatsMqc = bamFiltersFlow.out.markdupFlagstats
+      chOnTargetStatsMqc = bamFiltersFlow.out.onTargetFlagstats
+      chFilteringStatsMqc = bamFiltersFlow.out.filteringFlagstats
       chFilteredBam = bamFiltersFlow.out.bam
-    }
 
-    //*******************************************
-    //SUB-WORKFLOW : bamQcFlow
 
-    if (!params.skipQC){
-      bamQcFlow(
+      //*******************************************
+      //SUB-WORKFLOW : bamQcFlow
+
+      if (!params.skipQC){
+        bamQcFlow(
+          chFilteredBam,
+          chBed,
+          chGtf,
+          chFasta,
+          chDict
+        )
+        chGeneCovMqc = bamQcFlow.out.geneCovMqc
+        chMosdepthMqc = bamQcFlow.out.seqDepth
+        chFragSizeMqc = bamQcFlow.out.fragSize
+        chWgsMetricsMqc = bamQcFlow.out.wgsMetrics
+        chVersions = chVersions.mix(bamQcFlow.out.versions)
+      }
+
+      // SUBWORKFLOW: Identito - polym and Monitoring
+      if (!params.skipIdentito){
+        identitoFlow(
+          chFilteredBam,
+          chFasta.collect(),
+          chFastaFai.collect(),
+          chPolyms.collect()
+        )
+        chIdentitoMqc = identitoFlow.out.results.collect()
+        chVersions = chVersions.mix(identitoFlow.out.versions)
+      }
+
+      //*****************************
+      // GATK4 - PRE-PROCESSING
+
+      bqsrFlow(
         chFilteredBam,
         chBed,
-        chGtf,
+        chDbsnp,
+        chDbsnpIndex,
         chFasta,
+        chFastaFai,
+        chKnownIndels,
+        chKnownIndelsIndex,
         chDict
       )
-      chVersions = chVersions.mix(bamQcFlow.out.versions)
+      chVersions = chVersions.mix(bqsrFlow.out.versions)
     }
 
-    // SUBWORKFLOW: Identito - polym and Monitoring
-    if (!params.skipIdentito){
-      identitoFlow(
-        chFilteredBam,
-        chFasta.collect(),
-        chFastaFai.collect(),
-        chPolyms.collect()
-      )
-
-      chIdentitoMqc = identitoFlow.out.results.collect()
-      chVersions = chVersions.mix(identitoFlow.out.versions)
+    if (params.step != "annotate"){
+      chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bqsrBam
     }
 
-    //*****************************
-    // GATK4 - PRE-PROCESSING
-
-    bqsrFlow(
-      chFilteredBam,
-      chBed,
-      chDbsnp,
-      chDbsnpIndex,
-      chFasta,
-      chFastaFai,
-      chKnownIndels,
-      chKnownIndelsIndex,
-      chDict
-    )
-    chVersions = chVersions.mix(bqsrFlow.out.versions)
-    chProcBam = params.skipBQSR ? chFilteredBam : bqsrFlow.out.bqsrBam
 
   /*
   ================================================================================
@@ -409,7 +438,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
+        def meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
         return [meta, it[1], it[2], it[4], it[5] ]
       }.set{ chPairBam }
 
@@ -419,7 +448,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [tumor_id:it[6], normal_id:it[7], status: "tumor", id:it[8], sex:it[9]]
+        def meta = [status: "tumor", id:it[6], pair_id: it[8], sex:it[9]]
         return [meta, it[1], it[2] ]
       }.set{ chTumorBam }
 
@@ -429,7 +458,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        meta = [tumor_id:it[6], normal_id:it[7], status: "normal", id:it[8], sex:it[9]]
+        def meta = [status: "normal", id:it[7], pair_id: it[8], sex:it[9]]
         return [meta, it[4], it[5] ]
       }.set{ chNormalBam }
     chSingleBam = chNormalBam.mix(chTumorBam)
@@ -446,40 +475,48 @@ workflow {
   //*******************************************
   //SUB-WORKFLOW : HaplotypeCaller
 
-  if('haplotypecaller' in tools){
-    haplotypeCallerFlow(
-      chSingleBam,
-      chBed,
-      chDbsnp,
-      chDbsnpIndex,
-      chFasta,
-      chFastaFai,
-      chDict
-    )
-    chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-    chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
+  if (params.step == "mapping" || params.step == "filtering" | params.step == "calling"){
+
+    if('haplotypecaller' in tools){
+      haplotypeCallerFlow(
+        chSingleBam,
+        chBed,
+        chDbsnp,
+        chDbsnpIndex,
+        chFasta,
+        chFastaFai,
+        chDict
+      )
+      chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
+      chHaplotypecallerMetricsMqc = haplotypeCallerFlow.out.mqc
+      chTsTvMqc = haplotypeCallerFlow.out.transition
+      chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
+    }
+
+    //*******************************************
+    //SUB-WORKFLOW : Mutect2
+
+    if('mutect2' in tools){
+      mutect2PairsFlow(
+        chPairBam,
+        chBed,
+        chFasta,
+        chFastaFai,
+        chDict,
+        chGermlineResource,
+        chGermlineResourceIndex,
+        chPileupSum,
+        chPileupSumIndex,
+        chPon,
+        chPonIndex,
+        chIntervals
+      )
+      chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
+      chMutect2MetricsMqc = mutect2PairsFlow.out.mqc
+      chTsTvMqc = chTsTvMqc.mix(mutect2PairsFlow.out.transition)
+      chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
+    }
   }
-
-  //*******************************************
-  //SUB-WORKFLOW : Mutect2
-
-  if('mutect2' in tools){
-    mutect2PairsFlow(
-      chPairBam,
-      chBed,
-      chFasta,
-      chFastaFai,
-      chDict,
-      chGermlineResource,
-      chGermlineResourceIndex,
-      chPon,
-      chPonIndex,
-      chIntervals
-    )
-    chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-    chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
-  }
-
 
   /*
   ================================================================================
@@ -488,23 +525,25 @@ workflow {
   */
 
   // Annotation somatic vcf
-  if('snpeff' in tools){
-  annotateSomaticFlow(
-    mutect2PairsFlow.out.vcfFilteredNorm,
-    chSnpeffDb,
-    chSnpeffCache,
-    chCosmicDb,
-    chCosmicDbIndex,
-    chIcgcDb,
-    chIcgcDbIndex,
-    chCancerhotspotsDb,
-    chCancerhotspotsDbIndex,
-    chGnomadDb,
-    chGnomadDbIndex,
-    chDbnsfp,
-    chDbnsfpIndex
-  )
+  if('snpeff' in tools || params.step == 'annotate'){
+    annotateFlow(
+      chAllVcf,
+      chSnpeffDb,
+      chSnpeffCache,
+      chCosmicDb,
+      chCosmicDbIndex,
+      chIcgcDb,
+      chIcgcDbIndex,
+      chCancerhotspotsDb,
+      chCancerhotspotsDbIndex,
+      chGnomadDb,
+      chGnomadDbIndex,
+      chDbnsfp,
+      chDbnsfpIndex
+    )
+    chSnpEffMqc = annotateFlow.out.snpEffReport
   }
+
 
   /*
   ================================================================================
@@ -512,9 +551,13 @@ workflow {
   ================================================================================
   */
 
-  tableReportFlow(
-    annotateSomaticFlow.out.vcf
-  )
+  if('snpeff' in tools || params.step == 'annotate'){
+    tableReportFlow(
+      annotateFlow.out.vcf
+    )
+  }
+
+  annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
 
   /*
   ================================================================================
@@ -522,13 +565,12 @@ workflow {
   ================================================================================
   */
 
-  //annotateSomaticFlow.out.vcf.view()
-
-  if('tmb' in tools){
-  tmbFlow(
-    annotateSomaticFlow.out.vcf,
-    chBed
-  )
+  if('tmb' in tools || params.step == 'annotate'){
+    tmbFlow(
+      chTMB,
+      chBed
+    )
+    chTMBMqc = tmbFlow.out.report.map{it->it[1]}
   }
 
   /*
@@ -537,11 +579,13 @@ workflow {
   ================================================================================
   */
 
-  if('msisensor' in tools){
-  msiFlow(
-    chPairBam,
-    chFasta
-  )
+  if('msisensor' in tools && params.step != 'annotate'){
+    msiFlow(
+      chPairBam,
+      chFasta,
+      chBed
+    )
+    chMSIMqc = msiFlow.out.report.map{it->it[1]}
   }
 
   /*
@@ -552,15 +596,13 @@ workflow {
 
   // STEP MANTA.1 - SINGLE MODE
 
-  if ('manta' in tools){
+  if ('manta' in tools && params.step != 'annotate'){
     mantaFlow(
       chPairBam,
-      chSingleBam,
       chBed,
       chFasta,
       chFastaFai
     )
-
     chVersions = chVersions.mix(mantaFlow.out.versions)
   }
 
@@ -571,24 +613,22 @@ workflow {
   ================================================================================
   */
 
-  //chPairBam.view()
-
-  if('facets' in tools){
-  facetsFlow(
-    chPairBam,
-    chDbsnp
-  )
+  if('facets' in tools && params.step != 'annotate'){
+    facetsFlow(
+      chPairBam,
+      chDbsnp
+    )
   }
 
-  if('ascat' in tools){
-  ascatFlow(
-    chSingleBam,
-    chAcLoci,
-    chAcLociGC,
-    chDict,
-    chFasta,
-    chFastaFai
-  )
+  if('ascat' in tools && params.step != 'annotate'){
+    ascatFlow(
+      chSingleBam,
+      chAcLoci,
+      chAcLociGC,
+      chDict,
+      chFasta,
+      chFastaFai
+    )
   }
 
   /*
@@ -597,30 +637,43 @@ workflow {
   ================================================================================
   */
 
-    // MULTIQC
+  // Warnings that will be printed in the mqc report
+  chWarn = Channel.empty()
 
-    // Warnings that will be printed in the mqc report
-    // chWarn = Channel.empty()
-    //
-    // if (!params.skipMultiQC){
-    //
-    //   getSoftwareVersions(
-    //     chVersions.unique().collectFile()
-    //   )
-    //
-    //   multiqc(
-    //     customRunName,
-    //     chSplan.collect(),
-    //     chMetadata.ifEmpty([]),
-    //     chMultiqcConfig.ifEmpty([]),
-    //     chFastqcMqc.ifEmpty([]),
-    //     getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
-    //     workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
-    //     chWarn.collect().ifEmpty([])
-    //   )
-    //
-    //   mqcReport = multiqc.out.report.toList()
-    // }
+  if (!params.skipMultiQC && params.step != 'calling' && params.step != 'annotate' ){
+    getSoftwareVersions(
+      chVersions.unique().collectFile()
+    )
+
+    multiqc(
+      customRunName,
+      chSplan.collect(),
+      chMetadata.ifEmpty([]),
+      chMultiqcConfig.ifEmpty([]),
+      chFastqcMqc.collect().ifEmpty([]),
+      chMappingMqc.collect().ifEmpty([]),
+      chMappingStats.collect().ifEmpty([]),
+      chFragSizeMqc.collect().ifEmpty([]),
+      chWgsMetricsMqc.collect().ifEmpty([]),
+      chPreseqMqc.collect().ifEmpty([]),
+      chMarkdupStatsMqc.collect().ifEmpty([]),
+      chOnTargetStatsMqc.collect().ifEmpty([]),
+      chFilteringStatsMqc.collect().ifEmpty([]),
+      chGeneCovMqc.collect().ifEmpty([]),
+      chMosdepthMqc.collect().ifEmpty([]),
+      chIdentitoMqc.collect().ifEmpty([]),
+      chHaplotypecallerMetricsMqc.collect().ifEmpty([]),
+      chMutect2MetricsMqc.collect().ifEmpty([]),
+      chTsTvMqc.collect().ifEmpty([]),
+      chSnpEffMqc.collect().ifEmpty([]),
+      chMSIMqc.collect().ifEmpty([]),
+      chTMBMqc.collect().ifEmpty([]),
+      getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
+      workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
+      chWarn.collect().ifEmpty([])
+    )
+     mqcReport = multiqc.out.report.toList()
+   }
 }
 
 workflow.onComplete {

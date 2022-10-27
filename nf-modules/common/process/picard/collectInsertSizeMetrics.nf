@@ -20,9 +20,9 @@ process collectInsertSizeMetrics {
 
   script:
   def args = task.ext.args ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
-  echo \$(picard CollectInsertSizeMetrics --version 2>&1 | sed -e 's/Version:/picard /') > versions.txt
+  echo "Picard "\$(picard CollectInsertSizeMetrics --version 2>&1 | sed -e 's/Version:/picard /') > versions.txt
   picard CollectInsertSizeMetrics \\
       I=${bam} \\
       O=${prefix}_insert_size_metrics.txt \\

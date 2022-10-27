@@ -8,17 +8,16 @@ process sambambaMarkdup {
   tuple val(meta), path(bam), path(bai)
 
   output:
-  tuple val(meta), path("*.md.bam"), emit: bam
-  tuple val(meta), path("*.md.bam.bai"), emit: bai
+  tuple val(meta), path("*.md.bam"), path("*.md.bam.bai"), emit: bam
   path('versions.txt'), emit: versions
 
   when:
   task.ext.when == null || task.ext.when
 
   script:
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
-  sambamba --version &> versions.txt 2>&1 || true
+  sambamba markdup 2>&1 | grep ^sambamba > versions.txt
   sambamba markdup --nthreads ${task.cpus} --tmpdir . ${bam} ${prefix}.md.bam
   """
 }

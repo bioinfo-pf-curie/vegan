@@ -3,7 +3,7 @@
  */
 
 process tmb {
-  tag "$meta.id"
+  tag "${meta.id}"
   label 'minCpu'
   label 'lowMem'
   label 'tmb'
@@ -13,7 +13,7 @@ process tmb {
   path (target_bed)
 
   output:
-  tuple val(meta), path("*.log"), emit: logs
+  tuple val(meta), path("*_tmb.txt"), emit: tmb
   path "versions.txt"           , emit: versions
 
   when:
@@ -21,7 +21,7 @@ process tmb {
 
   script:
   def args = task.ext.args ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def target_bed = target_bed ? "--bed ${target_bed}" : ""
   """
   pyTMB.py -i $vcf \
@@ -29,7 +29,7 @@ process tmb {
       --dbConfig ${dbconfig} \
       --varConfig ${varconfig} \
       ${target_bed} \
-      $args
+      $args > ${prefix}_tmb.txt
 
   pyTMB.py --version > versions.txt
   """

@@ -10,7 +10,7 @@ process snpEff {
   tag "${prefix}"
 
   input:
-  tuple val(meta), path(vcf)
+  tuple val(meta), path(vcf), path(index)
   val(db)
   path(cache)
 

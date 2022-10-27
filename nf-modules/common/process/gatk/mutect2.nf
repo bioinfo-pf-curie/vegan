@@ -1,5 +1,5 @@
 /*
- * somatic variant calling with Mutect2
+ * Somatic variant calling with Mutect2
  */
 
 process mutect2 {
@@ -20,10 +20,10 @@ process mutect2 {
   path panelOfNormalsIndex
 
   output:
-  tuple val(meta), path("*.vcf.gz"), path("*.tbi")    , emit: vcf
-  tuple val(meta), path("*.stats")  , emit: stats
-  tuple val(meta), path("*f1r2.tar.gz"), emit: f1r2
-  path("versions.txt")              , emit: versions
+  tuple val(meta), path("*.vcf.gz"), path("*.tbi"), emit: vcf
+  tuple val(meta), path("*.stats")                , emit: stats
+  tuple val(meta), path("*f1r2.tar.gz")           , emit: f1r2, optional: true
+  path("versions.txt")                            , emit: versions
 
   when:
   task.ext.when == null || task.ext.when
@@ -39,7 +39,7 @@ process mutect2 {
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" Mutect2 \\
        $inputs \\
-       --output ${prefix}.vcf.gz \\
+       --output ${prefix}_Mutect2_unfiltered.vcf.gz \\
        --reference $fasta \\
        $ponCmd \\
        $grCmd \\
@@ -47,7 +47,6 @@ process mutect2 {
        --tmp-dir . \\
        $args
 
-  echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt
-
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

@@ -4,6 +4,7 @@
 
 include { identitoPolym } from '../process/identito/identitoPolym'
 include { identitoCombine } from '../process/identito/identitoCombine'
+include { identitoClustering } from '../process/identito/identitoClustering'
 
 workflow identitoFlow {
     take:
@@ -24,11 +25,16 @@ workflow identitoFlow {
     chVersions = chVersions.mix(identitoPolym.out.versions)
 
     identitoCombine(
-      identitoPolym.out.polyms.collect()
+      identitoPolym.out.tsv.collect()
     )
     chVersions = chVersions.mix(identitoCombine.out.versions)
 
+    identitoClustering(
+      identitoCombine.out.tsv.collect()
+    )
+
     emit:
-    results = identitoCombine.out.results
+    tsv = identitoCombine.out.tsv
+    results = identitoClustering.out.results
     versions  = chVersions
 }

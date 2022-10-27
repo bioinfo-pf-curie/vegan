@@ -28,7 +28,7 @@ process baseRecalibrator {
 
   script:
   def args = task.ext.args ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
   knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
   """
@@ -42,7 +42,6 @@ process baseRecalibrator {
       ${dbsnpOptions} \
       ${knownOptions} \
       --verbosity INFO
-
-  echo "GATK "\$(gatk --version 2>&1) | sed 's/^.*(GATK) v//; s/ .*\$//' > versions.txt
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

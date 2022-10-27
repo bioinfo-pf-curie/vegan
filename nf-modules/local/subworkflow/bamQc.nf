@@ -52,8 +52,10 @@ workflow bamQcFlow {
   chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
   emit:
-  fragSize = collectInsertSizeMetrics.out.results
-  seqDepth = mosdepth.out.metrics
-  bedDepth = mosdepth.out.mosdepthBed
-  versions = chVersions
+    fragSize = collectInsertSizeMetrics.out.results
+    seqDepth = mosdepth.out.metrics
+    bedDepth = mosdepth.out.bedcov
+    geneCovMqc = genesCoverage.out.geneCovMqc
+    wgsMetrics = collectWgsMetrics.out.metrics
+    versions = chVersions
 }

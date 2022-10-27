@@ -19,10 +19,10 @@ process concatVCF {
   path("versions.txt"), emit: versions
 
   script:
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   """
-  apConcatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${prefix}_concat.vcf ${args}
+  concatenateVCFs.sh -g ${fasta} -i ${fastaFai} -c ${task.cpus} -o ${prefix}_concat.vcf ${args}
   bcftools --version &> versions.txt 2>&1 || true
   """
 }
