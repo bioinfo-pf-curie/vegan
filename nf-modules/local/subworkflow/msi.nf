@@ -28,6 +28,6 @@ workflow msiFlow {
   chVersions = chVersions.mix(msisensorproMsi.out.versions)
 
   emit:
-  logs = msisensorproMsi.out.outputReport
+  report = msisensorproMsi.out.outputReport
   versions = chVersions
 }

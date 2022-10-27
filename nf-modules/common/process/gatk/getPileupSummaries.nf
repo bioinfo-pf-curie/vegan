@@ -12,8 +12,8 @@ process getPileupSummaries {
   input:
   tuple val(meta), path(bamTumor),path(baiTumor), path(bamNormal), path(baiNormal)
   path(intervalBed)
-  path(germlineResource)
-  path(germlineResourceIndex)
+  path(pileupSum)
+  path(pileupSumIndex)
   path(targetBed)
 
   output:
@@ -25,14 +25,14 @@ process getPileupSummaries {
 
   script:
   //pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
-  //intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${germlineResource}" : "-L ${intervalBed}"
+  //intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${pileupSum}" : "-L ${intervalBed}"
 
   def args = task.ext.args ?: ''
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     GetPileupSummaries \
     -I ${bamTumor} \
-    -V ${germlineResource} \
+    -V ${pileupSum} \
     ${args} \
     -O ${meta.tumor_id}_vs_${meta.normal_id}_pileupsummaries.table
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt

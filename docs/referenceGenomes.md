@@ -1,9 +1,9 @@
 # Reference Genomes Configuration
 
-The pipeline needs a reference genome for alignment and annotation.
+The pipeline needs a reference genome for alignment, variant calling and annotation.
 All annotation data and paths must be defined/modified in the `conf/genomes.conf` files.
 
-These paths can be supplied on the command line at run time (see the [usage docs](../usage.md)),
+These paths can be supplied on the command line at run time (see the [usage documentation](usage.md)),
 but for convenience it's often better to save these paths in a nextflow config file.
 See below for instructions on how to do this.
 
@@ -32,6 +32,3 @@ params {
 ```
 
 You can add as many genomes as you like as long as they have unique IDs.
-
-
-

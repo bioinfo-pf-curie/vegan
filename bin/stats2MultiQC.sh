@@ -140,3 +140,24 @@ for sample in $all_samples; do
 
   echo -e ${sample},${sname},${nb_frag},${frag_length},${nb_mapped},${perc_mapped},${perc_over},${nb_dups},${perc_dups},${nb_ontarget},${perc_ontarget},${nb_filt},${perc_filt},${mean_depth},${cov30},${cov50},${cov100} >>mqc.stats
 done
+
+
+## scores
+if [ -d tmb/ ]; then
+    echo ",TMB" > tmb_scores.mqc
+    for i in $(ls tmb/*)
+    do
+        score=$(awk -F"= " '$1=="TMB"{print $2}' $i)
+        id=$(basename $i | sed -e 's/_tmb.txt//')
+        echo -e $id","$score >> tmb_scores.mqc
+    done
+fi
+if [ -d msi/ ]; then
+    echo ",MSI" > msi_scores.mqc                                                                                                                                                                
+    for i in $(ls msi/*)
+    do
+        score=$(tail -n1 $i | awk '{print $3}')
+        id=$(basename $i)
+        echo -e $id","$score >> msi_scores.mqc
+    done
+fi

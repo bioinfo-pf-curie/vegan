@@ -90,7 +90,7 @@ class NFTools {
      *
      * @return customRunName
      */
-    
+
      public static String checkRunName(workflowRunName, runName) {
        return workflowRunName ==~ /[a-z]+_[a-z]+/ && runName ? runName : workflowRunName
      }
@@ -181,7 +181,7 @@ Available Profiles
 
             The typical command for running the pipeline is as follows:
 
-            nextflow run main.nf ${CLIHelpMsg.join(" ")} -profile PROFILES
+            nextflow run main.nf ${CLIHelpMsg.join(" ")} 
 
         %s
         %s
@@ -391,7 +391,7 @@ Available Profiles
               } else {
                 Nextflow.exit(1, "File: ${inputFile1} is not a FASTQ file (.fastq.gz, .fq.gz). See --help for more information")
               }
-	      
+
 	      if (singleEnd) {
 	        meta.singleEnd = true
 		return [meta, [inputFile1]]
@@ -420,7 +420,7 @@ Available Profiles
           return Channel
             .fromFilePairs(reads, size: singleEnd ? 1 : 2)
             .ifEmpty { Nextflow.exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nNB: Path requires at least one * wildcard!\nIf this is single-end data, please specify --singleEnd on the command line." }
-            .map { row -> 
+            .map { row ->
                    def meta = [:]
                    meta.id = row[0]
                    if (singleEnd) {
@@ -428,7 +428,7 @@ Available Profiles
                      return [meta, [row[1][0]]]
                    }else{
                      meta.singleEnd = false
-                     return [meta, [row[1][0], row[1][1]]] 
+                     return [meta, [row[1][0], row[1][1]]]
                    }
             }
          }
@@ -464,16 +464,16 @@ Available Profiles
               return [meta, inputFiles]
             }
       }
- 
+
 
       /*
        * Channeling the samplePlan and create a file is no samplePlan is provided
-       * 
+       *
        * @param samplePlan
        * @param reads
        * @param readPaths
        * @param singleEnd
-       
+
        * @return
        */
 
@@ -528,7 +528,7 @@ Available Profiles
      */
 
     public static void makeReports(workflow, params, summary, customRunName, mqcReport) {
-    	def colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)  
+    	def colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
         def engine = new groovy.text.GStringTemplateEngine()
 
 	// Complete summary
@@ -549,7 +549,7 @@ Available Profiles
   	def reportFields = params + [
         workflowName: workflow.manifest.name,
 	version : workflow.manifest.version,
-        runName: customRunName, 
+        runName: customRunName,
  	success: workflow.success,
 	dateComplete: workflow.complete,
 	duration:workflow.duration,
@@ -615,7 +615,7 @@ Available Profiles
             'Exit status': workflow.exitStatus,
             'Error report': workflow.errorReport ?: '-'
         ]
-        
+
         String endWfSummary = endSummary.collect { k,v -> "${k.padRight(30, '.')}: $v" }.join("\n")
         String execInfo = "Execution summary\n${endWfSummary}\n"
         woc.withWriter { w -> w << execInfo }
