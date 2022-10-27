@@ -54,7 +54,7 @@ It comes with conda / singularity containers making installation easier and resu
 ```bash
 nextflow run main.nf --help
 N E X T F L O W  ~  version 21.10.6
-Launching `/bioinfo/users/tgutman/Documents/Tom/Pipelines/new_vegan/vegan/main.nf` [lethal_torricelli] - revision: 4d570988d2
+Launching `main.nf` [lethal_torricelli] - revision: 4d570988d2
 ------------------------------------------------------------------------
 
     _   _   _____          __     __  _____    ____      _      _   _
