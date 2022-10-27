@@ -1,0 +1,8 @@
+name: snpsift
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::snpsift=5.1=hdfd78af_0
+  - bioconda::tabix=1.11=hdfd78af_0

@@ -171,6 +171,11 @@ pdf(paste0(outDir,"/",name,"_cnv.pdf"), width=16, height=8)
 facetsPlot(x=oo, emfit=fit2, sname=title, chromlevels=oo$chromlevels)
 invisible(dev.off())
 
+df <- unique(data.frame("ID" = name,"cellularity" = round(fit2$cncf$purity,3), "ploidy" = round(fit2$cncf$ploidy,3)))
+
+write.table(df,paste0(outDir,"/",name,"_cnv_ploidy_cellularity.txt"),
+            quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
+
 ## Summarize results in a table
 tab <- fit2$cncf
 tab$ID <- name
@@ -203,6 +208,12 @@ if(opt$assembly=="mm10" | opt$assembly=="mm9")
 if(opt$assembly=="hg19" | opt$assembly=="hg18")
     tab[which(tab$chrom=="23"),"chrom"]="X"
 
-write.table(tab, paste0(outDir,"/",name,"cnv_segments.transformed.txt"),
+write.table(tab, paste0(outDir,"/",name,"_cnv_segments.transformed.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
 
+max_size <- 10000000
+
+tab_amp_del <- tab[which(tab$call =="DEL" | (tab$call == "AMP" & (as.numeric(tab$loc.end) - as.numeric(tab$loc.start)) <= max_size)),]
+
+write.table(tab_amp_del, paste0(outDir,"/",name,"_cnv_amp_del.txt"),
+            quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")

@@ -4,32 +4,32 @@
 #                       -f ${sampleIdTN}_${variantCaller}_filtered.vcf.gz \
 #                       -c ${sampleIdTN}_contamination.table
 #                       -n ${sampleIdTN} > ${sampleIdTN}_Mutect2_callingMetrics.mqc
-                                                                                                                                
+
 while getopts "i:f:c:n:" OPT
 do
     case $OPT in
         i) vcf=$OPTARG;;
-	f) fvcf=$OPTARG;;
-	c) conta=$OPTARG;;
+        f) fvcf=$OPTARG;;
+        c) conta=$OPTARG;;
         n) sname=$OPTARG;;
-	h) help ;;
-	\?)
-	    echo "Invalid option: -$OPTARG" >&2
-	    usage
-	    exit 1
-	    ;;
-	:)
-	    echo "Option -$OPTARG requires an argument." >&2
-	    usage
-	    exit 1
-	    ;;
+        h) help ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            usage
+            exit 1
+            ;;
+        :)
+            echo "Option -$OPTARG requires an argument." >&2
+            usage
+            exit 1
+            ;;
     esac
 done
 
-if [ -z ${vcf} ]; 
+if [ -z ${vcf} ];
 then
     echo "Error - VCF file is missing"
-    exit 1 
+    exit 1
 fi
 
 if [ -z ${sname} ];
@@ -62,5 +62,3 @@ fi
 
 echo "sample_ID,conta,nb_var,nb_var_filt,perc_var_filt"
 echo $sname,$conta,$nbVar,$nbFilt,$pFilt
-
-
