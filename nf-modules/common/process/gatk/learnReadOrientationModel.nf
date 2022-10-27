@@ -14,17 +14,18 @@ process learnReadOrientationModel {
 
   output:
   path("*_read-orientation-model.tar.gz"), emit: readOrientation
+  path("versions.txt"), emit: versions
 
   when:
   task.ext.when == null || task.ext.when
 
   script:
-  //def args = task.ext.args ?: ''
   """
-
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
   LearnReadOrientationModel \
     -I ${f1r2} \
     -O ${meta.tumor_id}_vs_${meta.normal_id}_read-orientation-model.tar.gz
+
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

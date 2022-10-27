@@ -6,7 +6,7 @@ process intersectBed {
 
   input:
   tuple val(meta), path(bam), path(bai)
-  path(targetBed)
+  path (bed)
 
   output:
   tuple val(meta), path("*.onTarget.bam"), emit: bam
@@ -16,9 +16,9 @@ process intersectBed {
   task.ext.when == null || task.ext.when
 
   script:
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   echo \$(bedtools --version 2>&1) &> versions.txt
-  intersectBed -abam ${bam} -b ${targetBed} > ${prefix}.onTarget.bam
+  intersectBed -abam ${bam} -b ${bed} > ${prefix}.onTarget.bam
   """
 }

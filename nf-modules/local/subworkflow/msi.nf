@@ -10,6 +10,7 @@ workflow msiFlow {
   take:
   bam
   fasta
+  bed
 
   main:
   chVersions = Channel.empty()
@@ -21,11 +22,12 @@ workflow msiFlow {
   msisensorproMsi(
     bam,
     fasta.collect(),
-    msisensorproScan.out.list.collect()
+    msisensorproScan.out.list.collect(),
+    bed
   )
   chVersions = chVersions.mix(msisensorproMsi.out.versions)
 
   emit:
-  logs = msisensorproMsi.out.outputReport
+  report = msisensorproMsi.out.outputReport
   versions = chVersions
 }

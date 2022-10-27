@@ -1,14 +1,16 @@
 {
   "parameters": [
     {
-      "name": "reads",
-      "label": "Input files",
-      "usage": "Path to input data (must be surrounded with quotes)",
-      "type": "path",
-      "choices": [],
+      "name": "profile",
+      "label": "Configuration profile(s)",
+      "usage": "Configuration profile to use. Can use multiple (comma separated).",
+      "type": "string",
+      "choices": [
+      "test", "multiconda", "singularity", "cluster", "docker",  "conda", "path", "multipath"
+      ],
       "nargs": "+",
       "default_value": null,
-      "pattern": ".*\\*.*",
+      "pattern": ".*",
       "render": "textfield",
       "arity": 0,
       "group": "Mandatory arguments"
@@ -40,15 +42,13 @@
       "group": "Mandatory arguments"
     },
     {
-      "name": "profile",
-      "label": "Configuration profile(s)",
-      "usage": "Configuration profile to use. Can use multiple (comma separated).",
+      "name": "step",
+      "label": "Starting step",
+      "usage": "Specify starting step",
       "type": "string",
-      "choices": [
-        "conda", "cluster", "docker", "multiconda", "conda", "path", "multipath", "singularity"
-      ],
-      "nargs": "+",
-      "default_value": null,
+      "nargs": 1,
+      "choices": ["mapping", "filtering", "calling", "annotate"],
+      "default_value": "mapping",
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
@@ -67,45 +67,58 @@
       "arity": 0,
       "group": "Mandatory arguments"
     },
-
+    {
+      "name": "genomeAnnotationPath",
+      "label": "PATH to Reference",
+      "usage": "PATH to the reference genome folder.",
+      "type": "PATH",
+      "nargs": "1",
+      "default_value": [],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Mandatory arguments"
+    },
     {
       "name": "tools",
       "label": "Variant calling tools",
       "usage": "Specify tools to use for variant calling",
       "type": "string",
       "nargs": "+",
-      "choices": ["facets", "ascat", "haplotypecaller", "manta", "mutect2", "snpeff", "tmb", "msisensor" ],
+      "choices": ["haplotypecaller", "mutect2", "manta", "snpeff", "facets", "ascat",  "tmb", "msisensor"],
       "default_value": [],
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Main options"
+      "group": "Mandatory arguments"
     },
     {
-      "name": "step",
-      "label": "Starting step",
-      "usage": "Specify starting step",
-      "type": "string",
+      "name": "outDir",
+      "label": "Output directory",
+      "usage": "The output directory where the results will be saved",
+      "type": "path",
       "nargs": 1,
-      "choices": ["mapping", "filtering", "calling", "annotate"],
-      "default_value": "mapping",
+      "choices": [],
+      "default_value": null,
       "pattern": ".*",
+      "render": "file",
+      "arity": 0,
+      "group": "Mandatory arguments"
+    },
+
+
+    {
+      "name": "reads",
+      "label": "Input files",
+      "usage": "Path to input data (must be surrounded with quotes)",
+      "type": "path",
+      "choices": [],
+      "nargs": "+",
+      "default_value": null,
+      "pattern": ".*\\*.*",
       "render": "textfield",
       "arity": 0,
-      "group": "Main options"
-    },
-    {
-      "name": "noIntervals",
-      "label": "No intervals",
-      "usage": "Disable usage of intervals",
-      "type": "boolean",
-      "nargs": 0,
-      "choices": [],
-      "default_value": false,
-      "pattern": "",
-      "render": "check-box",
-      "arity": 0,
-      "group": "Main options"
+      "group": "Inputs"
     },
     {
       "name": "singleEnd",
@@ -118,7 +131,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Main options"
+      "group": "Inputs"
     },
 
     {
@@ -135,6 +148,33 @@
       "group": "Alignment"
     },
     {
+      "name": "mapQual",
+      "label": "Min map qual",
+      "usage": "Minimum mapping quality to consider for an alignment",
+      "type": "integer",
+      "nargs": 1,
+      "choices": [],
+      "default_value": 20,
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Alignment"
+    },
+    {
+      "name": "aligner",
+      "label": "Alignement tool",
+      "usage": "Specify tools to use for mapping",
+      "type": "string",
+      "nargs": "+",
+      "choices": ["bwa-mem", "bwa-mem2", "dragmap"],
+      "default_value": [],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Alignment"
+    },
+
+    {
       "name": "targetBed",
       "label": "Target Bed file",
       "usage": "Target Bed file for targeted or whole exome sequencing",
@@ -148,75 +188,46 @@
       "group": "Filtering"
     },
     {
-      "name": "bwaOptions",
-      "label": "BWA-mem options",
-      "usage": "Define BWA-mem option for read mapping",
-      "type": "string",
-      "nargs": "1",
-      "choices": [],
-      "default_value": "-k 19 -T 30 -M",
-      "pattern": ".*",
-      "render": "textfield",
-      "arity": 0,
-      "group": "Alignment"
-    },
-
-
-
-    {
-      "name": "SVFilters",
-      "label": "SV Filters",
-      "usage": "Specify which filter(s) to use for SV",
-      "type": "string",
-      "nargs": "+",
-      "choices": ["mapq", "duplicates", "singleton", "multihits" ],
-      "default_value": ["mapq", "duplicates"],
-      "pattern": ".*",
-      "render": "textfield",
-      "arity": 0,
-      "group": "Filtering"
-    },
-    {
-      "name": "SNVFilters",
-      "label": "SNV Filters",
-      "usage": "Specify which filter(s) to use for SNV",
-      "type": "string",
-      "nargs": "+",
-      "choices": ["mapq", "duplicates", "singleton", "multihits" ],
-      "default_value": ["mapq", "duplicates"],
-      "pattern": ".*",
-      "render": "textfield",
-      "arity": 0,
-      "group": "Filtering"
-    },
-    {
-      "name": "mapQual",
-      "label": "Mapping quality",
-      "usage": "Minimum mapping quality",
-      "type": "integer",
-      "nargs": 1,
-      "choices": [],
-      "default_value": 20,
-      "pattern": ".*",
-      "render": "textfield",
-      "arity": 0,
-      "group": "Filtering"
-    },
-
-
-    {
-      "name": "saveGVCF",
-      "label": "Save gvcf files",
-      "usage": "Save gvcf output from HaplotypeCaller",
+      "name": "keepDups",
+      "label": "keep Duplicate reads",
+      "usage": "Specify to keep duplicate reads when filtering the alignment",
       "type": "boolean",
-      "nargs": 0,
+      "nargs": "+",
       "choices": [],
-      "default_value": false,
+      "default_value": [],
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Variant calling"
+      "group": "Filtering"
     },
+    {
+      "name": "keepSingleton",
+      "label": "keep Singleton reads",
+      "usage": "Specify to keep singleton reads when filtering the alignment",
+      "type": "boolean",
+      "nargs": "+",
+      "choices": [],
+      "default_value": [],
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Filtering"
+    },
+    {
+      "name": "keepMultiHits",
+      "label": "keep Multi hit reads",
+      "usage": "Specify to keep multi hit reads when filtering the alignment",
+      "type": "boolean",
+      "nargs": "+",
+      "choices": [],
+      "default_value": [],
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Filtering"
+    },
+
+
     {
       "name": "baseQual",
       "label": "Base quality",
@@ -229,6 +240,73 @@
       "render": "textfield",
       "arity": 0,
       "group": "Variant calling"
+    },
+    {
+      "name": "orientationBiais",
+      "label": "orientation Biais filter",
+      "usage": "Specify to use the orientation Biais filter for Mutect2 calls (for FFPE samples)",
+      "type": "boolean",
+      "nargs": "+",
+      "choices": [],
+      "default_value": [],
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Variant calling"
+    },
+    {
+      "name": "saveVcfMetrics",
+      "label": "Save vcf metrics",
+      "usage": "Save complementary vcf metrics files",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Variant calling"
+    },
+    {
+      "name": "saveVcfIntermediates",
+      "label": "Save intermediate vcf files",
+      "usage": "Save intermediate vcf files",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Variant calling"
+    },
+
+
+    {
+      "name": "ffpe",
+      "label": "ffpe for TMB",
+      "usage": "Specify to use the ffpe parameters and filters for TMB computation",
+      "type": "boolean",
+      "nargs": "+",
+      "choices": [],
+      "default_value": [],
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Annotation"
+    },
+    {
+      "name": "annotDb",
+      "label": "Annotation databases",
+      "usage": "Annotation databases to use with SnpEff and SnpSift",
+      "type": "string",
+      "nargs": "+",
+      "choices": ["cosmic","icgc","cancerhotspots","gnomad","dbnsfp"],
+      "default_value": ["cosmic","icgc","cancerhotspots","gnomad","dbnsfp"],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Annotation"
     },
 
 
@@ -311,241 +389,7 @@
       "group": "Skip options"
     },
 
-    {
-      "name": "fasta",
-      "label": "Fasta reference",
-      "usage": "Fasta reference",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "fastafai",
-      "label": "Fasta reference index",
-      "usage": "Fasta reference index",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "dict",
-      "label": "Dict from the fasta reference",
-      "usage": "Dict from the fasta reference",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "bwaIndex",
-      "label": "BWA indexes",
-      "usage": "BWA indexes for reads alignment",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "intervals",
-      "label": "Intervals",
-      "usage": "List of genomic intervals to split the processing",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-     {
-      "name": "germlineResource",
-      "label": "Germline Resource File",
-      "usage": "Germline Resource File",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "germlineResourceIndex",
-      "label": "Germline Resource Index File",
-      "usage": "Germline Resource Index File",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "knownIndels",
-      "label": "knownIndels File",
-      "usage": "knownIndels File",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "knownIndelsIndex",
-      "label": "knownIndels Index File",
-      "usage": "knownIndels Index File",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "dbsnp",
-      "label": "DBSNP file",
-      "usage": "DBSNP file",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "dbsnpIndex",
-      "label": "DBSNP index file",
-      "usage": "DBSNP index file",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "acLoci",
-      "label": "acLoci file",
-      "usage": "acLoci file",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "acLociGC",
-      "label": "acLociGC file",
-      "usage": "acLociGC file",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "snpeffDb",
-      "label": "snpeffDb version",
-      "usage": "snpeffDb version. Initialized from genomes configuration by default",
-      "type": "string",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "textfield",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "snpEffCache",
-      "label": "Path to SnpEff cache",
-      "usage": "Specity the path to snpEff cache",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "pon",
-      "label": "Panel of Normal VCF",
-      "usage": "Panel-of-normals VCF (bgzipped, indexed)",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
-    {
-      "name": "ponIndex",
-      "label": "PON index",
-      "usage": "Index of pon panel-of-normals VCF",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "References"
-    },
 
-    {
-      "name": "outDir",
-      "label": "Output directory",
-      "usage": "The output directory where the results will be saved",
-      "type": "path",
-      "nargs": 1,
-      "choices": [],
-      "default_value": null,
-      "pattern": ".*",
-      "render": "file",
-      "arity": 0,
-      "group": "Other options"
-    },
     {
       "name": "nucleotidesPerSecond",
       "label": "Nucleotides per second",

@@ -4,20 +4,21 @@
 
 process msisensorproMsi {
   tag "$meta.id"
-  label 'minCup'
+  label 'minCpu'
   label 'lowMem'
   label 'msisensorpro'
 
   input:
   tuple val(meta), path(tumor), path(tumorIndex), path(normal), path(normalIndex)
-  path (fasta)
-  path (msisensorScan)
+  path(fasta)
+  path(msisensorScan)
+  path(bed)
 
   output:
-  tuple val(meta), path("${prefix}")         , emit: outputReport
-  tuple val(meta), path("${prefix}_dis")     , emit: outputDis
-  tuple val(meta), path("${prefix}_germline"), emit: outputGermline
-  tuple val(meta), path("${prefix}_somatic") , emit: outputSomatic
+  tuple val(meta), path("${meta.id}")         , emit: outputReport
+  tuple val(meta), path("${meta.id}_dis")     , emit: outputDis
+  tuple val(meta), path("${meta.id}_germline"), emit: outputGermline
+  tuple val(meta), path("${meta.id}_somatic") , emit: outputSomatic
   path "versions.txt"                        , emit: versions
 
   when:
@@ -25,9 +26,9 @@ process msisensorproMsi {
 
   script:
   def args = task.ext.args   ?: ''
-  prefix   = task.ext.prefix ?: "${meta.id}"
+  def prefix   = task.ext.prefix ?: "${meta.id}"
   def fasta = fasta ? "-g ${fasta}" : ""
-  //def intervals = intervals ? " -e ${intervals} " : ""
+  def bed = bed ? " -e ${bed} " : ""
   """
   msisensor-pro \\
       msi \\
@@ -35,6 +36,7 @@ process msisensorproMsi {
       -n ${normal} \\
       -t ${tumor} \\
       ${fasta} \\
+      ${bed} \\
       -o $prefix \\
       -b ${task.cpus} \\
       $args

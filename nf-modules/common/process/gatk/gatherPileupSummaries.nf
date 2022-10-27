@@ -5,14 +5,15 @@ process gatherPileupSummaries {
   label 'minCpu'
   label 'medMem'
 
-  tag "${meta.id}_${meta.tumor_id}"
+  tag "${meta.tumor_id}_vs_${meta.normal_id}"
 
   input:
   tuple val(meta), path(pileupSums)
   path(dict)
 
   output:
-  tuple val(meta), path("${meta.tumor_id}_pileupsummaries.table.tsv"), emit: mergedPileupFileCh
+  tuple val(meta), path("${meta.tumor_id}_vs_${meta.normal_id}_pileupsummaries.table.tsv"), emit: mergedPileupFileCh
+  path("versions.txt"), emit: versions
 
   script:
   allPileups = pileupSums.collect{ "-I ${it} " }.join(' ')
@@ -21,6 +22,8 @@ process gatherPileupSummaries {
     GatherPileupSummaries \
     --sequence-dictionary ${dict} \
     ${allPileups} \
-    -O ${meta.tumor_id}_pileupsummaries.table.tsv
+    -O ${meta.tumor_id}_vs_${meta.normal_id}_pileupsummaries.table.tsv
+
+  echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

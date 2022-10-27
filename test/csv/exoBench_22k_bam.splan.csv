@@ -1,0 +1,2 @@
+D262E01_N,D262E01_normal,test/data/exoBench/D262E01_N_hg19.sort.bam,test/data/exoBench/D262E01_N_hg19.sort.bam.bai
+D262E02_T,D262E02_tumor,test/data/exoBench/D262E02_T_hg19_sorted.bam,test/data/exoBench/D262E02_T_hg19_sorted.bam.bai

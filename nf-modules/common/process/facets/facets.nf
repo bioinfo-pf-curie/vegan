@@ -21,9 +21,11 @@ process facets{
 
   script:
   """
+  genome=\$(basename ${params.genome} "_base")
+
   facets.r -i ${snppileupCounts} \\
 	   --name ${meta.tumor_id}_vs_${meta.normal_id} \\
-	   --assembly ${params.genome} \\
+	   --assembly \$genome \\
 	   --normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25
   R -e "packageVersion('facets')" > versions.txt
   """
