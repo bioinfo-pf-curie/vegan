@@ -448,7 +448,7 @@ workflow {
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        def meta = [tumor_id:it[6], normal_id:it[7], pair_id:it[8], id:it[6]+"_"+it[7], status:"pair", sex:it[9]]
+        def meta = [tumor_id:it[6], normal_id:it[7], pair_id:it[8], id:it[6]+"_vs_"+it[7], status:"pair", sex:it[9]]
         return [meta, it[1], it[2], it[4], it[5] ]
       }.set{ chPairBam }
 
@@ -479,6 +479,7 @@ workflow {
 
     chSingleBam = chSingleBam.mix(chTumorOnlyBam)
 
+    /* GERMLINE ONLY*/
     chProcBam
       .combine(chDesign.germlineOnly)
       .filter { it[0].id == it[4] }
@@ -498,12 +499,12 @@ workflow {
 
   chAllVcf = Channel.empty()
 
-  //*******************************************
-  //SUB-WORKFLOW : HaplotypeCaller
-
   if (params.step == "mapping" || params.step == "filtering" | params.step == "calling"){
 
-   chSingleBam = chSingleBam.unique()
+    //*******************************************
+    //SUB-WORKFLOW : HaplotypeCaller
+
+    chSingleBam = chSingleBam.unique()
 
     if('haplotypecaller' in tools){
       haplotypeCallerFlow(
@@ -524,6 +525,8 @@ workflow {
     //*******************************************
     //SUB-WORKFLOW : Mutect2
 
+    chMutect2MetricsMqc = Channel.empty()
+    
     if('mutect2' in tools){
 
       mutect2PairsFlow(
@@ -541,7 +544,7 @@ workflow {
         chIntervals
       )
       chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-      chMutect2MetricsMqc = mutect2PairsFlow.out.mqc
+      chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2PairsFlow.out.mqc)
       chTsTvMqc = chTsTvMqc.mix(mutect2PairsFlow.out.transition)
       chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
 
@@ -559,6 +562,10 @@ workflow {
         chPonIndex,
         chIntervals
       )
+      chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
+      chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2TumorOnlyFlow.out.mqc)
+      chTsTvMqc = chTsTvMqc.mix(mutect2TumorOnlyFlow.out.transition)
+      chAllVcf = chAllVcf.mix(mutect2TumorOnlyFlow.out.vcfFilteredNorm)
     }
   }
 
@@ -567,6 +574,8 @@ workflow {
                                    VCF ANNOTATION
   ================================================================================
   */
+
+  chAllVcf.view()
 
   // Annotation somatic vcf
   if('snpeff' in tools || params.step == 'annotate'){
