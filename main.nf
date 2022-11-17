@@ -198,6 +198,7 @@ summary = [
   'Tools' : params.tools ?: null,
   'Databases' : params.annotDb ?: null,
   'Target Bed' : params.targetBed ?: null,
+  'Pon' : params.pon ?: null,
   'Script dir': workflow.projectDir,
   'Launch Dir' : workflow.launchDir,
   'Output Dir' : params.outDir,
@@ -253,6 +254,10 @@ if (params.design){
     germlineOnly: it[0] == '' && it[1] != ''
   }.set{ chDesign }
 
+  if (chDesign.tumorOnly && !params.pon){
+    exit 1, "Tumor only samples detected without panels of normal: Please use '--pon'"
+  }
+
 }else{
   chDesignFile = Channel.empty()
   chDesign = Channel.empty()
@@ -272,6 +277,7 @@ include { identitoFlow } from './nf-modules/common/subworkflow/identito'
 include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
+include { mutect2TumorOnlyFlow } from './nf-modules/local/subworkflow/mutect2TumorOnly'
 include { annotateSomaticFlow as  annotateFlow} from './nf-modules/local/subworkflow/annotateSomatic'
 include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
@@ -427,44 +433,62 @@ workflow {
 
   /*
   ================================================================================
-   DESIGN / PAIRED ANALYSIS
+   DESIGN / PAIRED ANALYSIS / TUMOR ONLY / GERMLINE ONLY
   ================================================================================
   */
 
+  chSingleBam = Channel.empty()
+
   if (params.step == "mapping" || params.step == "filtering" | params.step == "calling"){
+
+    /* PAIRED BAMS */
     //[meta], tumor_bam, tumor_bai, normal_bam, normal_bai
     chProcBam
       .combine(chProcBam)
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
-        def meta = [tumor_id:it[6], normal_id:it[7], status: "pair", id:it[8], sex:it[9]]
+        def meta = [tumor_id:it[6], normal_id:it[7], pair_id:it[8], id:it[6]+"_"+it[7], status:"pair", sex:it[9]]
         return [meta, it[1], it[2], it[4], it[5] ]
       }.set{ chPairBam }
 
     //[meta], tumor_bam, tumor_bai
-    chProcBam
-      .combine(chProcBam)
-      .combine(chDesign.paired)
-      .filter { it[0].id == it[6] && it[3].id == it[7] }
+    chPairBam
       .map{ it ->
-        def meta = [status: "tumor", id:it[6], pair_id: it[8], sex:it[9]]
+        def meta = [id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
         return [meta, it[1], it[2] ]
       }.set{ chTumorBam }
 
     //[meta], normal_bam, normal_bai
-    chProcBam
-      .combine(chProcBam)
-      .combine(chDesign.paired)
-      .filter { it[0].id == it[6] && it[3].id == it[7] }
+    chPairBam
       .map{ it ->
-        def meta = [status: "normal", id:it[7], pair_id: it[8], sex:it[9]]
-        return [meta, it[4], it[5] ]
+        def meta = [id:it[0].normal_id, status: "normal", sex:it[0].sex]
+        return [meta, it[3], it[4] ]
       }.set{ chNormalBam }
-    chSingleBam = chNormalBam.mix(chTumorBam)
 
-    chAllVcf = Channel.empty()
-  }
+    chSingleBam = chNormalBam.mix(chTumorBam)
+  
+    /* TUMOR ONLY */
+    chProcBam
+      .combine(chDesign.tumorOnly)
+      .filter { it[0].id == it[3] }
+      .map{ it ->
+        def meta = [id:it[3], status: "tumor", sex:it[6]]
+        return [meta, it[1], it[2] ]
+      }.set{ chTumorOnlyBam }
+
+    chSingleBam = chSingleBam.mix(chTumorOnlyBam)
+
+    chProcBam
+      .combine(chDesign.germlineOnly)
+      .filter { it[0].id == it[4] }
+      .map{ it ->
+        def meta = [id:it[4], status: "normal", sex:it[6]]
+        return [meta, it[1], it[2] ]
+      }.set{ chGermlineOnlyBam }
+
+    chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
+   }
 
   /*
   ================================================================================
@@ -472,10 +496,14 @@ workflow {
   ================================================================================
   */
 
+  chAllVcf = Channel.empty()
+
   //*******************************************
   //SUB-WORKFLOW : HaplotypeCaller
 
   if (params.step == "mapping" || params.step == "filtering" | params.step == "calling"){
+
+   chSingleBam = chSingleBam.unique()
 
     if('haplotypecaller' in tools){
       haplotypeCallerFlow(
@@ -497,6 +525,7 @@ workflow {
     //SUB-WORKFLOW : Mutect2
 
     if('mutect2' in tools){
+
       mutect2PairsFlow(
         chPairBam,
         chBed,
@@ -515,6 +544,21 @@ workflow {
       chMutect2MetricsMqc = mutect2PairsFlow.out.mqc
       chTsTvMqc = chTsTvMqc.mix(mutect2PairsFlow.out.transition)
       chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
+
+      mutect2TumorOnlyFlow(
+        chTumorOnlyBam,
+        chBed,
+        chFasta,
+        chFastaFai,
+        chDict,
+        chGermlineResource,
+        chGermlineResourceIndex,
+        chPileupSum,
+        chPileupSumIndex,
+        chPon,
+        chPonIndex,
+        chIntervals
+      )
     }
   }
 
