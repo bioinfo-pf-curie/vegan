@@ -3,7 +3,7 @@
  */
 
 process mutect2 {
-  tag "${meta.tumor_id}_vs_${meta.normal_id}"
+  tag "${meta.id}"
   label 'gatk'
   label 'medMem'
   label 'lowCpu'
@@ -30,7 +30,7 @@ process mutect2 {
 
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.tumor_id}_vs_${meta.normal_id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def inputs = bam.collect{ "--input $it"}.join(" ")
   def intervalCmd = bed ? "--intervals $bed" : ""
   def ponCmd = panelOfNormals ? "--panel-of-normals $panelOfNormals" : ""

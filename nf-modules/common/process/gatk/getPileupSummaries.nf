@@ -6,18 +6,17 @@ process getPileupSummaries {
   label 'gatk'
   label 'minCpu'
   label 'extraMem'
-
-  tag "${meta.tumor_id}_vs_${meta.normal_id}"
+  tag "${meta.id}"
 
   input:
-  tuple val(meta), path(bamTumor),path(baiTumor), path(bamNormal), path(baiNormal)
+  tuple val(meta), path(bam), path(bai)
   path(intervalBed)
   path(pileupSum)
   path(pileupSumIndex)
   path(targetBed)
 
   output:
-  tuple val(meta), path("*_pileupsummaries.table"), emit: pileupSummaries
+  tuple val(meta), path("*_pileups.table"), emit: table
   path("versions.txt"), emit: versions
 
   when:
@@ -25,16 +24,20 @@ process getPileupSummaries {
 
   script:
   //pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
-  //intervalOpts = params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${pileupSum}" : "-L ${intervalBed}"
-
+  def intervalCmd= params.targetBed ? "-L ${targetBed}" : "-L ${pileupSum}"
+  //params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${pileupSum}" : "-L ${intervalBed}"
   def args = task.ext.args ?: ''
+  def prefix = task.ext.prefix ?: "${meta.id}"
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" \
     GetPileupSummaries \
-    -I ${bamTumor} \
-    -V ${pileupSum} \
-    ${args} \
-    -O ${meta.tumor_id}_vs_${meta.normal_id}_pileupsummaries.table
+    --input ${bam} \
+    --variant ${pileupSum} \
+    --output ${prefix}_pileups.table \
+    --tmp-dir . \
+    ${intervalCmd} \
+    ${args}
+
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }
