@@ -609,6 +609,7 @@ workflow {
   ================================================================================
   */
 
+  annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
   if('tmb' in tools || params.step == 'annotate'){
     tmbFlow(
       chTMB,
@@ -638,7 +639,7 @@ workflow {
   ================================================================================
   */
 
-  // STEP MANTA.1 - SINGLE MODE
+  // STEP MANTA
 
   if ('manta' in tools && params.step != 'annotate'){
     mantaFlow(
