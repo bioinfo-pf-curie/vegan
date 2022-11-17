@@ -23,7 +23,6 @@ process getPileupSummaries {
   task.ext.when == null || task.ext.when
 
   script:
-  //pairName = pairMap[[sampleIdNormal, sampleIdTumor]]
   def intervalCmd= params.targetBed ? "-L ${targetBed}" : "-L ${pileupSum}"
   //params.noIntervals ? params.targetBed ? "-L ${targetBed}" : "-L ${pileupSum}" : "-L ${intervalBed}"
   def args = task.ext.args ?: ''
