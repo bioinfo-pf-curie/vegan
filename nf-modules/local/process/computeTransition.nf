@@ -6,7 +6,7 @@ process computeTransition {
   label 'minCpu'
   label 'lowMem'
   label 'transition'
-  tag "${prefix}"
+  tag "${meta.id}"
 
   input:
   tuple val(meta), path(vcf), path(index)
@@ -18,9 +18,10 @@ process computeTransition {
   task.ext.when == null || task.ext.when
 
   script:
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
+  def args = task.ext.args ?: ''
   """
-  parseTransition.py -i ${vcf} --sample ${prefix} -o ${prefix}_${meta.status}.transi.tsv
-  transitionTable.r ${prefix}_${meta.status}.transi.tsv ${prefix}_${meta.status}.table.tsv
+  parseTransition.py -i ${vcf} ${args} -o ${prefix}.transi.tsv
+  transitionTable.r ${prefix}.transi.tsv ${prefix}.table.tsv
   """
 }

@@ -128,12 +128,20 @@ workflow mutect2PairsFlow {
    * FILTER MUTECT CALL
    */
 
-  mutect2Pairs.out.vcf
-    .join(mergeMutect2Stats.out.stats)
-    .join(learnReadOrientationModel.out.orientation)
-    .join(calculateContamination.out.contamination)
-    .join(calculateContamination.out.segmentation)
-    .set{ mutect2CallsToFilter }
+  if (params.skipMutectContamination){
+    mutect2Pairs.out.vcf
+      .join(mergeMutect2Stats.out.stats)
+      .join(learnReadOrientationModel.out.orientation)
+      .map{meta, vcf, index, stats, orientation -> [meta, vcf, index, stats, orientation, [], []] }
+      .set { mutect2CallsToFilter }
+  }else{
+    mutect2Pairs.out.vcf
+      .join(mergeMutect2Stats.out.stats)
+      .join(learnReadOrientationModel.out.orientation)
+      .join(calculateContamination.out.contamination)
+      .join(calculateContamination.out.segmentation)
+      .set{ mutect2CallsToFilter }
+  }
 
   filterMutect2Calls(
     mutect2CallsToFilter,
