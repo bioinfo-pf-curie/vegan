@@ -221,6 +221,7 @@ workflowSummaryCh = NFTools.summarize(summary, workflow, params)
 // Load raw reads
 if (params.step == "mapping"){
   chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
+  
 }else if (params.step == "filtering"){
   chRawReads = Channel.empty()
   chAlignedBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam','.bai'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
@@ -333,10 +334,8 @@ workflow {
     // SUB-WORFKLOW : MAPPING WITH BWA-MEM/BWA-MEM2/DRAGMAP
 
     if (params.step == "mapping"){
-      chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex :
-        params.aligner == 'bwa-mem2' ? chBwaMem2Index :
-        chdragmapIndex
-
+      chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex : params.aligner == 'bwa-mem2' ? chBwaMem2Index : chDragmapIndex
+    
       mappingFlow(
         chRawReads,
         chAlignerIndex
