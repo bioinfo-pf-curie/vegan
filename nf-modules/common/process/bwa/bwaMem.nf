@@ -5,16 +5,15 @@
 process bwaMem{
   tag "${meta.id}"
   label 'bwa'
-  label 'highCpu'
-  label 'highMem'
+  label 'extraCpu'
+  label 'extraMem'
 
   input:
   tuple val(meta), path(reads)
   path(index)
 
   output:
-  tuple val(meta), path("*.bam"), emit: bam
-  path("*.log"), emit: logs
+  tuple val(meta), path("*.sam"), emit: sam
   path("versions.txt"), emit: versions
 
   when:
@@ -32,9 +31,8 @@ process bwaMem{
     $args \
     -t $task.cpus \
     \${localIndex} \
-    $reads | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
+    $reads > ${prefix}_\${refName}.sam 
 
-  getBWAstats.sh -i ${prefix}_\${refName}.bam -p ${task.cpus} > ${prefix}_bwa.log
   echo "Bwa-mem "\$(bwa 2>&1 | grep Version | cut -d" " -f2) &> versions.txt
 
   """

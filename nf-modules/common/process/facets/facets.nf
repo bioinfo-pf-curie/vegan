@@ -5,7 +5,7 @@
 process facets{
   label 'facets'
   label 'minCpu'
-  label 'medMem'
+  label 'highMem'
 
   tag "${meta.tumor_id}_vs_${meta.normal_id}"
 

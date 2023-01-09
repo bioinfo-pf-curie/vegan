@@ -6,15 +6,14 @@ process bwaMem2{
   tag "${meta.id}"
   label 'bwaMem2'
   label 'highCpu'
-  label 'highMem'
+  label 'extraMem'
 
   input:
   tuple val(meta), path(reads)
   path(index)
 
   output:
-  tuple val(meta), path("*.bam"), emit: bam
-  path("*.log"), emit: logs
+  tuple val(meta), path("*.sam"), emit: sam
   path("versions.txt"), emit: versions
 
   when:
@@ -25,15 +24,14 @@ process bwaMem2{
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
-  refName=\$(basename \${localIndex})
+  refName=`basename \${localIndex}`
 
-   bwa-mem2 \
+  bwa-mem2 \
         mem \
-        $args \
+        -k 19 -T 30 -M \
         -t $task.cpus \
-        \$INDEX \
-        $reads \
-        | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
+        \${localIndex} \
+        $reads > ${prefix}_\${refName}.sam
 
   getBWAstats.sh -i ${prefix}_\${refName}.bam -p ${task.cpus} > ${prefix}_bwa.log
   echo "Bwa-mem2 "\$(bwa-mem2 version 2>&1) &> versions.txt

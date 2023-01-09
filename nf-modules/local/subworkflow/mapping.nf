@@ -5,6 +5,7 @@
 include { bwaMem } from '../../common/process/bwa/bwaMem'
 include { bwaMem2 } from '../../common/process/bwamem2/bwaMem2'
 include { dragmap } from '../../common/process/dragmap/dragmap'
+include { samtoolsView } from '../../common/process/samtools/samtoolsView'
 include { samtoolsSort } from '../../common/process/samtools/samtoolsSort'
 include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
@@ -25,32 +26,41 @@ workflow mappingFlow {
       index.collect()
     )
     chVersions = chVersions.mix(bwaMem.out.versions)
-    chBams = bwaMem.out.bam
-    chMappingLogs = bwaMem.out.logs
+    chSams = bwaMem.out.sam
+    
   }else if (params.aligner == 'bwa-mem2'){
+    
     bwaMem2(
       reads,
       index.collect()
     )
     chVersions = chVersions.mix(bwaMem2.out.versions)
-    chBams = bwaMem2.out.bam
-    chMappingLogs = bwaMem2.out.logs
+    chSams = bwaMem2.out.sam
+    
   }else if (params.aligner == 'dragmap'){
+    
     dragmap(
       reads,
-      index
+      index.collect()
     )
     chVersions = chVersions.mix(dragmap.out.versions)
-    chBams = dragmap.out.bam
-    chMappingLogs = dragmap.out.logs
+    chSams = dragmap.out.sam
+    
   }
 
-  // Merge BAM file with the same prefix
+  samtoolsView(
+      chSams
+  )
+  chBams = samtoolsView.out.bam
+  chMappingLogs = samtoolsView.out.logs 
+// Merge BAM file with the same prefix
   chBams.groupTuple(by:[0])
     .branch {
       singleCh: it[1].size() == 1
       multipleCh: it[1].size() > 1
   }.set{bamMapped}
+
+
 
   samtoolsMerge(
     bamMapped.multipleCh
