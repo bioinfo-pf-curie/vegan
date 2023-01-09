@@ -6,7 +6,7 @@ process mutect2 {
   tag "${meta.tumor_id}_vs_${meta.normal_id}"
   label 'gatk'
   label 'medMem'
-  label 'lowCpu'
+  label 'medCpu'
 
   input:
   tuple val(meta), path(bam), path(bai)

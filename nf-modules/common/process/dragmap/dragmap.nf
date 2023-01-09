@@ -5,16 +5,15 @@
 process dragmap{
   tag "${meta.id}"
   label 'dragmap'
-  label 'highCpu'
-  label 'highMem'
+  label 'extraCpu'
+  label 'extraMem'
 
   input:
   tuple val(meta), path(reads)
-  path(hashmap)
+  path(index)
 
   output:
-  tuple val(meta), path("*.bam"), emit: bam
-  path("*.log"), emit: logs
+  tuple val(meta), path("*.sam"), emit: sam
   path("versions.txt"), emit: versions
 
   when:
@@ -26,12 +25,11 @@ process dragmap{
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   dragen-os \\
-    -r $hashmap \\
+    -r $index \\
     $args \\
     --num-threads $task.cpus \\
     $readsCmd \\
-    2> ${prefix}.dragmap.log \\
-    | samtools view -bS --threads $task.cpus -o ${prefix}.bam -
+    > ${prefix}.sam
 
   echo "DragMap "\$(dragen-os --version 2>&1) > versions.txt
   """
