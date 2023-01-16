@@ -24,12 +24,15 @@ process dragmap{
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
-  dragen-os \\
+  localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
+  refName=`basename \${localIndex}`
+
+dragen-os \\
     -r $index \\
     $args \\
     --num-threads $task.cpus \\
     $readsCmd \\
-    > ${prefix}.sam
+    > ${prefix}_\${refName}.sam
 
   echo "DragMap "\$(dragen-os --version 2>&1) > versions.txt
   """
