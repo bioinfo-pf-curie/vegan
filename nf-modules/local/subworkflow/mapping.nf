@@ -26,41 +26,32 @@ workflow mappingFlow {
       index.collect()
     )
     chVersions = chVersions.mix(bwaMem.out.versions)
-    chSams = bwaMem.out.sam
-    
+    chBams = bwaMem.out.bam
+    chMappingLogs = bwaMem.out.logs
   }else if (params.aligner == 'bwa-mem2'){
-    
     bwaMem2(
       reads,
       index.collect()
     )
     chVersions = chVersions.mix(bwaMem2.out.versions)
-    chSams = bwaMem2.out.sam
-    
+    chBams = bwaMem2.out.bam
+    chMappingLogs = bwaMem2.out.logs
   }else if (params.aligner == 'dragmap'){
-    
     dragmap(
       reads,
-      index.collect()
+      index
     )
     chVersions = chVersions.mix(dragmap.out.versions)
-    chSams = dragmap.out.sam
-    
+    chBams = dragmap.out.bam
+    chMappingLogs = dragmap.out.logs
   }
 
-  samtoolsView(
-      chSams
-  )
-  chBams = samtoolsView.out.bam
-  chMappingLogs = samtoolsView.out.logs 
-// Merge BAM file with the same prefix
+  // Merge BAM file with the same prefix
   chBams.groupTuple(by:[0])
     .branch {
       singleCh: it[1].size() == 1
       multipleCh: it[1].size() > 1
   }.set{bamMapped}
-
-
 
   samtoolsMerge(
     bamMapped.multipleCh

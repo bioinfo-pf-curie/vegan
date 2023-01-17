@@ -195,6 +195,7 @@ summary = [
   'Inputs' : params.samplePlan ?: params.reads ?: null,
   'Design' : params.design ?: null,
   'Genome' : params.genome,
+  'Aligner':params.aligner ?: null,
   'Tools' : params.tools ?: null,
   'Databases' : params.annotDb ?: null,
   'Target Bed' : params.targetBed ?: null,
@@ -221,7 +222,6 @@ workflowSummaryCh = NFTools.summarize(summary, workflow, params)
 // Load raw reads
 if (params.step == "mapping"){
   chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
-  
 }else if (params.step == "filtering"){
   chRawReads = Channel.empty()
   chAlignedBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam','.bai'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
@@ -554,9 +554,10 @@ workflow {
     tableReportFlow(
       annotateFlow.out.vcf
     )
+    annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
+  }else{
+    chTMB=Channel.empty()
   }
-
-  annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
 
   /*
   ================================================================================
