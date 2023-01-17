@@ -195,6 +195,7 @@ summary = [
   'Inputs' : params.samplePlan ?: params.reads ?: null,
   'Design' : params.design ?: null,
   'Genome' : params.genome,
+  'Aligner':params.aligner ?: null,
   'Tools' : params.tools ?: null,
   'Databases' : params.annotDb ?: null,
   'Target Bed' : params.targetBed ?: null,
@@ -339,10 +340,8 @@ workflow {
     // SUB-WORFKLOW : MAPPING WITH BWA-MEM/BWA-MEM2/DRAGMAP
 
     if (params.step == "mapping"){
-      chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex :
-        params.aligner == 'bwa-mem2' ? chBwaMem2Index :
-        chdragmapIndex
-
+      chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex : params.aligner == 'bwa-mem2' ? chBwaMem2Index : chDragmapIndex
+    
       mappingFlow(
         chRawReads,
         chAlignerIndex
@@ -608,9 +607,10 @@ workflow {
     tableReportFlow(
       annotateFlow.out.vcf
     )
+    annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
+  }else{
+    chTMB=Channel.empty()
   }
-
-  annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
 
   /*
   ================================================================================

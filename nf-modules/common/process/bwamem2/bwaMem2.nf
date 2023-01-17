@@ -31,7 +31,7 @@ process bwaMem2{
         mem \
         $args \
         -t $task.cpus \
-        \$INDEX \
+        \$localIndex \
         $reads \
         | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
 
