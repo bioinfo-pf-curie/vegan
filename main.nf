@@ -47,7 +47,6 @@ mqcReport = []
 include {checkAlignmentPercent} from './lib/functions'
 include {loadDesign} from './lib/functions'
 
-
 tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
 
 
@@ -246,7 +245,9 @@ if (params.design){
     .fromPath(params.design)
     .ifEmpty { exit 1, "Design file not found: ${params.design}" }
     .set { chDesignFile }
+
   chDesign = loadDesign(params.design)
+  chDesign.view()
 
   //Separate the design in germline only / tumor only / germline + tumor
   chDesign.branch{
@@ -255,9 +256,9 @@ if (params.design){
     germlineOnly: it[0] == '' && it[1] != ''
   }.set{ chDesign }
 
-  if (chDesign.tumorOnly && !params.pon){
-    exit 1, "Tumor only samples detected without panels of normal: Please use '--pon'"
-  }
+//  if (chDesign.tumorOnly && !params.pon){
+//    exit 1, "Tumor only samples detected without panels of normal: Please use '--pon'"
+//  }
 
 }else{
   chDesignFile = Channel.empty()
@@ -618,7 +619,6 @@ workflow {
   ================================================================================
   */
 
-  annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
   if('tmb' in tools || params.step == 'annotate'){
     tmbFlow(
       chTMB,
