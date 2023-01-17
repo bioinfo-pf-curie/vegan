@@ -5,6 +5,7 @@
 include { bwaMem } from '../../common/process/bwa/bwaMem'
 include { bwaMem2 } from '../../common/process/bwamem2/bwaMem2'
 include { dragmap } from '../../common/process/dragmap/dragmap'
+include { samtoolsView } from '../../common/process/samtools/samtoolsView'
 include { samtoolsSort } from '../../common/process/samtools/samtoolsSort'
 include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
