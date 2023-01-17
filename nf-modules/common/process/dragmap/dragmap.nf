@@ -5,15 +5,16 @@
 process dragmap{
   tag "${meta.id}"
   label 'dragmap'
-  label 'extraCpu'
-  label 'extraMem'
+  label 'highCpu'
+  label 'highMem'
 
   input:
   tuple val(meta), path(reads)
-  path(index)
+  path(hashmap)
 
   output:
-  tuple val(meta), path("*.sam"), emit: sam
+  tuple val(meta), path("*.bam"), emit: bam
+  path("*.log"), emit: logs
   path("versions.txt"), emit: versions
 
   when:
@@ -24,15 +25,13 @@ process dragmap{
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
-  localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
-  refName=`basename \${localIndex}`
-
-dragen-os \\
-    -r $index \\
+  dragen-os \\
+    -r $hashmap \\
     $args \\
     --num-threads $task.cpus \\
     $readsCmd \\
-    > ${prefix}_\${refName}.sam
+    2> ${prefix}.dragmap.log \\
+    | samtools view -bS --threads $task.cpus -o ${prefix}.bam -
 
   echo "DragMap "\$(dragen-os --version 2>&1) > versions.txt
   """
