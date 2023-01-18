@@ -43,7 +43,7 @@ workflow bamFiltersFlow {
       intersectBed.out.bam
     )
     chVersions = chVersions.mix(samtoolsFlagstatOnTarget.out.versions)
-    chBam = params.targetBed ? intersectBed.out.bam : sambambaMarkdup.out.bam
+    chBam = params.targetBed ? intersectBed.out.bam : sambambaMarkdup.out.bam.map{it->[it[0], it[1]]}
 
     // Filter with samtools
     samtoolsFilter(
