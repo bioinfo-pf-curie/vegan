@@ -187,18 +187,20 @@ chDragmapIndex          = params.dragmapIndex          ? Channel.fromPath(params
 */
 
 summary = [
-  'Pipeline Release': workflow.revision ?: null,
+  'Pipeline' : workflow.manifest.name ?: null,
+  'Version': workflow.manifest.version ?: null,
+  'DOI': workflow.manifest.doi ?: null,
   'Run Name': customRunName,
   'Step' : params.step ?: null,
   'Profile' : workflow.profile,
   'Inputs' : params.samplePlan ?: params.reads ?: null,
   'Design' : params.design ?: null,
   'Genome' : params.genome,
+  'Target Bed' : params.targetBed ?: null,
+  'Pon' : params.pon ?: null,
   'Aligner':params.aligner ?: null,
   'Tools' : params.tools ?: null,
   'Databases' : params.annotDb ?: null,
-  'Target Bed' : params.targetBed ?: null,
-  'Pon' : params.pon ?: null,
   'Script dir': workflow.projectDir,
   'Launch Dir' : workflow.launchDir,
   'Output Dir' : params.outDir,
@@ -439,7 +441,7 @@ workflow {
 
   chSingleBam = Channel.empty()
 
-  if (params.step == "mapping" || params.step == "filtering" | params.step == "calling"){
+  if (params.design && (params.step == "mapping" || params.step == "filtering" | params.step == "calling")){
 
     /* PAIRED BAMS */
     //[meta], tumor_bam, tumor_bai, normal_bam, normal_bai
