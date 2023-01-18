@@ -39,7 +39,7 @@ workflow mappingFlow {
   }else if (params.aligner == 'dragmap'){
     dragmap(
       reads,
-      index
+      index.collect()
     )
     chVersions = chVersions.mix(dragmap.out.versions)
     chBams = dragmap.out.bam
