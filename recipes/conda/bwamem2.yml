@@ -1,4 +1,4 @@
-name: bwaMem2
+name: bwamem2
 channels:
   - conda-forge
   - bioconda

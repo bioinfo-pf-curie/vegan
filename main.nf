@@ -67,7 +67,7 @@ if (params.genomes && params.genome && !params.genomes.containsKey(params.genome
 
 // Initialize variable from the genome.conf file
 params.bwaIndex = NFTools.getGenomeAttribute(params, 'bwaIndex')
-params.bwaMem2Index = NFTools.getGenomeAttribute(params, 'bwaMem2Index')
+params.bwamem2Index = NFTools.getGenomeAttribute(params, 'bwamem2Index')
 params.dragmapIndex = NFTools.getGenomeAttribute(params, 'dragmapIndex')
 params.chrLength = NFTools.getGenomeAttribute(params, 'chrLength')
 params.dict = NFTools.getGenomeAttribute(params, 'dict')
@@ -176,7 +176,7 @@ chBed                   = params.targetBed             ? Channel.fromPath(params
 chIntervals             = params.intervals             ? Channel.fromPath(params.intervals, checkIfExists: true).collect()              : Channel.value([]) //optional
 
 chBwaIndex              = params.bwaIndex              ? Channel.fromPath(params.bwaIndex)                                              : Channel.empty()
-chBwaMem2Index          = params.bwaMem2Index          ? Channel.fromPath(params.bwaMem2Index)                                          : Channel.empty()
+chBwaMem2Index          = params.bwamem2Index          ? Channel.fromPath(params.bwamem2Index)                                          : Channel.empty()
 chDragmapIndex          = params.dragmapIndex          ? Channel.fromPath(params.dragmapIndex)                                          : Channel.empty()
 
 
