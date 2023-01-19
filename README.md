@@ -2,7 +2,7 @@
 **V**ariant calling pipeline for whole **E**xome and whole **G**enome sequencing c**AN**cer data
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A519.10.0-brightgreen.svg)](https://www.nextflow.io/)
-[![Install with](https://anaconda.org/anaconda/conda-build/badges/installer/conda.svg)](https://conda.anaconda.org/anaconda)
+[![Install with conda](https://img.shields.io/badge/install%20with-conda-brightgreen.svg)](https://conda.anaconda.org/anaconda)
 [![Singularity Container available](https://img.shields.io/badge/singularity-available-7E4C74.svg)](https://singularity.lbl.gov/)
 [![Docker Container available](https://img.shields.io/badge/docker-available-003399.svg)](https://www.docker.com/)
 
@@ -16,7 +16,7 @@ It comes with conda / singularity containers making installation easier and resu
 ### Pipeline summary
 
 1. Run quality control of raw sequencing reads ([`fastqc`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
-2. Align reads on reference genome ([`BWA`](http://bio-bwa.sourceforge.net/))
+2. Align reads on reference genome ([`bwa-mem`](http://bio-bwa.sourceforge.net/), [`bwa-mem2`](https://github.com/bwa-mem2/bwa-mem2), [`dragmap`](https://github.com/Illumina/DRAGMAP))
 3. Report mapping metrics ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
 4. Mark duplicates ([`sambamba`](https://lomereiter.github.io/sambamba/))
 5. Library complexity analysis ([`Preseq`](http://smithlabresearch.org/software/preseq/))
