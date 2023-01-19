@@ -3,6 +3,9 @@ version-2.1.0
 
 NEW FEATURES
 
+  - add '--pon' option for tumor only samples
+  - Support bwa-mem2 mapper
+  - Support DRAGMAP mapper
   - change annotation file for Mutect2 calling
   - update versions of following tools:
     - preseq 2.0.3 -> 3.2.0
@@ -13,6 +16,10 @@ NEW FEATURES
     - mosdepth 0.2.9 -> 0.3.1
     - gatk 4.1.6.0 -> 4.2.6.1
     - r-base 3.6.3 -> 4.1.3
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Add samtools stats module in the report
 
 ***********************************
 version-2.0.0

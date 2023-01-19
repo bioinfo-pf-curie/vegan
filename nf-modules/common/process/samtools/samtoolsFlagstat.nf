@@ -12,7 +12,7 @@ process samtoolsFlagstat {
   tuple val(meta), path (bam)
 
   output:
-  tuple val(meta), path("*flagstats"), emit: stats
+  tuple val(meta), path("*flagstat"), emit: stats
   path("versions.txt") , emit: versions
 
   when:
@@ -22,6 +22,6 @@ process samtoolsFlagstat {
   def prefix = task.ext.prefix ?: "${bam.baseName}"  
   """
   echo \$(samtools --version | head -1) > versions.txt
-  samtools flagstat ${bam} > ${prefix}.flagstats
+  samtools flagstat ${bam} > ${prefix}.flagstat
   """
 }

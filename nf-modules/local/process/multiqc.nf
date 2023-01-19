@@ -17,6 +17,7 @@ process multiqc {
   path ('fastqc/*')
   path ('mapping/*')
   path ('mapping/*')
+  path ('mapping/*')
   path ('metrics/*')
   path ('metrics/*')
   path ('preseq/*')
@@ -49,7 +50,7 @@ process multiqc {
   splanOpts = params.samplePlan ? "--splan ${params.samplePlan}" : ""
   isPE = params.singleEnd ? 0 : 1
     
-  modulesList = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m picard -m mosdepth"
+  modulesList = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m picard -m mosdepth -m samtools"
   warn = warnings.name == 'warnings.txt' ? "--warn warnings.txt" : ""
   """
   stats2MultiQC.sh -s ${splan} ${designOpts} -p ${isPE}

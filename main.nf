@@ -311,6 +311,7 @@ workflow {
     chFastqcMqc = Channel.empty()
     chMappingMqc = Channel.empty()
     chMappingStats = Channel.empty()
+    chMappingFlagstat = Channel.empty()
     chOntargetStatsMqc = Channel.empty()
     chFilteringStatsMqc = Channel.empty()
     chPreseqMqc = Channel.empty()
@@ -352,6 +353,7 @@ workflow {
       chAlignedBam = mappingFlow.out.bam
       chMappingMqc = mappingFlow.out.logs
       chMappingStats = mappingFlow.out.stats
+      chMappingFlagstat = mappingFlow.out.flagstat
       chVersions = chVersions.mix(mappingFlow.out.versions)
     }
 
@@ -709,6 +711,7 @@ workflow {
       chFastqcMqc.collect().ifEmpty([]),
       chMappingMqc.collect().ifEmpty([]),
       chMappingStats.collect().ifEmpty([]),
+      chMappingFlagstat.collect().ifEmpty([]),
       chFragSizeMqc.collect().ifEmpty([]),
       chWgsMetricsMqc.collect().ifEmpty([]),
       chPreseqMqc.collect().ifEmpty([]),

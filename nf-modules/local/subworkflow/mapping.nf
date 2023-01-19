@@ -5,11 +5,11 @@
 include { bwamem } from '../../common/process/bwa/bwamem'
 include { bwamem2 } from '../../common/process/bwamem2/bwamem2'
 include { dragmap } from '../../common/process/dragmap/dragmap'
-include { samtoolsView } from '../../common/process/samtools/samtoolsView'
 include { samtoolsSort } from '../../common/process/samtools/samtoolsSort'
 include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
 include { samtoolsFlagstat } from '../../common/process/samtools/samtoolsFlagstat'
+include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
 
 workflow mappingFlow {
 
@@ -72,9 +72,14 @@ workflow mappingFlow {
     samtoolsSort.out.bam
   )
 
+  samtoolsStats(
+    samtoolsSort.out.bam
+  )
+
   emit:
   bam = samtoolsSort.out.bam.join(samtoolsIndex.out.bai)
   logs = chMappingLogs
-  stats = samtoolsFlagstat.out.stats.map{it-> it[1]}
+  flagstat = samtoolsFlagstat.out.stats.map{it-> it[1]}
+  stats = samtoolsStats.out.stats.map{it-> it[1]}
   versions = chVersions
 }
