@@ -16,15 +16,14 @@ process gatherPileupSummaries {
   path("versions.txt"), emit: versions
 
   script:
-  def inputs = pileupSums.collect{ "-I ${it} " }.join(' ')
+  def inputList = pileupSums.collect{ "-I ${it} " }.join(' ')
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   """
-  gatk --java-options "-Xmx${task.memory.toGiga()}g" \
-    GatherPileupSummaries \
-    --sequence-dictionary ${dict} \
-    ${inputs} \
-    -O ${prefix}_pileupsummaries.table \
+  gatk --java-options "-Xmx${task.memory.toGiga()}g" GatherPileupSummaries \\
+    ${inputList} \\
+    --sequence-dictionary ${dict} \\
+    -O ${prefix}_pileupsummaries.table \\
     ${args}
 
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt

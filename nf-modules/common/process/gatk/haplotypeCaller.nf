@@ -3,14 +3,13 @@
  */
 
 process haplotypeCaller {
-  tag "${prefix}"
+  tag "${meta.id}"
   label 'gatk'
   label 'medMemSq'
   label 'lowCpu'
 
   input:
-  tuple val(meta), path(bam), path(bai)
-  path(bed)
+  tuple val(meta), path(bam), path(bai), path(intervals)
   path(dbsnp)
   path(dbsnpIndex)
   path(fasta)
@@ -26,16 +25,17 @@ process haplotypeCaller {
 
   script:
   def args = task.ext.args ?: ''
-  def args2 = task.ext.args2 ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
-
+  def prefix = task.ext.prefix ?: "${meta.id}"
+  def intervalCmd = intervals ? "-L ${intervals}" : ""
+  def dbsnpCmd = dbsnp ? "--D ${dbsnp}" : ""
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
     HaplotypeCaller \
     -R ${fasta} \
     -I ${bam} \
     ${args} \
-    ${args2} \
+    ${dbsnpCmd} \
+    ${intervalCmd} \
     -O ${prefix}.g.vcf \
     -ERC GVCF
 

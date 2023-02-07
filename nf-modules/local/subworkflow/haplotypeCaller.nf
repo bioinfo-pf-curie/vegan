@@ -4,16 +4,14 @@
 
 include { haplotypeCaller } from '../../common/process/gatk/haplotypeCaller'
 include { genotypeGVCFs } from '../../common/process/gatk/genotypeGVCFs'
-//include { concatVCF } from '../../local/process/concatVCF'
-include { collectVCFmetrics } from '../../local/process/collectVCFmetrics'
+include { mergeVCFs } from '../../common/process/gatk/mergeVCFs'
 include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
-include { computeTransition } from '../../local/process/computeTransition'
 
 workflow haplotypeCallerFlow {
 
   take:
-  bqsrBam
-  bed
+  bam
+  intervals
   dbsnp
   dbsnpIndex
   fasta
@@ -22,10 +20,10 @@ workflow haplotypeCallerFlow {
 
   main:
   chVersions = Channel.empty()
+  chBamIntervals = bam.combine(intervals)
 
   haplotypeCaller(
-    bqsrBam,
-    bed,
+    chBamIntervals,
     dbsnp,
     dbsnpIndex,
     fasta,
@@ -34,9 +32,12 @@ workflow haplotypeCallerFlow {
   )
   chVersions = chVersions.mix(haplotypeCaller.out.versions)
 
+  chGVCF = chBamIntervals
+             .join(haplotypeCaller.out.gvcf)
+             .map{meta,bam,bai,intervals,gvcf,index -> [meta,gvcf,index,intervals]}
+
   genotypeGVCFs(
-    haplotypeCaller.out.gvcf,
-    bed,
+    chGVCF,
     dbsnp,
     dbsnpIndex,
     fasta,
@@ -45,41 +46,20 @@ workflow haplotypeCallerFlow {
   )
   chVersions = chVersions.mix(genotypeGVCFs.out.versions)
 
-  // concatVCF(
-  //   genotypeGVCFs.out.vcf,
-  //   bed,
-  //   fasta,
-  //   fastaFai
-  // )
-
-  //chVersions = chVersions.mix(concatVCF.out.versions)
-
-  genotypeGVCFs.out.vcf
-    .map{ it -> [it[0], it[1], it[2], [], [], []] }
-    .set{ chGenoVCF }
-
-  chGenoVCF.map{ it -> [it[0], it[1], it[2]]}.set { chGenoSimple }
-
-  collectVCFmetrics(
-    chGenoVCF
+  mergeVCFs(
+    genotypeGVCFs.out.vcf.map{it -> [it[0],it[1]]}.groupTuple(),
+    dict
   )
-
+  chVersions = chVersions.mix(mergeVCFs.out.versions)
 
   bcftoolsNorm(
-    chGenoSimple,
+    mergeVCFs.out.vcf,
     fasta
-    )
-
-
-  computeTransition(
-    bcftoolsNorm.out.vcf
-    )
+  )
+  chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 
   emit:
-  gvcf = haplotypeCaller.out.gvcf
-  vcf = genotypeGVCFs.out.vcf
+  vcf = mergeVCFs.out.vcf
   vcfNorm = bcftoolsNorm.out.vcf
-  transition = computeTransition.out.metrics
-  mqc = collectVCFmetrics.out.mqc
   versions = chVersions
 }

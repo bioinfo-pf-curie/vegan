@@ -16,8 +16,7 @@ process filterMutect2Calls {
   path(fastaFai)
 
   output:
-  tuple val(meta), path(vcf), path(index), path("*_filtered_pass.vcf.gz"), path("*_filtered_pass.vcf.gz.tbi"), path(contamination), emit:vcf
-  tuple val(meta), path("*_filtered.vcf.gz"), path("*_filtered.vcf.gz.tbi"), emit:filtVcf
+  tuple val(meta), path("*_filtered.vcf.gz"), path("*_filtered.vcf.gz.tbi"), emit:vcf
   tuple val(meta), path("*filteringStats.tsv"), emit: stats
   path("versions.txt"), emit: versions
 

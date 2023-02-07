@@ -12,7 +12,7 @@ workflow bamQcFlow {
 
   take:
   bamFiltered
-  bed
+  targetBed
   gtf
   fasta
   dict
@@ -29,13 +29,13 @@ workflow bamQcFlow {
 
   mosdepth(
     bamFiltered,
-    bed
+    targetBed
   )
   chVersions = chVersions.mix(mosdepth.out.versions)
 
   prepareExonInfo(
     gtf,
-    bed
+    targetBed
   )
 
   genesCoverage(
@@ -45,7 +45,7 @@ workflow bamQcFlow {
 
   collectWgsMetrics(
     bamFiltered,
-    bed,
+    targetBed,
     fasta,
     dict
   )

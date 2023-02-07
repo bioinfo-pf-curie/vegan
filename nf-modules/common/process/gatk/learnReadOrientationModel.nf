@@ -20,11 +20,12 @@ process learnReadOrientationModel {
 
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
+  def inputList = f1r2.collect{"--input $it"}.join(' ')
   """
-  gatk --java-options "-Xmx${task.memory.toGiga()}g" \
-  LearnReadOrientationModel \
-    -I ${f1r2} \
-    -O ${prefix}_read-orientation-model.tar.gz
+  gatk --java-options "-Xmx${task.memory.toGiga()}g" LearnReadOrientationModel \\
+    ${inputList} \\
+    --tmp-dir . \\
+    --output ${prefix}_read-orientation-model.tar.gz
 
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
