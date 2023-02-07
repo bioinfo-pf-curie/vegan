@@ -1,18 +1,19 @@
 /*
- * merge stat files from mutect2 somatic variant calling
+ * BQSR - gather BQSR reports
  */
 
-process mergeMutect2Stats {
+process gatherBQSRReports {
   tag "${meta.id}"
   label 'gatk'
   label 'minCpu'
   label 'medMem'
 
   input:
-  tuple val(meta), path(stats)
+  tuple val(meta), path(table)
+
 
   output:
-  tuple val(meta), path("*.vcf.gz.stats") , emit: stats
+  tuple val(meta), path("*.recal.table"), emit: table
   path("versions.txt"), emit: versions
 
   when:
@@ -21,14 +22,12 @@ process mergeMutect2Stats {
   script:
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
-  def statsFiles = stats.collect{"-stats ${it} " }.join(" ")
+  input = table.collect{"-I ${it}"}.join(' ')
   """
-  gatk --java-options "-Xmx${task.memory.toGiga()}g" \\
-    MergeMutectStats \\
-    ${statsFiles} \\
-    ${args} \\
-    -O ${prefix}.vcf.gz.stats
-
+  gatk --java-options -Xmx${task.memory.toGiga()}g \
+      GatherBQSRReports \
+      ${input} \
+      -O ${prefix}.recal.table
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }

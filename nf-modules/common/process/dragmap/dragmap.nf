@@ -6,7 +6,7 @@ process dragmap{
   tag "${meta.id}"
   label 'dragmap'
   label 'highCpu'
-  label 'highMem'
+  label 'extraMem'
 
   input:
   tuple val(meta), path(reads)

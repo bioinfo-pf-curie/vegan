@@ -4,7 +4,6 @@
 
 include { mutect2 as mutect2Pairs } from '../../common/process/gatk/mutect2'
 include { mergeMutect2Stats } from '../../common/process/gatk/mergeMutect2Stats'
-//include { concatVCF } from '../../local/process/concatVCF'
 include { learnReadOrientationModel } from '../../common/process/gatk/learnReadOrientationModel'
 include { getPileupSummaries as getPileupSummariesTumor } from '../../common/process/gatk/getPileupSummaries'
 include { getPileupSummaries as getPileupSummariesNormal } from '../../common/process/gatk/getPileupSummaries'
@@ -12,15 +11,14 @@ include { gatherPileupSummaries as gatherPileupSummariesTumor } from '../../comm
 include { gatherPileupSummaries as gatherPileupSummariesNormal } from '../../common/process/gatk/gatherPileupSummaries'
 include { calculateContamination } from '../../common/process/gatk/calculateContamination'
 include { filterMutect2Calls } from '../../common/process/gatk/filterMutect2Calls'
-include { collectVCFmetrics } from '../../local/process/collectVCFmetrics'
 include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
-include { computeTransition } from '../../local/process/computeTransition'
+include { mergeVCFs } from '../../common/process/gatk/mergeVCFs'
 
 workflow mutect2PairsFlow {
 
   take:
-  bam
-  bed
+  bam // [meta, tumor_bam, tumor_bai, normal_bam, normal_bai]
+  intervals
   fasta
   fai
   dict
@@ -30,7 +28,6 @@ workflow mutect2PairsFlow {
   pileupSumIndex
   panelsOfNormals
   panelsOfNormalsIndex
-  intervals
 
   main:
   chVersions = Channel.empty()
@@ -47,14 +44,12 @@ workflow mutect2PairsFlow {
     .map{ it -> [it[0], it[3],it[4]]}
     .set{ chBamNormal }
 
-
   /*
    * MUTECT2 CALLS
    */
 
   mutect2Pairs(
-    chBamPair,
-    bed,
+    chBamPair.combine(intervals),
     fasta,
     fai,
     dict,
@@ -65,56 +60,53 @@ workflow mutect2PairsFlow {
   )
   chVersions = chVersions.mix(mutect2Pairs.out.versions)
 
-  mergeMutect2Stats(
-    mutect2Pairs.out.stats
+  mergeVCFs(
+    mutect2Pairs.out.vcf.map{it -> [it[0],it[1]]}.groupTuple(),
+    dict
   )
+  chVersions = chVersions.mix(mergeVCFs.out.versions)
+  chMutect2Vcf = mergeVCFs.out.vcf
 
-  // concatVCF(
-  //   mutect2.out.vcf,
-  //   bed,
-  //   fasta,
-  //   fai
-  // )
-  // chVersions = chVersions.mix(concatVCF.out.versions)
+  mergeMutect2Stats(
+    mutect2Pairs.out.stats.groupTuple()
+  )
+  chVersions = chVersions.mix(mergeMutect2Stats.out.versions)
 
   /*
    * STRAND BIAS
    */
 
-   learnReadOrientationModel(
-     mutect2Pairs.out.f1r2
-   )
+  learnReadOrientationModel(
+    mutect2Pairs.out.f1r2.groupTuple()
+  )
+  chVersions = chVersions.mix(learnReadOrientationModel.out.versions)
 
   /*
    * CALCULATE CONTAMINATION
    */
 
   getPileupSummariesTumor(
-    chBamTumor,
-    intervals,
+    chBamTumor.combine(intervals),
     pileupSum,
-    pileupSumIndex,
-    bed
+    pileupSumIndex
   )
   chVersions = chVersions.mix(getPileupSummariesTumor.out.versions)
 
   gatherPileupSummariesTumor(
-    getPileupSummariesTumor.out.table,
+    getPileupSummariesTumor.out.table.groupTuple(),
     dict
   )
   chVersions = chVersions.mix(gatherPileupSummariesTumor.out.versions)
 
   getPileupSummariesNormal(
-    chBamNormal,
-    intervals,
+    chBamNormal.combine(intervals),
     pileupSum,
-    pileupSumIndex,
-    bed
+    pileupSumIndex
   )
   chVersions = chVersions.mix(getPileupSummariesNormal.out.versions)
 
   gatherPileupSummariesNormal(
-    getPileupSummariesNormal.out.table,
+    getPileupSummariesNormal.out.table.groupTuple(),
     dict
   )
   chVersions = chVersions.mix(gatherPileupSummariesNormal.out.versions)
@@ -129,13 +121,13 @@ workflow mutect2PairsFlow {
    */
 
   if (params.skipMutectContamination){
-    mutect2Pairs.out.vcf
+    chMutect2Vcf
       .join(mergeMutect2Stats.out.stats)
       .join(learnReadOrientationModel.out.orientation)
       .map{meta, vcf, index, stats, orientation -> [meta, vcf, index, stats, orientation, [], []] }
       .set { mutect2CallsToFilter }
   }else{
-    mutect2Pairs.out.vcf
+    chMutect2Vcf
       .join(mergeMutect2Stats.out.stats)
       .join(learnReadOrientationModel.out.orientation)
       .join(calculateContamination.out.contamination)
@@ -151,34 +143,15 @@ workflow mutect2PairsFlow {
   )
   chVersions = chVersions.mix(filterMutect2Calls.out.versions)
 
-  /*
-   * VCF normalisation
-   */
-
-  collectVCFmetrics(
-    filterMutect2Calls.out.vcf,
-  )
-
-  filterMutect2Calls.out.vcf
-  .map{ it -> [it[0], it[3], it[4]] }
-  .set{ chFiltSimple }
-
   bcftoolsNorm(
-    chFiltSimple,
+    filterMutect2Calls.out.vcf,
     fasta
-  )
-
-  computeTransition(
-    bcftoolsNorm.out.vcf
   )
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 
   emit:
   versions = chVersions
-  vcfUnfiltered = mutect2Pairs.out.vcf
-  vcfFiltered = filterMutect2Calls.out.vcf
-  vcfFilteredNorm = bcftoolsNorm.out.vcf
-  transition = computeTransition.out.metrics
-  mqc = collectVCFmetrics.out.mqc
+  vcfRaw = chMutect2Vcf
+  vcfFiltered = bcftoolsNorm.out.vcf
   stats = mergeMutect2Stats.out.stats
 }

@@ -17,7 +17,7 @@ workflow bamFiltersFlow {
 
     take:
     bam // [prefix, bam, bai]
-    bed
+    targetBed
 
     main:
     chVersions = Channel.empty()
@@ -35,7 +35,7 @@ workflow bamFiltersFlow {
     // Reduce to the target for WES analysis
     intersectBed(
       sambambaMarkdup.out.bam,
-      bed
+      targetBed
     )
     chVersions = chVersions.mix(intersectBed.out.versions)
 

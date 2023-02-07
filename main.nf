@@ -49,7 +49,6 @@ include {loadDesign} from './lib/functions'
 
 tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
 
-
 /*
 ========================================
  REFERENCES PARAMS FROM GENOME CONFIG
@@ -153,13 +152,13 @@ chAcLociGC              = params.acLociGC              ? Channel.fromPath(params
 chPolyms                = params.polyms                ? Channel.fromPath(params.polyms, checkIfExists: true).collect()                 : Channel.value([]) //optional
 chGermlineResource      = params.germlineResource      ? Channel.fromPath(params.germlineResource, checkIfExists: true).collect()       : Channel.value([]) //optional
 chGermlineResourceIndex = params.germlineResourceIndex ? Channel.fromPath(params.germlineResourceIndex, checkIfExists: true).collect()  : Channel.value([]) //optional
-chPileupSum      = params.pileupSum      ? Channel.fromPath(params.pileupSum, checkIfExists: true).collect()       : Channel.value([]) //optional
-chPileupSumIndex = params.pileupSumIndex ? Channel.fromPath(params.pileupSumIndex, checkIfExists: true).collect()  : Channel.value([]) //optional
+chPileupSum             = params.pileupSum             ? Channel.fromPath(params.pileupSum, checkIfExists: true).collect()              : Channel.value([]) //optional
+chPileupSumIndex        = params.pileupSumIndex        ? Channel.fromPath(params.pileupSumIndex, checkIfExists: true).collect()         : Channel.value([]) //optional
 chPon                   = params.pon                   ? Channel.fromPath(params.pon, checkIfExists: true).collect()                    : Channel.value([]) //optional
 chPonIndex              = params.ponIndex              ? Channel.fromPath(params.ponIndex, checkIfExists: true).collect()               : Channel.value([]) //optional
 chKnownIndels           = params.knownIndels           ? Channel.fromPath(params.knownIndels, checkIfExists: true).collect()            : Channel.value([]) //optional
 chKnownIndelsIndex      = params.knownIndelsIndex      ? Channel.fromPath(params.knownIndelsIndex, checkIfExists: true).collect()       : Channel.value([]) //optional
-chSnpeffDb              = params.snpeffDb              ? Channel.value(params.snpeffDb)                                                    : Channel.empty()
+chSnpeffDb              = params.snpeffDb              ? Channel.value(params.snpeffDb)                                                 : Channel.empty()
 chSnpeffCache           = params.snpeffCache           ? Channel.fromPath(params.snpeffCache, checkIfExists: true).collect()            : Channel.value([]) //optional
 chCosmicDb              = params.cosmicDb              ? Channel.fromPath(params.cosmicDb, checkIfExists: true).collect()               : Channel.empty()
 chCosmicDbIndex         = params.cosmicDbIndex         ? Channel.fromPath(params.cosmicDbIndex, checkIfExists: true).collect()          : Channel.empty()
@@ -171,10 +170,8 @@ chGnomadDb              = params.gnomadDb              ? Channel.fromPath(params
 chGnomadDbIndex         = params.gnomadDbIndex         ? Channel.fromPath(params.gnomadDbIndex, checkIfExists: true).collect()          : Channel.empty()
 chDbnsfp                = params.dbnsfp                ? Channel.fromPath(params.dbnsfp, checkIfExists: true).collect()                 : Channel.empty()
 chDbnsfpIndex           = params.dbnsfpIndex           ? Channel.fromPath(params.dbnsfpIndex, checkIfExists: true).collect()            : Channel.empty()
-
-chBed                   = params.targetBed             ? Channel.fromPath(params.targetBed, checkIfExists: true).collect()              : Channel.value([]) //optional
+chTargetBed             = params.targetBed             ? Channel.fromPath(params.targetBed, checkIfExists: true).collect()              : Channel.value([]) //optional
 chIntervals             = params.intervals             ? Channel.fromPath(params.intervals, checkIfExists: true).collect()              : Channel.value([]) //optional
-
 chBwaIndex              = params.bwaIndex              ? Channel.fromPath(params.bwaIndex)                                              : Channel.empty()
 chBwaMem2Index          = params.bwamem2Index          ? Channel.fromPath(params.bwamem2Index)                                          : Channel.empty()
 chDragmapIndex          = params.dragmapIndex          ? Channel.fromPath(params.dragmapIndex)                                          : Channel.empty()
@@ -274,6 +271,7 @@ if (params.design){
 */
 
 // Workflows
+include { prepareIntervalsFlow } from './nf-modules/local/subworkflow/prepareIntervals'
 include { mappingFlow } from './nf-modules/local/subworkflow/mapping'
 include { bamFiltersFlow } from './nf-modules/local/subworkflow/bamFiltering'
 include { bamQcFlow } from './nf-modules/local/subworkflow/bamQc'
@@ -282,6 +280,7 @@ include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
 include { mutect2TumorOnlyFlow } from './nf-modules/local/subworkflow/mutect2TumorOnly'
+include { vcfQcFlow } from './nf-modules/local/subworkflow/vcfQc'
 include { annotateSomaticFlow as  annotateFlow} from './nf-modules/local/subworkflow/annotateSomatic'
 include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
@@ -333,6 +332,20 @@ workflow {
       chOutputDocsImages
     )
 
+    //********************************************
+    // SUB-WORKFLOW : Prepare intervals list
+
+    if (!params.targetBed){
+      prepareIntervalsFlow(
+        chFastaFai.collect(),
+        chIntervals
+      )
+      chVersions = chVersions.mix(prepareIntervalsFlow.out.versions)
+      chIntervalBeds = prepareIntervalsFlow.out.intervals
+    }else{
+      chIntervalBeds = chTargetBed
+    }
+
     // PROCESS: fastqc
     fastqc(
       chRawReads
@@ -368,13 +381,14 @@ workflow {
       chVersions = chVersions.mix(preseq.out.versions)
     }
 
-    //*******************************************
-    // SUB-WORKFLOW : bamFiltering
-
     if (params.step == "mapping" || params.step == "filtering"){
+
+      //*******************************************
+      // SUB-WORKFLOW : bamFiltering
+
       bamFiltersFlow(
         chAlignedBam,
-        chBed
+        chTargetBed
       )
       chVersions = chVersions.mix(bamFiltersFlow.out.versions)
       chMarkdupStatsMqc = bamFiltersFlow.out.markdupFlagstats
@@ -382,14 +396,13 @@ workflow {
       chFilteringStatsMqc = bamFiltersFlow.out.filteringFlagstats
       chFilteredBam = bamFiltersFlow.out.bam
 
-
       //*******************************************
       //SUB-WORKFLOW : bamQcFlow
 
       if (!params.skipQC){
         bamQcFlow(
           chFilteredBam,
-          chBed,
+          chTargetBed,
           chGtf,
           chFasta,
           chDict
@@ -418,7 +431,7 @@ workflow {
 
       bqsrFlow(
         chFilteredBam,
-        chBed,
+        chIntervalBeds,
         chDbsnp,
         chDbsnpIndex,
         chFasta,
@@ -431,9 +444,8 @@ workflow {
     }
 
     if (params.step != "annotate"){
-      chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bqsrBam
+      chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bam
     }
-
 
   /*
   ================================================================================
@@ -443,9 +455,11 @@ workflow {
 
   chSingleBam = Channel.empty()
 
-  if (params.design && (params.step == "mapping" || params.step == "filtering" | params.step == "calling")){
+  if (params.design && (params.step == "mapping" || params.step == "filtering" || params.step == "calling")){
 
-    /* PAIRED BAMS */
+    //******************
+    // PAIRED BAMS
+
     //[meta], tumor_bam, tumor_bai, normal_bam, normal_bai
     chProcBam
       .combine(chProcBam)
@@ -471,8 +485,10 @@ workflow {
       }.set{ chNormalBam }
 
     chSingleBam = chNormalBam.mix(chTumorBam)
-  
-    /* TUMOR ONLY */
+
+    //******************  
+    // TUMOR ONLY 
+
     chProcBam
       .combine(chDesign.tumorOnly)
       .filter { it[0].id == it[3] }
@@ -483,7 +499,9 @@ workflow {
 
     chSingleBam = chSingleBam.mix(chTumorOnlyBam)
 
-    /* GERMLINE ONLY*/
+    //*******************
+    // GERMLINE ONLY
+
     chProcBam
       .combine(chDesign.germlineOnly)
       .filter { it[0].id == it[4] }
@@ -503,7 +521,7 @@ workflow {
 
   chAllVcf = Channel.empty()
 
-  if (params.step == "mapping" || params.step == "filtering" | params.step == "calling"){
+  if (params.step == "mapping" || params.step == "filtering" || params.step == "calling"){
 
     //*******************************************
     //SUB-WORKFLOW : HaplotypeCaller
@@ -513,7 +531,7 @@ workflow {
     if('haplotypecaller' in tools){
       haplotypeCallerFlow(
         chSingleBam,
-        chBed,
+        chIntervalBeds,
         chDbsnp,
         chDbsnpIndex,
         chFasta,
@@ -521,8 +539,8 @@ workflow {
         chDict
       )
       chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-      chHaplotypecallerMetricsMqc = haplotypeCallerFlow.out.mqc
-      chTsTvMqc = haplotypeCallerFlow.out.transition
+      //chHaplotypecallerMetricsMqc = haplotypeCallerFlow.out.mqc
+      //chTsTvMqc = haplotypeCallerFlow.out.transition
       chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
     }
 
@@ -535,7 +553,7 @@ workflow {
 
       mutect2PairsFlow(
         chPairBam,
-        chBed,
+        chIntervalBeds,
         chFasta,
         chFastaFai,
         chDict,
@@ -545,16 +563,15 @@ workflow {
         chPileupSumIndex,
         chPon,
         chPonIndex,
-        chIntervals
       )
       chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-      chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2PairsFlow.out.mqc)
-      chTsTvMqc = chTsTvMqc.mix(mutect2PairsFlow.out.transition)
-      chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFilteredNorm)
+      //chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2PairsFlow.out.mqc)
+      //chTsTvMqc = chTsTvMqc.mix(mutect2PairsFlow.out.transition)
+      chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFiltered)
 
       mutect2TumorOnlyFlow(
         chTumorOnlyBam,
-        chBed,
+        chIntervalBeds,
         chFasta,
         chFastaFai,
         chDict,
@@ -563,23 +580,32 @@ workflow {
         chPileupSum,
         chPileupSumIndex,
         chPon,
-        chPonIndex,
-        chIntervals
+        chPonIndex
       )
       chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
-      chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2TumorOnlyFlow.out.mqc)
-      chTsTvMqc = chTsTvMqc.mix(mutect2TumorOnlyFlow.out.transition)
-      chAllVcf = chAllVcf.mix(mutect2TumorOnlyFlow.out.vcfFilteredNorm)
+      //chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2TumorOnlyFlow.out.mqc)
+      //chTsTvMqc = chTsTvMqc.mix(mutect2TumorOnlyFlow.out.transition)
+      chAllVcf = chAllVcf.mix(mutect2TumorOnlyFlow.out.vcfFiltered)
     }
   }
+
+  /*
+  ================================================================================
+                                   VCF QC
+  ================================================================================
+  */
+
+  vcfQcFlow(
+    chAllVcf
+  )
+  chVcfMetricsMqc = vcfQcFlow.out.mqc
+  chTsTvMqc = vcfQcFlow.out.transition
 
   /*
   ================================================================================
                                    VCF ANNOTATION
   ================================================================================
   */
-
-  chAllVcf.view()
 
   // Annotation somatic vcf
   if('snpeff' in tools || params.step == 'annotate'){
@@ -600,7 +626,6 @@ workflow {
     )
     chSnpEffMqc = annotateFlow.out.snpEffReport
   }
-
 
   /*
   ================================================================================
@@ -626,7 +651,7 @@ workflow {
   if('tmb' in tools || params.step == 'annotate'){
     tmbFlow(
       chTMB,
-      chBed
+      chTargetBed
     )
     chTMBMqc = tmbFlow.out.report.map{it->it[1]}
   }
@@ -641,7 +666,7 @@ workflow {
     msiFlow(
       chPairBam,
       chFasta,
-      chBed
+      chTargetBed
     )
     chMSIMqc = msiFlow.out.report.map{it->it[1]}
   }
@@ -657,7 +682,7 @@ workflow {
   if ('manta' in tools && params.step != 'annotate'){
     mantaFlow(
       chPairBam,
-      chBed,
+      chTargetBed,
       chFasta,
       chFastaFai
     )
@@ -721,8 +746,7 @@ workflow {
       chGeneCovMqc.collect().ifEmpty([]),
       chMosdepthMqc.collect().ifEmpty([]),
       chIdentitoMqc.collect().ifEmpty([]),
-      chHaplotypecallerMetricsMqc.collect().ifEmpty([]),
-      chMutect2MetricsMqc.collect().ifEmpty([]),
+      chVcfMetricsMqc.collect().ifEmpty([]),
       chTsTvMqc.collect().ifEmpty([]),
       chSnpEffMqc.collect().ifEmpty([]),
       chMSIMqc.collect().ifEmpty([]),

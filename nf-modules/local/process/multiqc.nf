@@ -28,7 +28,6 @@ process multiqc {
   path ('coverage/*')
   path ('identito/*')
   path ('vcfMetrics/*')
-  path ('vcfMetrics/*')
   path ('tstv/*')
   path ('snpEff/*')
   path ('msi/*')

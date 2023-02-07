@@ -9,7 +9,7 @@ process bcftoolsNorm {
   tag "${meta.id}"
 
   input:
-  tuple val(meta), path(vcf), path(index)
+  tuple val(meta), path(vcf), path(tbi)
   path(fasta)
 
   output:
