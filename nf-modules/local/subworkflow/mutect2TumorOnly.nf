@@ -34,8 +34,10 @@ workflow mutect2TumorOnlyFlow {
    * MUTECT2 CALLS
    */
 
+  chBamIntervals = params.noIntervals ? bam.map{meta,bam,bai -> [meta,bam,bai,[]]} : bam.combine(intervals)
+
   mutect2Tumor(
-    bam.combine(intervals),
+    chBamIntervals,
     fasta,
     fai,
     dict,
@@ -51,12 +53,13 @@ workflow mutect2TumorOnlyFlow {
     dict
   )
   chVersions = chVersions.mix(mergeVCFs.out.versions)
-  chMutect2Vcf = mergeVCFs.out.vcf
+  chMutect2Vcf = params.noIntervals || params.targetBed ? mutect2Tumor.out.vcf : mergeVCFs.out.vcf
 
   mergeMutect2Stats(
     mutect2Tumor.out.stats.groupTuple()
   )
   chVersions = chVersions.mix(mergeMutect2Stats.out.versions)
+  chMutect2Stats = params.noIntervals || params.targetBed ? mutect2Tumor.out.stats : mergeMutect2Stats.out.stats
 
   /*
    * STRAND BIAS
@@ -72,7 +75,7 @@ workflow mutect2TumorOnlyFlow {
    */
 
   getPileupSummaries(
-    bam.combine(intervals),
+    chBamIntervals,
     pileupSum,
     pileupSumIndex
   )
@@ -83,9 +86,10 @@ workflow mutect2TumorOnlyFlow {
     dict
   )
   chVersions = chVersions.mix(gatherPileupSummaries.out.versions)
+  chPileupSum = params.noIntervals || params.targetBed ? getPileupSummaries.out.table : gatherPileupSummaries.out.table
 
   calculateContamination(
-    gatherPileupSummaries.out.table.map{meta, table -> [meta, table, []]}
+    chPileupSum.map{meta, table -> [meta, table, []]}
   )
   chVersions = chVersions.mix(calculateContamination.out.versions)
 
@@ -95,13 +99,13 @@ workflow mutect2TumorOnlyFlow {
 
   if (params.skipMutectContamination){
     chMutect2Vcf
-      .join(mergeMutect2Stats.out.stats)
+      .join(chMutect2Stats)
       .join(learnReadOrientationModel.out.orientation)
       .map{meta, vcf, index, stats, orientation -> [meta, vcf, index, stats, orientation, [], []] }
       .set { mutect2CallsToFilter }
   }else{
     chMutect2Vcf
-      .join(mergeMutect2Stats.out.stats)
+      .join(chMutect2Stats)
       .join(learnReadOrientationModel.out.orientation)
       .join(calculateContamination.out.contamination)
       .join(calculateContamination.out.segmentation)
@@ -126,5 +130,5 @@ workflow mutect2TumorOnlyFlow {
   versions = chVersions
   vcfRaw = chMutect2Vcf
   vcfFiltered = filterMutect2Calls.out.vcf
-  stats = mergeMutect2Stats.out.stats
+  stats = chMutect2Stats
 }

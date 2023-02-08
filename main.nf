@@ -109,6 +109,10 @@ chOutputDocsImages = file("$baseDir/docs/images/", checkIfExists: true)
 ==========================
 */
 
+if (params.noIntervals && params.targetBed){
+  ext 1, "Options '--noIntervals' cannot be used together with '--targetBed' !"
+}
+
 if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!params.dbsnp || !params.knownIndels || !params.dbsnpIndex || !params.knownIndelsIndex)){
   exit 1, "Missing annotation file(s) for GATK Base Recalibrator (dbSNP, knownIndels): Please use '--skipBQSR'"
 }
@@ -193,6 +197,7 @@ summary = [
   'Inputs' : params.samplePlan ?: params.reads ?: null,
   'Design' : params.design ?: null,
   'Genome' : params.genome,
+  'Intervals' : params.noIntervals || params.targetBed ? 'No' : 'Yes',
   'Target Bed' : params.targetBed ?: null,
   'Pon' : params.pon ?: null,
   'Aligner':params.aligner ?: null,
@@ -335,15 +340,17 @@ workflow {
     //********************************************
     // SUB-WORKFLOW : Prepare intervals list
 
-    if (!params.targetBed){
+    if (!params.noIntervals && !params.targetBed){
       prepareIntervalsFlow(
         chFastaFai.collect(),
         chIntervals
       )
       chVersions = chVersions.mix(prepareIntervalsFlow.out.versions)
       chIntervalBeds = prepareIntervalsFlow.out.intervals
-    }else{
+    }else if (params.targetBed){
       chIntervalBeds = chTargetBed
+    }else{
+      chIntervalBeds = Channel.value([])
     }
 
     // PROCESS: fastqc

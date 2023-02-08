@@ -3,6 +3,7 @@ version-2.1.0
 
 NEW FEATURES
 
+  - Support intervals parallel computing for WGS. See `--noIntervals`
   - add '--pon' option for tumor only samples
   - Support bwa-mem2 mapper
   - Support DRAGMAP mapper

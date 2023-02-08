@@ -48,8 +48,10 @@ workflow mutect2PairsFlow {
    * MUTECT2 CALLS
    */
 
+  chBamPairIntervals = params.noIntervals ? chBamPair.map{meta,bam,bai -> [meta,bam,bai,[]]} : chBamPair.combine(intervals)
+
   mutect2Pairs(
-    chBamPair.combine(intervals),
+    chBamPairIntervals,
     fasta,
     fai,
     dict,
@@ -65,12 +67,13 @@ workflow mutect2PairsFlow {
     dict
   )
   chVersions = chVersions.mix(mergeVCFs.out.versions)
-  chMutect2Vcf = mergeVCFs.out.vcf
+  chMutect2Vcf = params.noIntervals || params.targetBed ? mutect2Pairs.out.vcf : mergeVCFs.out.vcf
 
   mergeMutect2Stats(
     mutect2Pairs.out.stats.groupTuple()
   )
   chVersions = chVersions.mix(mergeMutect2Stats.out.versions)
+  chMutect2Stats = params.noIntervals || params.targetBed ? mutect2Pairs.out.stats : mergeMutect2Stats.out.stats
 
   /*
    * STRAND BIAS
@@ -85,8 +88,10 @@ workflow mutect2PairsFlow {
    * CALCULATE CONTAMINATION
    */
 
+  chBamTumorIntervals = params.noIntervals ? chBamTumor.map{meta,bam,bai -> [meta,bam,bai,[]]} : chBamTumor.combine(intervals)
+
   getPileupSummariesTumor(
-    chBamTumor.combine(intervals),
+    chBamTumorIntervals,
     pileupSum,
     pileupSumIndex
   )
@@ -97,9 +102,12 @@ workflow mutect2PairsFlow {
     dict
   )
   chVersions = chVersions.mix(gatherPileupSummariesTumor.out.versions)
+  chPileupSumTumor = params.noIntervals || params.targetBed ? getPileupSummariesTumor.out.table : gatherPileupSummariesTumor.out.table
+
+  chBamNormalIntervals = params.noIntervals ? chBamNormal.map{meta,bam,bai -> [meta,bam,bai,[]]} : chBamNormal.combine(intervals)
 
   getPileupSummariesNormal(
-    chBamNormal.combine(intervals),
+    chBamNormalIntervals,
     pileupSum,
     pileupSumIndex
   )
@@ -110,9 +118,10 @@ workflow mutect2PairsFlow {
     dict
   )
   chVersions = chVersions.mix(gatherPileupSummariesNormal.out.versions)
+  chPileupSumNormal = params.noIntervals || params.targetBed ? getPileupSummariesNormal.out.table : gatherPileupSummariesNormal.out.table
 
   calculateContamination(
-    gatherPileupSummariesTumor.out.table.join(gatherPileupSummariesNormal.out.table)
+    chPileupSumTumor.join(chPileupSumNormal)
   )
   chVersions = chVersions.mix(calculateContamination.out.versions)
 
@@ -122,13 +131,13 @@ workflow mutect2PairsFlow {
 
   if (params.skipMutectContamination){
     chMutect2Vcf
-      .join(mergeMutect2Stats.out.stats)
+      .join(chMutect2Stats)
       .join(learnReadOrientationModel.out.orientation)
       .map{meta, vcf, index, stats, orientation -> [meta, vcf, index, stats, orientation, [], []] }
       .set { mutect2CallsToFilter }
   }else{
     chMutect2Vcf
-      .join(mergeMutect2Stats.out.stats)
+      .join(chMutect2Stats)
       .join(learnReadOrientationModel.out.orientation)
       .join(calculateContamination.out.contamination)
       .join(calculateContamination.out.segmentation)
@@ -153,5 +162,5 @@ workflow mutect2PairsFlow {
   versions = chVersions
   vcfRaw = chMutect2Vcf
   vcfFiltered = bcftoolsNorm.out.vcf
-  stats = mergeMutect2Stats.out.stats
+  stats = chMutect2Stats
 }

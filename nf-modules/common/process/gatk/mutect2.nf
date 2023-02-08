@@ -38,7 +38,7 @@ process mutect2 {
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" Mutect2 \\
        $inputs \\
-       --output ${prefix}_Mutect2_unfiltered.vcf.gz \\
+       --output ${prefix}.vcf.gz \\
        --reference $fasta \\
        $ponCmd \\
        $grCmd \\
