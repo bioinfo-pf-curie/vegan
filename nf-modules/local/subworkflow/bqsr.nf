@@ -23,9 +23,10 @@ workflow bqsrFlow {
 
   main:
     chVersions = Channel.empty()
+    chBamIntervals = params.noIntervals ? bam.map{ meta,bam,bai -> [meta,bam,bai,[]]} : bam.combine(intervals)
 
     baseRecalibrator(
-      bam.combine(intervals),
+      chBamIntervals,
       dbsnp,
       dbsnpIndex,
       fasta,
@@ -35,37 +36,31 @@ workflow bqsrFlow {
       dict
     )
 
-    if (!params.noIntervals && !params.targetBed){
-      gatherBQSRReports(
-        baseRecalibrator.out.table.groupTuple()
-      )
-      chBaseRecalTable = gatherBQSRReports.out.table
-    }else{
-      chBaseRecalTable = baseRecalibrator.out.table
-    }
+    gatherBQSRReports(
+      baseRecalibrator.out.table.groupTuple()
+    )
 
+    chBaseRecalTable = params.noIntervals || params.targetBed ? bam.join(baseRecalibrator.out.table).map{ meta,bam,bai,table -> [meta,bam,bai,table,[]]} :
+                                                                bam.join(gatherBQSRReports.out.table).combine(intervals)
     applyBQSR(
-      bam.join(chBaseRecalTable).combine(intervals),
+      chBaseRecalTable,
       fasta,
       fastaFai,
       dict
     )
 
-    if (!params.noIntervals && !params.targetBed){
-      samtoolsMerge(
-        applyBQSR.out.bam.groupTuple()
-      )
-      chBamRecal = samtoolsMerge.out.bam
-    }else{
-      chBamRecal = applyBQSR.out.bam
-    }
+    samtoolsMerge(
+      applyBQSR.out.bam.groupTuple()
+    )
+
+    chBamBQSR = params.noIntervals || params.targetBed ? applyBQSR.out.bam : samtoolsMerge.out.bam
 
     samtoolsIndex(
-      chBamRecal
+      chBamBQSR
     )
 
   emit:
-  table = baseRecalibrator.out.table
-  bam = chBamRecal.join(samtoolsIndex.out.bai)
+  table = params.noIntervals ? baseRecalibrator.out.table : gatherBQSRReports.out.table
+  bam = chBamBQSR.join(samtoolsIndex.out.bai)
   versions = applyBQSR.out.versions
 }

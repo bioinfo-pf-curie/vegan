@@ -20,7 +20,7 @@ workflow haplotypeCallerFlow {
 
   main:
   chVersions = Channel.empty()
-  chBamIntervals = bam.combine(intervals)
+  chBamIntervals = params.noIntervals ? bam.map{ meta,bam,bai -> [meta,bam,bai,[]]} : bam.combine(intervals)
 
   haplotypeCaller(
     chBamIntervals,
@@ -51,15 +51,16 @@ workflow haplotypeCallerFlow {
     dict
   )
   chVersions = chVersions.mix(mergeVCFs.out.versions)
+  chVcf = params.noIntervals || params.targetBed ? genotypeGVCFs.out.vcf : mergeVCFs.out.vcf
 
   bcftoolsNorm(
-    mergeVCFs.out.vcf,
+    chVcf,
     fasta
   )
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 
   emit:
-  vcf = mergeVCFs.out.vcf
+  vcf = chVcf
   vcfNorm = bcftoolsNorm.out.vcf
   versions = chVersions
 }

@@ -32,15 +32,12 @@ process filterMutect2Calls {
     --variant ${vcf} \
     --stats ${stats} \
     --reference ${fasta} \
-    --output ${prefix}_Mutect2_filtered.vcf.gz \
+    --output ${prefix}_filtered.vcf.gz \
     ${orientationCmd} \
     ${segmentationCmd} \
     ${contaminationCmd} \
     --tmp-dir . \
     ${args}
-
-  awk '\$0~"^#" || \$7 == "PASS"{print}' <(bgzip -dc ${prefix}_Mutect2_filtered.vcf.gz) | bgzip > ${prefix}_Mutect2_filtered_pass.vcf.gz
-  tabix ${prefix}_Mutect2_filtered_pass.vcf.gz
 
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
