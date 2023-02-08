@@ -11,6 +11,24 @@ include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
 include { samtoolsFlagstat } from '../../common/process/samtools/samtoolsFlagstat'
 include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
 
+// Set the meta.chunk value in case of technical replicates
+def setMetaChunk(row){
+  def map = []
+  row[1].eachWithIndex() { file,i ->
+    meta = row[0].clone()
+    meta.chunk = i
+    map += [meta, file]
+  }
+  return map
+}
+
+// Remove meta.chunks
+def removeChunks(row){
+  meta = row[0].clone()
+  meta.remove('chunk')
+  return [meta, row[1]]
+}
+
 workflow mappingFlow {
 
   take:
@@ -20,9 +38,31 @@ workflow mappingFlow {
   main:
   chVersions = Channel.empty()
 
+  if (params.splitFastq){
+    if (params.singleEnd){
+      chReads = reads.map{ it -> [it[0], it[1][0]]}
+                     .splitFastq(by: params.fastqChunksSize, file:true, compress:true)
+                     .map { it -> [it[0], [it[1]]]}
+                     .groupTuple()
+                     .flatMap { it -> setMetaChunk(it) }
+                     .collate(2)
+    }else{
+      chReads = reads.map{ it -> [it[0], it[1][0], it[1][1]]}
+                     .splitFastq(by: params.fastqChunksSize, pe:true, file:true, compress:true)
+                     .map { it -> [it[0], [it[1], it[2]]]}
+                     .groupTuple()
+                     .flatMap { it -> setMetaChunk(it) }
+                     .collate(2)
+    }
+  }else{
+    chReads = reads
+  }
+
+  chReads.view()
+
   if (params.aligner == 'bwa-mem'){
     bwamem(
-      reads,
+      chReads,
       index.collect()
     )
     chVersions = chVersions.mix(bwamem.out.versions)
@@ -30,7 +70,7 @@ workflow mappingFlow {
     chMappingLogs = bwamem.out.logs
   }else if (params.aligner == 'bwa-mem2'){
     bwamem2(
-      reads,
+      chReads,
       index.collect()
     )
     chVersions = chVersions.mix(bwamem2.out.versions)
@@ -38,7 +78,7 @@ workflow mappingFlow {
     chMappingLogs = bwamem2.out.logs
   }else if (params.aligner == 'dragmap'){
     dragmap(
-      reads,
+      chReads,
       index.collect()
     )
     chVersions = chVersions.mix(dragmap.out.versions)
@@ -47,7 +87,9 @@ workflow mappingFlow {
   }
 
   // Merge BAM file with the same prefix
-  chBams.groupTuple(by:[0])
+  chBams
+    .map{ it -> removeChunks(it)}
+    .groupTuple()
     .branch {
       singleCh: it[1].size() == 1
       multipleCh: it[1].size() > 1

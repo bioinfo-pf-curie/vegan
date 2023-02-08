@@ -3,6 +3,7 @@ version-2.1.0
 
 NEW FEATURES
 
+  - New --splitFastq and --fastqChunksSize options to split input reads
   - Support intervals parallel computing for WGS. See `--noIntervals`
   - add '--pon' option for tumor only samples
   - Support bwa-mem2 mapper

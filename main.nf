@@ -195,6 +195,7 @@ summary = [
   'Step' : params.step ?: null,
   'Profile' : workflow.profile,
   'Inputs' : params.samplePlan ?: params.reads ?: null,
+  'Chunks' : params.splitFastq ? params.fastqChunksSize : null,
   'Design' : params.design ?: null,
   'Genome' : params.genome,
   'Intervals' : params.noIntervals || params.targetBed ? 'No' : 'Yes',
