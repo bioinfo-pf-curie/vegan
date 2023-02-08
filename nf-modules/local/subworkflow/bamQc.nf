@@ -25,6 +25,9 @@ workflow bamQcFlow {
       bamFiltered
     )
     chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
+    chFragSize = collectInsertSizeMetrics.out.results
+  }else{
+    chFragSize = Channel.empty()
   }
 
   mosdepth(
@@ -52,7 +55,7 @@ workflow bamQcFlow {
   chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
   emit:
-    fragSize = collectInsertSizeMetrics.out.results
+    fragSize = chFragSize
     seqDepth = mosdepth.out.metrics
     bedDepth = mosdepth.out.bedcov
     geneCovMqc = genesCoverage.out.geneCovMqc
