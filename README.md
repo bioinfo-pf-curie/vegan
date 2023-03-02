@@ -229,9 +229,9 @@ If the design file is not specified, the pipeline will run until the alignment. 
 6. [Output and how to interpret the results](docs/output.md)
 7. [Troubleshooting](docs/troubleshooting.md)
 
-#### Credits
+#### Fundings
 
-This pipeline has been written by the Institut Curie bioinformatics platform (T. Gutman, F. Allain, , P. La Rosa, P. Hupe, N. Servant) and was funded by the European Union’s Horizon 2020 research and innovation programme and the Canadian Institutes of Health Research under the grant agreement No 825835 in the framework of the [European-Canadian Cancer Network](https://eucancan.com/)
+This pipeline has been written by the Institut Curie bioinformatics platform (T. Gutman, F. Allain, , P. La Rosa, P. Hupe, N. Servant) and was funded by the European Union’s Horizon 2020 research and innovation programme and the Canadian Institutes of Health Research under the grant agreement No 825835 in the framework of the [European-Canadian Cancer Network](https://eucancan.com/).
 
 #### Contacts
 
