@@ -58,8 +58,6 @@ workflow mappingFlow {
     chReads = reads
   }
 
-  chReads.view()
-
   if (params.aligner == 'bwa-mem'){
     bwamem(
       chReads,

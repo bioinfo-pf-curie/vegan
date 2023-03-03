@@ -199,7 +199,7 @@ summary = [
   'Chunks' : params.splitFastq ? params.fastqChunksSize : null,
   'Design' : params.design ?: null,
   'Genome' : params.genome,
-  'Intervals' : params.noIntervals || params.targetBed ? 'No' : 'Yes',
+  'Intervals' : params.noIntervals || params.targetBed ? 'no' : 'yes',
   'Target Bed' : params.targetBed ?: null,
   'Pon' : params.pon ?: null,
   'Aligner':params.aligner ?: null,
@@ -253,7 +253,6 @@ if (params.design){
     .set { chDesignFile }
 
   chDesign = loadDesign(params.design)
-  chDesign.view()
 
   //Separate the design in germline only / tumor only / germline + tumor
   chDesign.branch{
@@ -262,7 +261,7 @@ if (params.design){
     germlineOnly: it[0] == '' && it[1] != ''
   }.set{ chDesign }
 
-//  if (chDesign.tumorOnly && !params.pon){
+//  if (chDesign.tumorOnly.count() > 0 && !params.pon){
 //    exit 1, "Tumor only samples detected without panels of normal: Please use '--pon'"
 //  }
 

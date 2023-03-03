@@ -29,7 +29,7 @@ process tmb {
       --sample ${meta.tumor_id} \
       --dbConfig ${dbconfig} \
       --varConfig ${varconfig} \
-      ${bed} \
+      ${bedOpts} \
       ${args} > ${prefix}_tmb.txt
 
 
