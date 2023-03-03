@@ -9,6 +9,7 @@ workflow tmbFlow {
   take:
   vcf
   bed
+  effGenomeSize
 
   main:
   chVersions = Channel.empty()
@@ -18,7 +19,8 @@ workflow tmbFlow {
 
   tmb(
     vcf.map{ it -> [it[0], it[1][0], dbConfig, varConfig] },
-    bed
+    bed,
+    effGenomeSize
   )
   chVersions = chVersions.mix(tmb.out.versions)
 

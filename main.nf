@@ -97,6 +97,7 @@ params.gnomadDb = NFTools.getGenomeAttribute(params, 'gnomadDb')
 params.gnomadDbIndex = NFTools.getGenomeAttribute(params, 'gnomadDbIndex')
 params.dbnsfp = NFTools.getGenomeAttribute(params, 'dbnsfp')
 params.dbnsfpIndex = NFTools.getGenomeAttribute(params, 'dbnsfpIndex')
+params.effGenomeSize = NFTools.getGenomeAttribute(params, 'effGenomeSize')
 
 // Stage config files
 chMultiqcConfig = Channel.fromPath(params.multiqcConfig)
@@ -179,7 +180,7 @@ chIntervals             = params.intervals             ? Channel.fromPath(params
 chBwaIndex              = params.bwaIndex              ? Channel.fromPath(params.bwaIndex)                                              : Channel.empty()
 chBwaMem2Index          = params.bwamem2Index          ? Channel.fromPath(params.bwamem2Index)                                          : Channel.empty()
 chDragmapIndex          = params.dragmapIndex          ? Channel.fromPath(params.dragmapIndex)                                          : Channel.empty()
-
+chEffGenomeSize         = params.effGenomeSize         ? Channel.value(params.effGenomeSize)                                            : Channel.value([]) //optionals
 
 /*
 ===========================
@@ -659,7 +660,8 @@ workflow {
   if('tmb' in tools || params.step == 'annotate'){
     tmbFlow(
       chTMB,
-      chTargetBed
+      chTargetBed,
+      chEffGenomeSize
     )
     chTMBMqc = tmbFlow.out.report.map{it->it[1]}
   }
