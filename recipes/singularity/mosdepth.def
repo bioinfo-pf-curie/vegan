@@ -16,17 +16,17 @@ From: 4geniac/almalinux:8.4_conda-py39_4.10.3
     source /opt/etc/bashrc
 
 
-# real path from projectDir: dragmap.yml
+# real path from projectDir: mosdepth.yml
 %files
-    dragmap.yml /opt/dragmap.yml
+    mosdepth.yml /opt/mosdepth.yml
 
 %post
     dnf clean all \
-    && conda env create -f /opt/dragmap.yml \
+    && conda env create -f /opt/mosdepth.yml \
     && mkdir -p /opt/etc \
-    && echo -e "#! /bin/bash\n\n# script to activate the conda environment dragmap" > ~/.bashrc \
+    && echo -e "#! /bin/bash\n\n# script to activate the conda environment mosdepth-0.3.1" > ~/.bashrc \
     && conda init bash \
-    && echo "conda activate dragmap" >> ~/.bashrc \
+    && echo "conda activate mosdepth-0.3.1" >> ~/.bashrc \
     && cp ~/.bashrc /opt/etc/bashrc \
     && conda clean -a 
 

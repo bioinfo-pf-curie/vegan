@@ -16,17 +16,17 @@ From: 4geniac/almalinux:8.4_conda-py39_4.10.3
     source /opt/etc/bashrc
 
 
-# real path from projectDir: dragmap.yml
+# real path from projectDir: bwa.yml
 %files
-    dragmap.yml /opt/dragmap.yml
+    bwa.yml /opt/bwa.yml
 
 %post
     dnf clean all \
-    && conda env create -f /opt/dragmap.yml \
+    && conda env create -f /opt/bwa.yml \
     && mkdir -p /opt/etc \
-    && echo -e "#! /bin/bash\n\n# script to activate the conda environment dragmap" > ~/.bashrc \
+    && echo -e "#! /bin/bash\n\n# script to activate the conda environment bwa-0.7.17" > ~/.bashrc \
     && conda init bash \
-    && echo "conda activate dragmap" >> ~/.bashrc \
+    && echo "conda activate bwa-0.7.17" >> ~/.bashrc \
     && cp ~/.bashrc /opt/etc/bashrc \
     && conda clean -a 
 
