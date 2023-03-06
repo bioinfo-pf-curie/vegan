@@ -111,7 +111,11 @@ chOutputDocsImages = file("$baseDir/docs/images/", checkIfExists: true)
 */
 
 if (params.noIntervals && params.targetBed){
-  ext 1, "Options '--noIntervals' cannot be used together with '--targetBed' !"
+  exit 1, "Options '--noIntervals' cannot be used together with '--targetBed' !"
+}
+
+if (params.pon && !params.ponIndex){
+  exit 1, "Panel of normals (--pon) option requires an index file. Please use '--ponIndex' to specify it !"
 }
 
 if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!params.dbsnp || !params.knownIndels || !params.dbsnpIndex || !params.knownIndelsIndex)){
