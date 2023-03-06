@@ -40,8 +40,9 @@ workflow bqsrFlow {
       baseRecalibrator.out.table.groupTuple()
     )
 
-    chBaseRecalTable = params.noIntervals || params.targetBed ? bam.join(baseRecalibrator.out.table).map{ meta,bam,bai,table -> [meta,bam,bai,table,[]]} :
-                                                                bam.join(gatherBQSRReports.out.table).combine(intervals)
+    chBaseRecalTable = params.noIntervals ? bam.join(baseRecalibrator.out.table).map{ meta,bam,bai,table -> [meta,bam,bai,table,[]]} :
+                       params.targetBed ? bam.join(baseRecalibrator.out.table).combine(intervals) : bam.join(gatherBQSRReports.out.table).combine(intervals)
+
     applyBQSR(
       chBaseRecalTable,
       fasta,
