@@ -485,14 +485,14 @@ workflow {
     //[meta], tumor_bam, tumor_bai
     chPairBam
       .map{ it ->
-        def meta = [id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
+        def meta = [tumor_id:it[0].tumor_id, id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
         return [meta, it[1], it[2] ]
       }.set{ chTumorBam }
 
     //[meta], normal_bam, normal_bai
     chPairBam
       .map{ it ->
-        def meta = [id:it[0].normal_id, status: "normal", sex:it[0].sex]
+        def meta = [normal_id:it[0].normal_id, id:it[0].normal_id, status: "normal", sex:it[0].sex]
         return [meta, it[3], it[4] ]
       }.set{ chNormalBam }
 
@@ -637,6 +637,9 @@ workflow {
       chDbnsfpIndex
     )
     chSnpEffMqc = annotateFlow.out.snpEffReport
+    chTMB = annotateFlow.out.vcf.filter{ it[0].status != "normal" }
+  }else{
+    chTMB = Channel.empty()
   }
 
   /*
@@ -649,9 +652,6 @@ workflow {
     tableReportFlow(
       annotateFlow.out.vcf
     )
-    annotateFlow.out.vcf.filter{ it[0].status == "pair" }.set{ chTMB }
-  }else{
-    chTMB=Channel.empty()
   }
 
   /*
