@@ -9,8 +9,7 @@ process applyBQSR {
   label 'lowCpu'
 
   input:
-  tuple val(meta), path(bamFiltered), path(bamFilteredBai), path(recalTable)
-  path(bed)
+  tuple val(meta), path(bamFiltered), path(bamFilteredBai), path(recalTable), path(intervals)
   path(fasta)
   path(fastaFai)
   path(dict)
@@ -25,12 +24,14 @@ process applyBQSR {
   script:
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
+  def intervalsCmd = intervals ? "--intervals $intervals" : ""
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
        ApplyBQSR \
        -R ${fasta} \
        --input ${bamFiltered} \
        --output ${prefix}.recal.bam \
+       ${intervalsCmd} \
        ${args} \
        --bqsr-recal-file ${recalTable}
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt

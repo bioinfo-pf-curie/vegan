@@ -5,9 +5,7 @@
       "label": "Configuration profile(s)",
       "usage": "Configuration profile to use. Can use multiple (comma separated).",
       "type": "string",
-      "choices": [
-      "test", "multiconda", "singularity", "cluster", "docker",  "conda", "path", "multipath"
-      ],
+      "choices": ["test", "multiconda", "singularity", "cluster", "docker",  "conda", "path", "multipath"],
       "nargs": "+",
       "default_value": null,
       "pattern": ".*",
@@ -27,6 +25,30 @@
       "render": "textfield",
       "arity": 0,
       "group": "Mandatory arguments"
+    },
+    {
+      "name": "splitFastq",
+      "label": "Split fastq files in chunks",
+      "usage": "Split fastq files in chunks",
+      "type": "boolean",
+      "nargs": 0,
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Alignment"
+    },
+    {
+      "name": "fastqChunksSize",
+      "label": "Reads chunks size",
+      "usage": "Reads chunks size",
+      "type": "integer",
+      "nargs": 1,
+      "default_value": 20000000,
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Alignment"
     },
     {
       "name": "design",
@@ -60,7 +82,7 @@
       "usage": "Name of the reference genome.",
       "type": "string",
       "nargs": "1",
-      "choices": ["hg19", "hg19_base", "hg38", "hg38_base", "mm10", "mm39", "dmelr6.28", "AusN22", "bmoriV3_base", "bmoriV4_base", "sacCer3", "S288c"],
+      "choices": ["hg19","hg19_base","hg38", "hg38_base", "mm10", "mm39", "dmelr6.28", "AusN22", "bmoriV3_base", "bmoriV4_base", "sacCer3", "S288c"],
       "default_value": [],
       "pattern": ".*",
       "render": "textfield",
@@ -105,8 +127,6 @@
       "arity": 0,
       "group": "Mandatory arguments"
     },
-
-
     {
       "name": "reads",
       "label": "Input files",
@@ -133,7 +153,6 @@
       "arity": 0,
       "group": "Inputs"
     },
-
     {
       "name": "saveAlignedIntermediates",
       "label": "Save aligned intermediates",
@@ -167,13 +186,12 @@
       "type": "string",
       "nargs": "+",
       "choices": ["bwa-mem", "bwa-mem2", "dragmap"],
-      "default_value": [],
+      "default_value": "bwa-mem",
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
       "group": "Alignment"
     },
-
     {
       "name": "targetBed",
       "label": "Target Bed file",
@@ -226,8 +244,6 @@
       "arity": 0,
       "group": "Filtering"
     },
-
-
     {
       "name": "baseQual",
       "label": "Base quality",
@@ -280,8 +296,6 @@
       "arity": 0,
       "group": "Variant calling"
     },
-
-
     {
       "name": "ffpe",
       "label": "ffpe for TMB",
@@ -308,8 +322,6 @@
       "arity": 0,
       "group": "Annotation"
     },
-
-
     {
       "name": "skipPreseq",
       "label": "Skip Preseq",
@@ -388,21 +400,6 @@
       "arity": 0,
       "group": "Skip options"
     },
-
-
-    {
-      "name": "nucleotidesPerSecond",
-      "label": "Nucleotides per second",
-      "usage": "To estimate interval size",
-      "type": "decimal",
-      "nargs": 1,
-      "choices": [],
-      "default_value": 1000.0,
-      "pattern": "",
-      "render": "textfield",
-      "arity": 0,
-      "group": "Other options"
-    },
     {
       "name": "sequencingCenter",
       "label": "Sequencing center name",
@@ -436,7 +433,7 @@
       "type": "string",
       "nargs": 1,
       "choices": [],
-      "default_value": "25.MB",
+      "default_value": "",
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,

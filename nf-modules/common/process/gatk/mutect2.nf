@@ -3,14 +3,13 @@
  */
 
 process mutect2 {
-  tag "${meta.tumor_id}_vs_${meta.normal_id}"
+  tag "${meta.id}"
   label 'gatk'
   label 'medMem'
-  label 'lowCpu'
+  label 'medCpu'
 
   input:
-  tuple val(meta), path(bam), path(bai)
-  path bed
+  tuple val(meta), path(bam), path(bai), path(intervals)
   path fasta
   path fai
   path dict
@@ -30,16 +29,16 @@ process mutect2 {
 
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${meta.tumor_id}_vs_${meta.normal_id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
   def inputs = bam.collect{ "--input $it"}.join(" ")
-  def intervalCmd = bed ? "--intervals $bed" : ""
+  def intervalCmd = intervals ? "--intervals $intervals" : ""
   def ponCmd = panelOfNormals ? "--panel-of-normals $panelOfNormals" : ""
   def grCmd = germlineResource ? "--germline-resource $germlineResource" : ""
 
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g" Mutect2 \\
        $inputs \\
-       --output ${prefix}_Mutect2_unfiltered.vcf.gz \\
+       --output ${prefix}.vcf.gz \\
        --reference $fasta \\
        $ponCmd \\
        $grCmd \\

@@ -1,0 +1,32 @@
+Bootstrap: docker
+From: 4geniac/almalinux:8.4_conda-py39_4.10.3
+
+%labels
+    gitUrl https://gitlab.curie.fr/data-analysis/vegan.git
+    gitCommit ce919add961df99df20760ef2004149a3a9b33b7 / devel
+
+%environment
+    export R_LIBS_USER="-"
+    export R_PROFILE_USER="-"
+    export R_ENVIRON_USER="-"
+    export PYTHONNOUSERSITE=1
+    export PATH=$PATH
+    export LC_ALL=en_US.utf-8
+    export LANG=en_US.utf-8
+    source /opt/etc/bashrc
+
+
+# real path from projectDir: bwamem2.yml
+%files
+    bwamem2.yml /opt/bwamem2.yml
+
+%post
+    dnf clean all \
+    && conda env create -f /opt/bwamem2.yml \
+    && mkdir -p /opt/etc \
+    && echo -e "#! /bin/bash\n\n# script to activate the conda environment bwamem2" > ~/.bashrc \
+    && conda init bash \
+    && echo "conda activate bwamem2" >> ~/.bashrc \
+    && cp ~/.bashrc /opt/etc/bashrc \
+    && conda clean -a 
+

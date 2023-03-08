@@ -13,14 +13,14 @@ log_filesize_limit: 2000000000
 ## Custom content
 
 custom_data:
-    my_stats:
+    gstats:
         file_format: 'csv'
         section_name: 'General Metrics'
         description: ' of sequenced data. High (low)-quality alignments show the number of aligned reads with a mapping quality higher (lower) than 20. Reads are filtered according to the specified parameters (for SNV calling by default), keeping only those overlapping the targets file (if any). The fragment length, overlapping bases and sequencing depth are calculated after reads filtering.'
         plot_type: 'table'
         pconfig:
-            namespace: 'stats'
-            id: 'stats'
+            namespace: 'gstats'
+            id: 'gstats'
             title: 'General Statistics'
             save_file: true
             col1_header: 'Sample_ID'
@@ -30,7 +30,7 @@ custom_data:
               scale: false
               format: '{:.0f}'
               placement: 1000
-            Number_of_reads:
+            Number_of_fragments:
               title: 'Total Fragments'
               scale: 'RdYlGn'
               format: '{:,.0f}'
@@ -317,8 +317,8 @@ custom_data:
             scale: 'Set1'
 
 sp:
-  my_stats:
-      fn: '*.stats'
+  gstats:
+      fn: 'mqc.stats'
   bwa_logs:
       fn: '*bwa.mqc'
   genes_cov:
@@ -395,6 +395,8 @@ table_cond_formatting_rules:
 
 module_order:
   - fastqc
+  - samtools:
+     name: 'Reads Mapping'
   - picard:
      name: 'Fragment Size'
   - mosdepth:
@@ -406,11 +408,11 @@ module_order:
   - snpeff
 
 report_section_order:
-  my_stats:
+  gstats:
     order: 1000
   fastqc:
     order: 900
-  bwa_logs:
+  Samtools:
     order: 800
   picard:
     order: 600
@@ -448,6 +450,8 @@ remove_sections:
   - mosdepth-coverage-cov
   - picard-wgsmetrics-cov
   - picard-wgsmetrics-bases
+  - samtools-stats
+  - samtools-flagstat
 
 fn_clean_exts:
     - '_bwa.log'

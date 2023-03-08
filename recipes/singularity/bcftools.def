@@ -1,9 +1,9 @@
 Bootstrap: docker
-From: 4geniac/almalinux:8.6_conda-py39_4.12.0
+From: 4geniac/almalinux:8.4_conda-py39_4.10.3
 
 %labels
-    gitUrl ssh://git@gitlab.curie.fr:2222/data-analysis/vegan.git
-    gitCommit d3d8e0d96b2f12197ea3986bc66f6b5941fbd642 / devel
+    gitUrl https://gitlab.curie.fr/data-analysis/vegan.git
+    gitCommit ce919add961df99df20760ef2004149a3a9b33b7 / devel
 
 %environment
     export R_LIBS_USER="-"
@@ -24,9 +24,9 @@ From: 4geniac/almalinux:8.6_conda-py39_4.12.0
     dnf clean all \
     && conda env create -f /opt/bcftools.yml \
     && mkdir -p /opt/etc \
-    && echo -e "#! /bin/bash\n\n# script to activate the conda environment bcftools-1.10" > ~/.bashrc \
+    && echo -e "#! /bin/bash\n\n# script to activate the conda environment bcftools-1.15.1" > ~/.bashrc \
     && conda init bash \
-    && echo "conda activate bcftools-1.10" >> ~/.bashrc \
+    && echo "conda activate bcftools-1.15.1" >> ~/.bashrc \
     && cp ~/.bashrc /opt/etc/bashrc \
     && conda clean -a 
 

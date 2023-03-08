@@ -1,4 +1,30 @@
 ***********************************
+version-2.1.0
+
+NEW FEATURES
+
+  - New --splitFastq and --fastqChunksSize options to split input reads
+  - Support intervals parallel computing for WGS. See `--noIntervals`
+  - add '--pon' option for tumor only samples in Mutect2
+  - Update the calculate contamination process by including the segment files (#143)
+  - Support bwa-mem2/DRAGMAP mapper (#100, #148)
+  - Update annotation file for Mutect2 calling
+  - Update versions of following tools:
+    - preseq 2.0.3 -> 3.2.0
+    - samtools 1.10 -> 1.15.1
+    - bcftools 1.10.2 -> 1.15.1
+    - picard 2.19.0 -> 2.27.4
+    - multiqc 1.9 -> 1.13
+    - mosdepth 0.2.9 -> 0.3.1
+    - gatk 4.1.6.0 -> 4.1.8.0
+    - r-base 3.6.3 -> 4.1.3
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Add samtools stats module in the report
+  - All variants are not returned after filterMutectCall including non PASS ones
+
+***********************************
 version-2.0.0
 
 NEW FEATURES
@@ -13,7 +39,7 @@ NEW FEATURES
   - new annotations with SnpSift and COSMIC, ICGC, Gnomad, CancerHotspot and DBNSFP are available
   - simplifications of filtering. Now SV and SNVs are filtered the same way
   - new parameters to save intermediates BAM, vcf or metrics
-  - new --ffpe parameter
+  - new --ffpe parameter used to specify the TMB threshold
   - Mutect2 workflow now includes LearnReadOrientationModel step to
   - new parameter --annotDb to define which Databases to use for the annotation step
   - update versions of following tools:

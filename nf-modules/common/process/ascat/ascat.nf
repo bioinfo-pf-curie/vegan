@@ -27,7 +27,7 @@ process ascat {
   purityPloidy = (params.ascatPurity && params.ascatPloidy) ? "--purity ${params.ascatPurity} --ploidy ${params.ascatPloidy}" : ""
   """
   for f in *BAF *LogR; do sed 's/chr//g' \$f > tmppath; mv tmppath \$f;done
-  apRunAscat.r \
+  runAscat.r \
     --tumorbaf ${bafTumor} \
     --tumorlogr ${logrTumor} \
     --normalbaf ${bafNormal} \

@@ -1,0 +1,14 @@
+Bootstrap: docker
+From: 4geniac/almalinux:8.4
+
+%labels
+    gitUrl https://gitlab.curie.fr/data-analysis/vegan.git
+    gitCommit ce919add961df99df20760ef2004149a3a9b33b7 / devel
+
+%environment
+    export R_LIBS_USER="-"
+    export R_PROFILE_USER="-"
+    export R_ENVIRON_USER="-"
+    export PYTHONNOUSERSITE=1
+    export LC_ALL=en_US.utf-8
+    export LANG=en_US.utf-8

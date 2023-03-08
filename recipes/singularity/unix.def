@@ -2,8 +2,8 @@ Bootstrap: docker
 From: 4geniac/almalinux:8.4_conda-py39_4.10.3
 
 %labels
-    gitUrl ssh://git@gitlab.curie.fr:2222/data-analysis/vegan
-    gitCommit f4091ad181abe539d9437e5ff1cb6e64920fd6af / devel
+    gitUrl https://gitlab.curie.fr/data-analysis/vegan.git
+    gitCommit ce919add961df99df20760ef2004149a3a9b33b7 / devel
 
 %environment
     export R_LIBS_USER="-"
