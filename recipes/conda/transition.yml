@@ -8,6 +8,6 @@ dependencies:
   - conda-forge::pymdown-extensions=8.1.1=pyh44b312d_0
   - bioconda::cyvcf2=0.30.6=py37h94c4be0_0
   - conda-forge::pandas=1.2.3=py37hdc94413_0
-  - conda-forge::r-base=3.6.3=hd23ff56_6
-  - conda-forge::r-dplyr=1.0.5=r36h03ef668_0
+  - conda-forge::r-base=4.0.5=h9e01966_1
+  - conda-forge::r-dplyr=1.0.10=r40h7525677_0
   - bioconda::bcftools=1.10.2=h4f4756c_3

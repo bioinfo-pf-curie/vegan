@@ -12,7 +12,7 @@ workflow bamQcFlow {
 
   take:
   bamFiltered
-  bed
+  targetBed
   gtf
   fasta
   dict
@@ -25,17 +25,20 @@ workflow bamQcFlow {
       bamFiltered
     )
     chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
+    chFragSize = collectInsertSizeMetrics.out.results
+  }else{
+    chFragSize = Channel.empty()
   }
 
   mosdepth(
     bamFiltered,
-    bed
+    targetBed
   )
   chVersions = chVersions.mix(mosdepth.out.versions)
 
   prepareExonInfo(
     gtf,
-    bed
+    targetBed
   )
 
   genesCoverage(
@@ -45,14 +48,14 @@ workflow bamQcFlow {
 
   collectWgsMetrics(
     bamFiltered,
-    bed,
+    targetBed,
     fasta,
     dict
   )
   chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
   emit:
-    fragSize = collectInsertSizeMetrics.out.results
+    fragSize = chFragSize
     seqDepth = mosdepth.out.metrics
     bedDepth = mosdepth.out.bedcov
     geneCovMqc = genesCoverage.out.geneCovMqc

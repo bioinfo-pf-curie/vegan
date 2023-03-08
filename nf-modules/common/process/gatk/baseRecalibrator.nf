@@ -9,8 +9,7 @@ process baseRecalibrator {
   label 'medMem'
 
   input:
-  tuple val(meta), path(bamFiltered), path(bamFilteredBai)
-  path(bed)
+  tuple val(meta), path(bamFiltered), path(bamFilteredBai), path(intervals)
   path(dbsnp)
   path(dbsnpIndex)
   path(fasta)
@@ -20,7 +19,7 @@ process baseRecalibrator {
   path(dict)
 
   output:
-  tuple val(meta), path(bamFiltered), path(bamFilteredBai), path("*.recal.table"), emit: table
+  tuple val(meta), path("*.recal.table"), emit: table
   path("versions.txt"), emit: versions
 
   when:
@@ -29,8 +28,9 @@ process baseRecalibrator {
   script:
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
-  dbsnpOptions = dbsnp.collect{"--known-sites ${it}"}.join(' ')
-  knownOptions = knownIndels.collect{"--known-sites ${it}"}.join(' ')
+  def dbsnpCmd = dbsnp.collect{"--known-sites ${it}"}.join(' ')
+  def knownCmd = knownIndels.collect{"--known-sites ${it}"}.join(' ')
+  def intervalsCmd = intervals ? "--intervals $intervals" : ""
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
       BaseRecalibrator \
@@ -39,8 +39,9 @@ process baseRecalibrator {
       --tmp-dir ${params.gatkTmpDir} \
       -R ${fasta} \
       ${args} \
-      ${dbsnpOptions} \
-      ${knownOptions} \
+      ${dbsnpCmd} \
+      ${knownCmd} \
+      ${intervalsCmd} \
       --verbosity INFO
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """

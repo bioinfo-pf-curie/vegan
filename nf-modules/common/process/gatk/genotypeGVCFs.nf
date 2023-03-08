@@ -3,12 +3,11 @@
  */
 
 process genotypeGVCFs {
-  tag "${prefix}"
+  tag "${meta.id}"
   label 'gatk'
 
   input:
-  tuple val(meta), path(gvcf), path(index)
-  path(bed)
+  tuple val(meta), path(gvcf), path(index), path(intervals)
   path(dbsnp)
   path(dbsnpIndex)
   path(fasta)
@@ -16,7 +15,7 @@ process genotypeGVCFs {
   path(dict)
 
   output:
-  tuple val(meta), path("${prefix}.vcf.gz"), path("${prefix}.vcf.gz.tbi"), emit: vcf
+  tuple val(meta), path("*.vcf.gz"), path("*.vcf.gz.tbi"), emit: vcf
   path("versions.txt"), emit: versions
 
   when:
@@ -24,14 +23,16 @@ process genotypeGVCFs {
 
   script:
   def args = task.ext.args ?: ''
-  def args2 = task.ext.args2 ?: ''
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
+  def intervalCmd = intervals ? "-L ${intervals}" : ""
+  def dbsnpCmd = dbsnp ? "--D ${dbsnp}" : ""
   """
   gatk --java-options -Xmx${task.memory.toGiga()}g \
     GenotypeGVCFs \
     -R ${fasta} \
     ${args} \
-    ${args2} \
+    ${intervalCmd} \
+    ${dbsnpCmd} \
     -V ${gvcf} \
     -O ${prefix}.vcf.gz
 

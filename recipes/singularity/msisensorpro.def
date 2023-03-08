@@ -1,9 +1,9 @@
 Bootstrap: docker
-From: 4geniac/almalinux:8.6_conda-py39_4.12.0
+From: 4geniac/almalinux:8.4_conda-py39_4.10.3
 
 %labels
-    gitUrl ssh://git@gitlab.curie.fr:2222/data-analysis/vegan.git
-    gitCommit d3d8e0d96b2f12197ea3986bc66f6b5941fbd642 / devel
+    gitUrl https://gitlab.curie.fr/data-analysis/vegan.git
+    gitCommit ce919add961df99df20760ef2004149a3a9b33b7 / devel
 
 %environment
     export R_LIBS_USER="-"
@@ -28,4 +28,5 @@ From: 4geniac/almalinux:8.6_conda-py39_4.12.0
     && conda init bash \
     && echo "conda activate msisensorpro" >> ~/.bashrc \
     && cp ~/.bashrc /opt/etc/bashrc \
-    && conda clean -a
+    && conda clean -a 
+

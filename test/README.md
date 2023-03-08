@@ -1,8 +1,8 @@
 # Test data for Vegan pipeline
 
 ## Test datasets
-- exoBench dataset: KDI project ExoBench n°1560. Tumor Sample D251E02, Normal Sample D251E01. For this dataset, two versions exists, one with only 22000 reads. This one is available as fastq, bams or vcfs. And one with 10 Million reads but only as fastq.
-- hpc-bench-wgs-13x: historical test dataset from TCGA that was downsampled
+- WES dataset: KDI project ExoBench n1560. Tumor Sample D251E02, Normal Sample D251E01, downsampled with 22000 reads. This one is available as fastq, bams or vcfs.
+- WGS: historical test dataset from TCGA that was downsampled
 
 ## Test to perform to ensure operational pipeline
 

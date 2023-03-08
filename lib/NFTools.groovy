@@ -189,7 +189,6 @@ Available Profiles
     }
 
 
-
     /***********************************
      *
      * Checks params with json

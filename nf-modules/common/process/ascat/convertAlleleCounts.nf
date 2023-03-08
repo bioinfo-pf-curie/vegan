@@ -23,7 +23,7 @@ process convertAlleleCounts {
 
   script:
   """
-  Rscript ${workflow.projectDir}/bin/apConvertAlleleCounts.r ${meta.tumor_id} ${alleleCountTumor} ${meta.normal_id} ${alleleCountNormal} ${meta.sex}
+  Rscript ${workflow.projectDir}/bin/convertAlleleCounts.r ${meta.tumor_id} ${alleleCountTumor} ${meta.normal_id} ${alleleCountNormal} ${meta.sex}
   R -e "packageVersion('ASCAT')" > versions.txt
   """
 }

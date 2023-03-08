@@ -2,23 +2,23 @@
  * Mutect2 Tumor/Normal
  */
 
-include { mutect2 } from '../../common/process/gatk/mutect2'
+include { mutect2 as mutect2Pairs } from '../../common/process/gatk/mutect2'
 include { mergeMutect2Stats } from '../../common/process/gatk/mergeMutect2Stats'
-//include { concatVCF } from '../../local/process/concatVCF'
 include { learnReadOrientationModel } from '../../common/process/gatk/learnReadOrientationModel'
-include { getPileupSummaries } from '../../common/process/gatk/getPileupSummaries'
-include { gatherPileupSummaries } from '../../common/process/gatk/gatherPileupSummaries'
+include { getPileupSummaries as getPileupSummariesTumor } from '../../common/process/gatk/getPileupSummaries'
+include { getPileupSummaries as getPileupSummariesNormal } from '../../common/process/gatk/getPileupSummaries'
+include { gatherPileupSummaries as gatherPileupSummariesTumor } from '../../common/process/gatk/gatherPileupSummaries'
+include { gatherPileupSummaries as gatherPileupSummariesNormal } from '../../common/process/gatk/gatherPileupSummaries'
 include { calculateContamination } from '../../common/process/gatk/calculateContamination'
 include { filterMutect2Calls } from '../../common/process/gatk/filterMutect2Calls'
-include { collectVCFmetrics } from '../../local/process/collectVCFmetrics'
 include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
-include { computeTransition } from '../../local/process/computeTransition'
+include { mergeVCFs } from '../../common/process/gatk/mergeVCFs'
 
 workflow mutect2PairsFlow {
 
   take:
-  bam
-  bed
+  bam // [meta, tumor_bam, tumor_bai, normal_bam, normal_bai]
+  intervals
   fasta
   fai
   dict
@@ -28,7 +28,6 @@ workflow mutect2PairsFlow {
   pileupSumIndex
   panelsOfNormals
   panelsOfNormalsIndex
-  intervals
 
   main:
   chVersions = Channel.empty()
@@ -37,15 +36,22 @@ workflow mutect2PairsFlow {
   //[meta][tumor_bam, normal_bam],[tumor_bai, normal_bai]
   bam
     .map{ it -> [it[0], [it[1], it[3]], [it[2], it[4]]] }
-    .set{ chBamMutect2 }
+    .set{ chBamPair }
+  bam
+    .map{ it -> [it[0], it[1],it[2]]}
+    .set{ chBamTumor }
+  bam
+    .map{ it -> [it[0], it[3],it[4]]}
+    .set{ chBamNormal }
 
   /*
    * MUTECT2 CALLS
    */
 
-  mutect2(
-    chBamMutect2,
-    bed,
+  chBamPairIntervals = params.noIntervals ? chBamPair.map{meta,bam,bai -> [meta,bam,bai,[]]} : chBamPair.combine(intervals)
+
+  mutect2Pairs(
+    chBamPairIntervals,
     fasta,
     fai,
     dict,
@@ -54,49 +60,68 @@ workflow mutect2PairsFlow {
     panelsOfNormals,
     panelsOfNormalsIndex
   )
-  chVersions = chVersions.mix(mutect2.out.versions)
+  chVersions = chVersions.mix(mutect2Pairs.out.versions)
 
-  mergeMutect2Stats(
-    mutect2.out.stats
-  )
-
-  // concatVCF(
-  //   mutect2.out.vcf,
-  //   bed,
-  //   fasta,
-  //   fai
-  // )
-  // chVersions = chVersions.mix(concatVCF.out.versions)
-
-  /*
-   * PILEUP SUMMARY
-   */
-
-   learnReadOrientationModel(
-     mutect2.out.f1r2
-   )
-
-  getPileupSummaries(
-    bam,
-    intervals,
-    pileupSum,
-    pileupSumIndex,
-    bed
-  )
-  chVersions = chVersions.mix(getPileupSummaries.out.versions)
-
-  gatherPileupSummaries(
-    getPileupSummaries.out.pileupSummaries,
+  mergeVCFs(
+    mutect2Pairs.out.vcf.map{it -> [it[0],it[1]]}.groupTuple(),
     dict
   )
-  //chVersions = chVersions.mix(gatherPileupSummaries.out.versions)
+  chVersions = chVersions.mix(mergeVCFs.out.versions)
+  chMutect2Vcf = params.noIntervals || params.targetBed ? mutect2Pairs.out.vcf : mergeVCFs.out.vcf
+
+  mergeMutect2Stats(
+    mutect2Pairs.out.stats.groupTuple()
+  )
+  chVersions = chVersions.mix(mergeMutect2Stats.out.versions)
+  chMutect2Stats = params.noIntervals || params.targetBed ? mutect2Pairs.out.stats : mergeMutect2Stats.out.stats
+
+  /*
+   * STRAND BIAS
+   */
+
+  learnReadOrientationModel(
+    mutect2Pairs.out.f1r2.groupTuple()
+  )
+  chVersions = chVersions.mix(learnReadOrientationModel.out.versions)
 
   /*
    * CALCULATE CONTAMINATION
    */
 
+  chBamTumorIntervals = params.noIntervals ? chBamTumor.map{meta,bam,bai -> [meta,bam,bai,[]]} : chBamTumor.combine(intervals)
+
+  getPileupSummariesTumor(
+    chBamTumorIntervals,
+    pileupSum,
+    pileupSumIndex
+  )
+  chVersions = chVersions.mix(getPileupSummariesTumor.out.versions)
+
+  gatherPileupSummariesTumor(
+    getPileupSummariesTumor.out.table.groupTuple(),
+    dict
+  )
+  chVersions = chVersions.mix(gatherPileupSummariesTumor.out.versions)
+  chPileupSumTumor = params.noIntervals || params.targetBed ? getPileupSummariesTumor.out.table : gatherPileupSummariesTumor.out.table
+
+  chBamNormalIntervals = params.noIntervals ? chBamNormal.map{meta,bam,bai -> [meta,bam,bai,[]]} : chBamNormal.combine(intervals)
+
+  getPileupSummariesNormal(
+    chBamNormalIntervals,
+    pileupSum,
+    pileupSumIndex
+  )
+  chVersions = chVersions.mix(getPileupSummariesNormal.out.versions)
+
+  gatherPileupSummariesNormal(
+    getPileupSummariesNormal.out.table.groupTuple(),
+    dict
+  )
+  chVersions = chVersions.mix(gatherPileupSummariesNormal.out.versions)
+  chPileupSumNormal = params.noIntervals || params.targetBed ? getPileupSummariesNormal.out.table : gatherPileupSummariesNormal.out.table
+
   calculateContamination(
-    bam.join(gatherPileupSummaries.out.mergedPileupFileCh)
+    chPileupSumTumor.join(chPileupSumNormal)
   )
   chVersions = chVersions.mix(calculateContamination.out.versions)
 
@@ -104,50 +129,38 @@ workflow mutect2PairsFlow {
    * FILTER MUTECT CALL
    */
 
-  mutect2.out.vcf
-    .join(mergeMutect2Stats.out.mergedStatsFile)
-    .set{mutect2CallsToFilter}
-
-  mutect2CallsToFilter = params.skipMutectContamination ?
-    mutect2CallsToFilter.combine(Channel.from('NO_FILE')) :
-    mutect2CallsToFilter.join(calculateContamination.out.contaminationTable)
-
+  if (params.skipMutectContamination){
+    chMutect2Vcf
+      .join(chMutect2Stats)
+      .join(learnReadOrientationModel.out.orientation)
+      .map{meta, vcf, index, stats, orientation -> [meta, vcf, index, stats, orientation, [], []] }
+      .set { mutect2CallsToFilter }
+  }else{
+    chMutect2Vcf
+      .join(chMutect2Stats)
+      .join(learnReadOrientationModel.out.orientation)
+      .join(calculateContamination.out.contamination)
+      .join(calculateContamination.out.segmentation)
+      .set{ mutect2CallsToFilter }
+  }
 
   filterMutect2Calls(
     mutect2CallsToFilter,
     dict,
     fasta,
-    fai,
-    intervals,
-    learnReadOrientationModel.out.readOrientation
+    fai
   )
   chVersions = chVersions.mix(filterMutect2Calls.out.versions)
 
-  collectVCFmetrics(
-    filterMutect2Calls.out.vcf,
-  )
-
-  filterMutect2Calls.out.vcf
-  .map{ it -> [it[0], it[3], it[4]] }
-  .set{ chFiltSimple }
-
   bcftoolsNorm(
-    chFiltSimple,
+    filterMutect2Calls.out.vcf,
     fasta
   )
-
-  computeTransition(
-    bcftoolsNorm.out.vcf
-  )
-
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 
   emit:
   versions = chVersions
-  vcfUnfiltered = mutect2.out.vcf
-  vcfFiltered = filterMutect2Calls.out.vcf
-  vcfFilteredNorm = bcftoolsNorm.out.vcf
-  transition = computeTransition.out.metrics
-  mqc = collectVCFmetrics.out.mqc
-  stats = mergeMutect2Stats.out.mergedStatsFile
+  vcfRaw = chMutect2Vcf
+  vcfFiltered = bcftoolsNorm.out.vcf
+  stats = chMutect2Stats
 }

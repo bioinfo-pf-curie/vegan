@@ -6,10 +6,10 @@ process bcftoolsNorm {
   label 'bcftools'
   label 'medCpu'
   label 'medMem'
-  tag "${prefix}"
+  tag "${meta.id}"
 
   input:
-  tuple val(meta), path(vcf), path(index)
+  tuple val(meta), path(vcf), path(tbi)
   path(fasta)
 
   output:
@@ -20,7 +20,8 @@ process bcftoolsNorm {
   task.ext.when == null || task.ext.when
 
   script:
-  prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}"
+  def args = task.ext.args ?: ''
   """
   bcftools norm -Oz -m -both -f ${fasta} --threads ${task.cpus} ${vcf} -o ${prefix}_norm.vcf.gz
   tabix ${prefix}_norm.vcf.gz
