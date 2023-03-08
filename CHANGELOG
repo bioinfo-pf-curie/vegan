@@ -5,11 +5,11 @@ NEW FEATURES
 
   - New --splitFastq and --fastqChunksSize options to split input reads
   - Support intervals parallel computing for WGS. See `--noIntervals`
-  - add '--pon' option for tumor only samples
-  - Support bwa-mem2 mapper
-  - Support DRAGMAP mapper
-  - change annotation file for Mutect2 calling
-  - update versions of following tools:
+  - add '--pon' option for tumor only samples in Mutect2
+  - Update the calculate contamination process by including the segment files (#143)
+  - Support bwa-mem2/DRAGMAP mapper (#100, #148)
+  - Update annotation file for Mutect2 calling
+  - Update versions of following tools:
     - preseq 2.0.3 -> 3.2.0
     - samtools 1.10 -> 1.15.1
     - bcftools 1.10.2 -> 1.15.1
@@ -22,6 +22,7 @@ NEW FEATURES
 SIGNIFICANT USER-VISIBLE CHANGES
 
   - Add samtools stats module in the report
+  - All variants are not returned after filterMutectCall including non PASS ones
 
 ***********************************
 version-2.0.0
