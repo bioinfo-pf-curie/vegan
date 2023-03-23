@@ -14,19 +14,13 @@ include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
 // Set the meta.chunk value in case of technical replicates
 def setMetaChunk(row){
   def map = []
-  row[1].eachWithIndex() { file,i ->
+  row[1].eachWithIndex() { file, i ->
     meta = row[0].clone()
-    meta.chunk = i
+    meta.chunk = i+1
+    meta.size = row[1].size()
     map += [meta, file]
   }
   return map
-}
-
-// Remove meta.chunks
-def removeChunks(row){
-  meta = row[0].clone()
-  meta.remove('chunk')
-  return [meta, row[1]]
 }
 
 workflow mappingFlow {
@@ -38,6 +32,7 @@ workflow mappingFlow {
   main:
   chVersions = Channel.empty()
 
+  // reads always contains a chunk/size information
   if (params.splitFastq){
     if (params.singleEnd){
       chReads = reads.map{ it -> [it[0], it[1][0]]}
@@ -48,14 +43,16 @@ workflow mappingFlow {
                      .collate(2)
     }else{
       chReads = reads.map{ it -> [it[0], it[1][0], it[1][1]]}
-                     .splitFastq(by: params.fastqChunksSize, pe:true, file:true, compress:true)
+                     .splitFastq(by: params.fastqChunksSize, pe:true, file:true, compress:false)
                      .map { it -> [it[0], [it[1], it[2]]]}
                      .groupTuple()
                      .flatMap { it -> setMetaChunk(it) }
                      .collate(2)
     }
   }else{
-    chReads = reads
+    chReads = reads.groupTuple()
+                   .flatMap { it -> setMetaChunk(it) }
+                   .collate(2)
   }
 
   if (params.aligner == 'bwa-mem'){
@@ -84,14 +81,17 @@ workflow mappingFlow {
     chMappingLogs = dragmap.out.logs
   }
 
-  // Merge BAM file with the same prefix
+  // Merge BAM file with the same prefix and use a groupKey to speed up the process
   chBams
-    .map{ it -> removeChunks(it)}
-    .groupTuple()
+    .map{meta, bam ->
+      new_meta = meta.clone()
+      new_meta.remove('chunk')
+      [ groupKey(new_meta, meta.size), bam ]
+    }.groupTuple()
     .branch {
-      singleCh: it[1].size() == 1
-      multipleCh: it[1].size() > 1
-  }.set{bamMapped}
+      singleCh: it[0].size == 1
+      multipleCh: it[0].size > 1
+    }.set{bamMapped}
 
   samtoolsMerge(
     bamMapped.multipleCh
