@@ -1,4 +1,8 @@
-versions-2.1.1
+***********************************
+versions-2.1.1dev
+
+NEW FEATURES
+  - Add --facetsOpts parameter
 
 BUG FIXES
 
