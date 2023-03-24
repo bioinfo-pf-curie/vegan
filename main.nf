@@ -420,7 +420,7 @@ workflow {
           chDict
         )
         chGeneCovMqc = bamQcFlow.out.geneCovMqc
-        chMosdepthMqc = bamQcFlow.out.seqDepth
+        chMosdepthMqc = bamQcFlow.out.depth
         chFragSizeMqc = bamQcFlow.out.fragSize
         chWgsMetricsMqc = bamQcFlow.out.wgsMetrics
         chVersions = chVersions.mix(bamQcFlow.out.versions)

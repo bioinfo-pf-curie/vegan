@@ -35,6 +35,11 @@ workflow bamQcFlow {
     targetBed
   )
   chVersions = chVersions.mix(mosdepth.out.versions)
+  if (params.targetBed){
+    chMosdepthLog = mosdepth.out.regionsTxt
+  }else{
+    chMosdepthLog = mosdepth.out.globalTxt
+  }
 
   prepareExonInfo(
     gtf,
@@ -56,8 +61,7 @@ workflow bamQcFlow {
 
   emit:
     fragSize = chFragSize
-    seqDepth = mosdepth.out.metrics
-    bedDepth = mosdepth.out.bedcov
+    depth = chMosdepthLog
     geneCovMqc = genesCoverage.out.geneCovMqc
     wgsMetrics = collectWgsMetrics.out.metrics
     versions = chVersions
