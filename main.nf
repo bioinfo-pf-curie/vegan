@@ -473,55 +473,52 @@ workflow {
     // PAIRED BAMS
 
     //[meta], tumor_bam, tumor_bai, normal_bam, normal_bai
-    chProcBam
+    chPairBam = chProcBam
       .combine(chProcBam)
       .combine(chDesign.paired)
       .filter { it[0].id == it[6] && it[3].id == it[7] }
       .map{ it ->
         def meta = [tumor_id:it[6], normal_id:it[7], pair_id:it[8], id:it[6]+"_vs_"+it[7], status:"pair", sex:it[9]]
         return [meta, it[1], it[2], it[4], it[5] ]
-      }.set{ chPairBam }
+      }
 
     //[meta], tumor_bam, tumor_bai
-    chPairBam
+    chTumorBam = chPairBam
       .map{ it ->
-        def meta = [tumor_id:it[0].tumor_id, id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
+        def meta = [id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
         return [meta, it[1], it[2] ]
-      }.set{ chTumorBam }
+      }
 
     //[meta], normal_bam, normal_bai
-    chPairBam
+    chNormalBam = chPairBam
       .map{ it ->
-        def meta = [normal_id:it[0].normal_id, id:it[0].normal_id, status: "normal", sex:it[0].sex]
+        def meta = [id:it[0].normal_id, status: "normal", sex:it[0].sex]
         return [meta, it[3], it[4] ]
-      }.set{ chNormalBam }
-
+      }
     chSingleBam = chNormalBam.mix(chTumorBam)
 
     //******************  
     // TUMOR ONLY 
 
-    chProcBam
+    chTumorOnlyBam = chProcBam
       .combine(chDesign.tumorOnly)
       .filter { it[0].id == it[3] }
       .map{ it ->
         def meta = [id:it[3], status: "tumor", sex:it[6]]
         return [meta, it[1], it[2] ]
-      }.set{ chTumorOnlyBam }
-
+      }
     chSingleBam = chSingleBam.mix(chTumorOnlyBam)
 
     //*******************
     // GERMLINE ONLY
 
-    chProcBam
+    chGermlineOnlyBam = chProcBam
       .combine(chDesign.germlineOnly)
       .filter { it[0].id == it[4] }
       .map{ it ->
         def meta = [id:it[4], status: "normal", sex:it[6]]
         return [meta, it[1], it[2] ]
-      }.set{ chGermlineOnlyBam }
-
+      }
     chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
    }
 
@@ -532,7 +529,6 @@ workflow {
   */
 
   chAllVcf = Channel.empty()
-
   if (params.step == "mapping" || params.step == "filtering" || params.step == "calling"){
 
     //*******************************************
@@ -551,8 +547,6 @@ workflow {
         chDict
       )
       chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-      //chHaplotypecallerMetricsMqc = haplotypeCallerFlow.out.mqc
-      //chTsTvMqc = haplotypeCallerFlow.out.transition
       chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
     }
 
@@ -577,8 +571,6 @@ workflow {
         chPonIndex,
       )
       chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-      //chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2PairsFlow.out.mqc)
-      //chTsTvMqc = chTsTvMqc.mix(mutect2PairsFlow.out.transition)
       chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFiltered)
 
       mutect2TumorOnlyFlow(
@@ -595,8 +587,6 @@ workflow {
         chPonIndex
       )
       chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
-      //chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2TumorOnlyFlow.out.mqc)
-      //chTsTvMqc = chTsTvMqc.mix(mutect2TumorOnlyFlow.out.transition)
       chAllVcf = chAllVcf.mix(mutect2TumorOnlyFlow.out.vcfFiltered)
     }
   }

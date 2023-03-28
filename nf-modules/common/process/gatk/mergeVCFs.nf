@@ -9,7 +9,7 @@ process mergeVCFs {
   label 'medMem'
 
   input:
-  tuple val(meta), path(vcf)
+  tuple val(meta), path(vcf), path(tbi)
   path  dict
 
   output:

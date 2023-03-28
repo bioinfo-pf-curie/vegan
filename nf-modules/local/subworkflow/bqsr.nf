@@ -11,57 +11,105 @@ include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
 workflow bqsrFlow {
 
   take:
-    bam
-    intervals
-    dbsnp
-    dbsnpIndex
-    fasta
-    fastaFai
-    knownIndels
-    knownIndelsIndex
-    dict
+  bam
+  intervals
+  dbsnp
+  dbsnpIndex
+  fasta
+  fastaFai
+  knownIndels
+  knownIndelsIndex
+  dict
 
   main:
-    chVersions = Channel.empty()
-    chBamIntervals = params.noIntervals ? bam.map{ meta,bam,bai -> [meta,bam,bai,[]]} : bam.combine(intervals)
+  chVersions = Channel.empty()
 
-    baseRecalibrator(
-      chBamIntervals,
-      dbsnp,
-      dbsnpIndex,
-      fasta,
-      fastaFai,
-      knownIndels,
-      knownIndelsIndex,
-      dict
-    )
+  // Add intervals size for groupKey function
+  chIntervalsNum = intervals.collect().map{it -> [it, it.size() ]}.transpose()
 
-    gatherBQSRReports(
-      baseRecalibrator.out.table.groupTuple()
-    )
+  if (params.noIntervals){
+    chBamIntervals = bam.map{ meta, bam, bai -> 
+      def newMeta = meta.clone()
+      newMeta.numIntervals = 0
+      [newMeta,bam,bai,[]]
+    }
+  }else{
+    chBamIntervals = bam.combine(chIntervalsNum)
+      .map { meta, bam, bai, intervals, num ->
+        def newMeta = meta.clone()
+        newMeta.numIntervals = num
+        [newMeta, bam, bai, intervals]
+      }
+  }
 
-    chBaseRecalTable = params.noIntervals ? bam.join(baseRecalibrator.out.table).map{ meta,bam,bai,table -> [meta,bam,bai,table,[]]} :
-                       params.targetBed ? bam.join(baseRecalibrator.out.table).combine(intervals) : bam.join(gatherBQSRReports.out.table).combine(intervals)
+  baseRecalibrator(
+    chBamIntervals,
+    dbsnp,
+    dbsnpIndex,
+    fasta,
+    fastaFai,
+    knownIndels,
+    knownIndelsIndex,
+    dict
+  )
+  chVersions = chVersions.mix(baseRecalibrator.out.versions)
 
-    applyBQSR(
-      chBaseRecalTable,
-      fasta,
-      fastaFai,
-      dict
-    )
+  // groupKey to speed-up parallel processing
+  chRecalTable = baseRecalibrator.out.table
+    .map{meta, table ->
+      def newMeta = meta.clone()
+      [ groupKey(newMeta, meta.numIntervals), table ] 
+    }.groupTuple()
+    .branch {
+      single: it[0].numIntervals <= 1
+      multiple: it[0].numIntervals > 1
+    }
 
-    samtoolsMerge(
-      applyBQSR.out.bam.groupTuple()
-    )
+  gatherBQSRReports(
+    chRecalTable.multiple
+  )
 
-    chBamBQSR = params.noIntervals || params.targetBed ? applyBQSR.out.bam : samtoolsMerge.out.bam
+  chRecalAllTable = gatherBQSRReports.out.table.mix(chRecalTable.single)
+  chBaseRecalTable = chBamIntervals
+    .combine(chRecalAllTable, by: 0)
+    .map{ meta, bam, bai, intervals, table ->
+      [meta, bam, bai, table, intervals] 
+    }
 
-    samtoolsIndex(
-      chBamBQSR
-    )
+  applyBQSR(
+    chBaseRecalTable,
+    fasta,
+    fastaFai,
+    dict
+  )
+  chVersions = chVersions.mix(applyBQSR.out.versions)
+
+  // groupKey to speed up parallel processing
+  chBQSRbam = applyBQSR.out.bam.map{ meta, bam ->
+    [ groupKey(meta, meta.numIntervals), bam ]
+    }.groupTuple()
+
+  samtoolsMerge(
+    chBQSRbam
+  )
+  chVersions = chVersions.mix(samtoolsMerge.out.versions)
+  chBamBQSR = params.noIntervals || params.targetBed ? applyBQSR.out.bam : samtoolsMerge.out.bam
+
+  samtoolsIndex(
+    chBamBQSR
+  )
+  chVersions = chVersions.mix(samtoolsIndex.out.versions)
+
+  // Remove no longer necessary meta data
+  chBamBai = chBamBQSR
+    .join(samtoolsIndex.out.bai)
+    .map{meta, bam, bai ->
+      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
+      [ newMeta, bam, bai ]
+    }
 
   emit:
-  table = params.noIntervals ? baseRecalibrator.out.table : gatherBQSRReports.out.table
-  bam = chBamBQSR.join(samtoolsIndex.out.bai)
-  versions = applyBQSR.out.versions
+  table = chRecalAllTable
+  bam = chBamBai
+  versions = chVersions
 }
