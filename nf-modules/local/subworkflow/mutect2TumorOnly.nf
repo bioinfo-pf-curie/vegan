@@ -67,7 +67,7 @@ workflow mutect2TumorOnlyFlow {
 
   chMutect2Vcfs =  mutect2Tumor.out.vcf
     .map{ meta, vcf, tbi ->
-      [groupKey(meta, meta.numIntervals), vcf]
+      [groupKey(meta, meta.numIntervals), vcf, tbi]
     }.groupTuple()
     .branch {
       single: it[0].numIntervals <= 1
