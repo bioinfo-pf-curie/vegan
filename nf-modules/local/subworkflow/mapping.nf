@@ -14,19 +14,13 @@ include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
 // Set the meta.chunk value in case of technical replicates
 def setMetaChunk(row){
   def map = []
-  row[1].eachWithIndex() { file,i ->
+  row[1].eachWithIndex() { file, i ->
     meta = row[0].clone()
-    meta.chunk = i
+    meta.chunk = i+1
+    meta.part = row[1].size()
     map += [meta, file]
   }
   return map
-}
-
-// Remove meta.chunks
-def removeChunks(row){
-  meta = row[0].clone()
-  meta.remove('chunk')
-  return [meta, row[1]]
 }
 
 workflow mappingFlow {
@@ -38,27 +32,31 @@ workflow mappingFlow {
   main:
   chVersions = Channel.empty()
 
+  // reads always contains a chunk information
   if (params.splitFastq){
     if (params.singleEnd){
       chReads = reads.map{ it -> [it[0], it[1][0]]}
-                     .splitFastq(by: params.fastqChunksSize, file:true, compress:true)
-                     .map { it -> [it[0], [it[1]]]}
-                     .groupTuple()
-                     .flatMap { it -> setMetaChunk(it) }
-                     .collate(2)
+        .splitFastq(by: params.fastqChunksSize, file:true, compress:false)
+        .map { it -> [it[0], [it[1]]]}
+        .groupTuple()
+        .flatMap { it -> setMetaChunk(it) }
+        .collate(2)
     }else{
       chReads = reads.map{ it -> [it[0], it[1][0], it[1][1]]}
-                     .splitFastq(by: params.fastqChunksSize, pe:true, file:true, compress:true)
-                     .map { it -> [it[0], [it[1], it[2]]]}
-                     .groupTuple()
-                     .flatMap { it -> setMetaChunk(it) }
-                     .collate(2)
+        .splitFastq(by: params.fastqChunksSize, pe:true, file:true, compress:false)
+        .map { it -> [it[0], [it[1], it[2]]]}
+        .groupTuple()
+        .flatMap { it -> setMetaChunk(it) }
+        .collate(2)
     }
   }else{
-    chReads = reads
+    chReads = reads.groupTuple()
+      .flatMap { it -> setMetaChunk(it) }
+      .collate(2)
   }
 
   if (params.aligner == 'bwa-mem'){
+
     bwamem(
       chReads,
       index.collect()
@@ -66,7 +64,9 @@ workflow mappingFlow {
     chVersions = chVersions.mix(bwamem.out.versions)
     chBams = bwamem.out.bam
     chMappingLogs = bwamem.out.logs
+
   }else if (params.aligner == 'bwa-mem2'){
+
     bwamem2(
       chReads,
       index.collect()
@@ -74,7 +74,9 @@ workflow mappingFlow {
     chVersions = chVersions.mix(bwamem2.out.versions)
     chBams = bwamem2.out.bam
     chMappingLogs = bwamem2.out.logs
+
   }else if (params.aligner == 'dragmap'){
+
     dragmap(
       chReads,
       index.collect()
@@ -82,24 +84,27 @@ workflow mappingFlow {
     chVersions = chVersions.mix(dragmap.out.versions)
     chBams = dragmap.out.bam
     chMappingLogs = dragmap.out.logs
+
   }
 
-  // Merge BAM file with the same prefix
-  chBams
-    .map{ it -> removeChunks(it)}
-    .groupTuple()
+  // Merge BAM file with the same prefix and use a groupKey to speed up the process
+  chBamMapped = chBams
+    .map{meta, bam ->
+      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd, part:meta.part ] 
+      [ groupKey(newMeta, meta.part), bam ] 
+    }.groupTuple()
     .branch {
-      singleCh: it[1].size() == 1
-      multipleCh: it[1].size() > 1
-  }.set{bamMapped}
+      single: it[0].part <= 1
+      multiple: it[0].part > 1
+    }
 
   samtoolsMerge(
-    bamMapped.multipleCh
+    chBamMapped.multiple
   )
   chVersions = chVersions.mix(samtoolsMerge.out.versions)
 
   samtoolsSort(
-    samtoolsMerge.out.bam.mix(bamMapped.singleCh)
+    samtoolsMerge.out.bam.mix(chBamMapped.single)
   )
   chVersions = chVersions.mix(samtoolsSort.out.versions)
 
@@ -111,13 +116,23 @@ workflow mappingFlow {
   samtoolsFlagstat(
     samtoolsSort.out.bam
   )
+  chVersions = chVersions.mix(samtoolsFlagstat.out.versions)
 
   samtoolsStats(
     samtoolsSort.out.bam
   )
+  chVersions = chVersions.mix(samtoolsStats.out.versions)
+
+  // Remove groupKey object
+  chBamBai = samtoolsSort.out.bam
+    .join(samtoolsIndex.out.bai)
+    .map{meta, bam, bai -> 
+      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
+      [ newMeta, bam, bai ] 
+    }
 
   emit:
-  bam = samtoolsSort.out.bam.join(samtoolsIndex.out.bai)
+  bam = chBamBai
   logs = chMappingLogs
   flagstat = samtoolsFlagstat.out.stats.map{it-> it[1]}
   stats = samtoolsStats.out.stats.map{it-> it[1]}

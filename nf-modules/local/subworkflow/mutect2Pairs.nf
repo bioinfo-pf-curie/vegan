@@ -32,23 +32,37 @@ workflow mutect2PairsFlow {
   main:
   chVersions = Channel.empty()
 
+  // Add intervals size for groupKey function
+  chIntervalsNum = intervals.collect().map{it -> [it, it.size() ]}.transpose()
+
+  // Add numIntervals in meta
+  if (params.noIntervals){
+    chBams = bam.map{ meta,tumorBam,tumorBai,normalBam,normalBai ->
+      def newMeta = meta.clone()
+      newMeta.numIntervals = 0
+      [newMeta,tumorBam,tumorBai,normalBam,normalBai,[]]
+    }
+  }else{
+    chBams = bam.combine(chIntervalsNum)
+      .map { meta,tumorBam,tumorBai,normalBam,normalBai,intervals,num ->
+        def newMeta = meta.clone()
+        newMeta.numIntervals = num
+        [newMeta,tumorBam,tumorBai,normalBam,normalBai,intervals]
+      }
+    }
+
   // Mutect2 tumor/bam inputs
-  //[meta][tumor_bam, normal_bam],[tumor_bai, normal_bai]
-  bam
-    .map{ it -> [it[0], [it[1], it[3]], [it[2], it[4]]] }
-    .set{ chBamPair }
-  bam
-    .map{ it -> [it[0], it[1],it[2]]}
-    .set{ chBamTumor }
-  bam
-    .map{ it -> [it[0], it[3],it[4]]}
-    .set{ chBamNormal }
+  //[meta][tumor_bam, normal_bam],[tumor_bai, normal_bai], intervals
+  chBamPairIntervals = chBams
+    .map{ it -> [it[0], [it[1], it[3]], [it[2], it[4]], it[5]] }
+  chBamTumorIntervals = chBams
+    .map{ it -> [it[0], it[1],it[2], it[5]]}
+  chBamNormalIntervals = chBams
+    .map{ it -> [it[0], it[3],it[4], it[5]]}
 
   /*
    * MUTECT2 CALLS
    */
-
-  chBamPairIntervals = params.noIntervals ? chBamPair.map{meta,bam,bai -> [meta,bam,bai,[]]} : chBamPair.combine(intervals)
 
   mutect2Pairs(
     chBamPairIntervals,
@@ -61,34 +75,54 @@ workflow mutect2PairsFlow {
     panelsOfNormalsIndex
   )
   chVersions = chVersions.mix(mutect2Pairs.out.versions)
+  chMutect2Vcfs =  mutect2Pairs.out.vcf
+    .map{ meta, vcf, tbi ->
+      [groupKey(meta, meta.numIntervals), vcf, tbi]
+    }.groupTuple()
+    .branch {
+      single: it[0].numIntervals <= 1
+      multiple: it[0].numIntervals > 1
+    }
 
   mergeVCFs(
-    mutect2Pairs.out.vcf.map{it -> [it[0],it[1]]}.groupTuple(),
+    chMutect2Vcfs.multiple,
     dict
   )
   chVersions = chVersions.mix(mergeVCFs.out.versions)
-  chMutect2Vcf = params.noIntervals || params.targetBed ? mutect2Pairs.out.vcf : mergeVCFs.out.vcf
+  chMutect2MergedVcf = mergeVCFs.out.vcf.mix(chMutect2Vcfs.single)
+
+  chMutect2Stats = mutect2Pairs.out.stats
+    .map{ meta, stats ->
+      [groupKey(meta, meta.numIntervals), stats]
+    }.groupTuple()
+    .branch {
+      single: it[0].numIntervals <= 1
+      multiple: it[0].numIntervals > 1
+    }
 
   mergeMutect2Stats(
-    mutect2Pairs.out.stats.groupTuple()
+    chMutect2Stats.multiple
   )
   chVersions = chVersions.mix(mergeMutect2Stats.out.versions)
-  chMutect2Stats = params.noIntervals || params.targetBed ? mutect2Pairs.out.stats : mergeMutect2Stats.out.stats
+  chMutect2MergedStats = mergeMutect2Stats.out.stats.mix(chMutect2Stats.single)
 
   /*
    * STRAND BIAS
    */
 
+  chMutect2LoM = mutect2Pairs.out.f1r2
+    .map{ meta, fr ->
+      [groupKey(meta, meta.numIntervals), fr]
+    }.groupTuple()
+
   learnReadOrientationModel(
-    mutect2Pairs.out.f1r2.groupTuple()
+    chMutect2LoM
   )
   chVersions = chVersions.mix(learnReadOrientationModel.out.versions)
 
   /*
    * CALCULATE CONTAMINATION
    */
-
-  chBamTumorIntervals = params.noIntervals ? chBamTumor.map{meta,bam,bai -> [meta,bam,bai,[]]} : chBamTumor.combine(intervals)
 
   getPileupSummariesTumor(
     chBamTumorIntervals,
@@ -97,14 +131,21 @@ workflow mutect2PairsFlow {
   )
   chVersions = chVersions.mix(getPileupSummariesTumor.out.versions)
 
+  chPileupSumTumor = getPileupSummariesTumor.out.table
+    .map{ meta, fr ->
+      [groupKey(meta, meta.numIntervals), fr]
+    }.groupTuple()
+    .branch {
+      single: it[0].numIntervals <= 1
+      multiple: it[0].numIntervals > 1
+    }
+
   gatherPileupSummariesTumor(
-    getPileupSummariesTumor.out.table.groupTuple(),
+    chPileupSumTumor.multiple,
     dict
   )
   chVersions = chVersions.mix(gatherPileupSummariesTumor.out.versions)
-  chPileupSumTumor = params.noIntervals || params.targetBed ? getPileupSummariesTumor.out.table : gatherPileupSummariesTumor.out.table
-
-  chBamNormalIntervals = params.noIntervals ? chBamNormal.map{meta,bam,bai -> [meta,bam,bai,[]]} : chBamNormal.combine(intervals)
+  chMergedPileupSumTumor = gatherPileupSummariesTumor.out.table.mix(chPileupSumTumor.single)
 
   getPileupSummariesNormal(
     chBamNormalIntervals,
@@ -113,15 +154,24 @@ workflow mutect2PairsFlow {
   )
   chVersions = chVersions.mix(getPileupSummariesNormal.out.versions)
 
+  chPileupSumNormal = getPileupSummariesNormal.out.table
+    .map{ meta, fr ->
+      [groupKey(meta, meta.numIntervals), fr]
+    }.groupTuple()
+    .branch {
+      single: it[0].numIntervals <= 1
+      multiple: it[0].numIntervals > 1
+    }
+
   gatherPileupSummariesNormal(
-    getPileupSummariesNormal.out.table.groupTuple(),
+    chPileupSumNormal.multiple,
     dict
   )
   chVersions = chVersions.mix(gatherPileupSummariesNormal.out.versions)
-  chPileupSumNormal = params.noIntervals || params.targetBed ? getPileupSummariesNormal.out.table : gatherPileupSummariesNormal.out.table
+  chMergedPileupSumNormal = gatherPileupSummariesNormal.out.table.mix(chPileupSumNormal.single)
 
   calculateContamination(
-    chPileupSumTumor.join(chPileupSumNormal)
+    chMergedPileupSumTumor.join(chMergedPileupSumNormal)
   )
   chVersions = chVersions.mix(calculateContamination.out.versions)
 
@@ -130,18 +180,23 @@ workflow mutect2PairsFlow {
    */
 
   if (params.skipMutectContamination){
-    chMutect2Vcf
-      .join(chMutect2Stats)
+    mutect2CallsToFilter = chMutect2MergedVcf
+      .join(chMutect2MergedStats)
       .join(learnReadOrientationModel.out.orientation)
-      .map{meta, vcf, index, stats, orientation -> [meta, vcf, index, stats, orientation, [], []] }
-      .set { mutect2CallsToFilter }
+      .map{meta, vcf, index, stats, orientation ->
+        newMeta = [tumor_id:meta.tumor_id, normal_id:meta.normal_id, pair_id:meta.pair_id, id:meta.id, status:meta.status, sex:meta.sex] 
+        [newMeta, vcf, index, stats, orientation, [], []] 
+      }
   }else{
-    chMutect2Vcf
-      .join(chMutect2Stats)
+    mutect2CallsToFilter = chMutect2MergedVcf
+      .join(chMutect2MergedStats)
       .join(learnReadOrientationModel.out.orientation)
       .join(calculateContamination.out.contamination)
       .join(calculateContamination.out.segmentation)
-      .set{ mutect2CallsToFilter }
+      .map{meta, vcf, index, stats, orientation, conta, segment ->
+        newMeta = [tumor_id:meta.tumor_id, normal_id:meta.normal_id, pair_id:meta.pair_id, id:meta.id, status:meta.status, sex:meta.sex]
+        [newMeta, vcf, index, stats, orientation, conta, segment]
+      }
   }
 
   filterMutect2Calls(
@@ -160,7 +215,7 @@ workflow mutect2PairsFlow {
 
   emit:
   versions = chVersions
-  vcfRaw = chMutect2Vcf
+  vcfRaw = chMutect2MergedVcf
   vcfFiltered = bcftoolsNorm.out.vcf
-  stats = chMutect2Stats
+  stats = chMutect2MergedStats
 }
