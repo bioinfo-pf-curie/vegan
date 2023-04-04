@@ -5,12 +5,21 @@ SIGNIFICANT USER-VISIBLE CHANGES
 
   - Speed-up parallel processing and avoid waiting for all the samples at the different steps #158
   - Add --facetsOpts parameter
-  - Bam files after bqsr are exported by default. If --skipBQSR is used, the bams after filering will be exported
 
 BUG FIXES
 
-  - Bug in --skipFastq option. Typo in modules.conf #162
   - Update mosdepth report in MultiQC #161
+
+***********************************
+versions-2.1.1
+
+BUG FIXES
+
+  - Bug in --skipFastq option. Typo in modules.conf
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Bam files after bqsr are exported by default. If --skipBQSR is used, the bams after filering will be exported
 
 ***********************************
 version-2.1.0
