@@ -11,6 +11,10 @@ BUG FIXES
   - Bug in --skipFastq option. Typo in modules.conf #162
   - Update mosdepth report in MultiQC #161
 
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Bam files after bqsr are exported by default. If --skipBQSR is used, the bams after filering will be exported
+
 ***********************************
 version-2.1.0
 
