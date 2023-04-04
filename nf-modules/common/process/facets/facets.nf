@@ -7,7 +7,7 @@ process facets{
   label 'minCpu'
   label 'highMem'
 
-  tag "${meta.tumor_id}_vs_${meta.normal_id}"
+  tag "${prefix}"
 
   when:
   task.ext.when == null || task.ext.when
@@ -16,17 +16,19 @@ process facets{
   tuple val(meta), path(snppileupCounts)
 
   output:
-  path("*.{txt,pdf}"), emit: facetsResultsCh
+  path("*.{txt,pdf}"), emit: results
   path("versions.txt"), emit: versions
 
   script:
+  def prefix = task.ext.prefix ?: "${meta.id}"
+  def args = task.ext.args ?: ''
   """
   genome=\$(basename ${params.genome} "_base")
 
   facets.r -i ${snppileupCounts} \\
-	   --name ${meta.tumor_id}_vs_${meta.normal_id} \\
+	   --name ${prefix} \\
 	   --assembly \$genome \\
-	   --normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25
+	   ${args}
   R -e "packageVersion('facets')" > versions.txt
   """
  }
