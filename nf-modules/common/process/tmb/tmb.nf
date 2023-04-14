@@ -26,11 +26,10 @@ process tmb {
   def bedOpts = bed ? "--bed ${bed}" : "--effGenomeSize ${effgsize}"
   """
   pyTMB.py -i $vcf \
-      --sample ${meta.tumor_id} \
+      ${args} \
       --dbConfig ${dbconfig} \
       --varConfig ${varconfig} \
-      ${bedOpts} \
-      ${args} > ${prefix}_tmb.txt
+      ${bedOpts} > ${prefix}_tmb.txt
 
 
   pyTMB.py --version > versions.txt
