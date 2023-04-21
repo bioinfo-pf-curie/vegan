@@ -1,6 +1,10 @@
 ***********************************
 versions-2.2.0dev
 
+NEW FEATURES
+
+  - Add TMB in Tumor Only mode
+
 SIGNIFICANT USER-VISIBLE CHANGES
 
   - Speed-up parallel processing and avoid waiting for all the samples at the different steps #158
@@ -15,7 +19,7 @@ versions-2.1.1
 
 BUG FIXES
 
-  - Bug in --skipFastq option. Typo in modules.conf
+  - Bug in --skipFastqc option. Typo in modules.conf
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
