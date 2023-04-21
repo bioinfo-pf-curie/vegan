@@ -1,8 +1,12 @@
 versions-2.1.1
 
+NEW FEATURES
+
+  - Add TMB in Tumor Only mode
+
 BUG FIXES
 
-  - Bug in --skipFastq option. Typo in modules.conf
+  - Bug in --skipFastqc option. Typo in modules.conf
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
