@@ -1,14 +1,11 @@
 ***********************************
 versions-2.2.0dev
 
-NEW FEATURES
-
-  - Add TMB in Tumor Only mode
-
 SIGNIFICANT USER-VISIBLE CHANGES
 
   - Speed-up parallel processing and avoid waiting for all the samples at the different steps #158
-  - Add --facetsOpts parameter
+  - Add --facetsOpts parameter #168
+  - Update Facets outputs #168
 
 BUG FIXES
 
@@ -16,6 +13,10 @@ BUG FIXES
 
 ***********************************
 versions-2.1.1
+
+NEW FEATURES
+
+  - Add TMB in Tumor Only mode
 
 BUG FIXES
 
