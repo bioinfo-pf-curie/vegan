@@ -6,11 +6,7 @@ process facets{
   label 'facets'
   label 'minCpu'
   label 'highMem'
-
   tag "${prefix}"
-
-  when:
-  task.ext.when == null || task.ext.when
 
   input:
   tuple val(meta), path(snppileupCounts)
@@ -19,8 +15,11 @@ process facets{
   path("*.{txt,pdf}"), emit: results
   path("versions.txt"), emit: versions
 
+  when:
+  task.ext.when == null || task.ext.when
+
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   """
   genome=\$(basename ${params.genome} "_base")

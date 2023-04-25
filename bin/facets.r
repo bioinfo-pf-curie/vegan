@@ -15,9 +15,8 @@ option_list <- list(make_option(c("-i", "--input"), type="character", default=NU
                     make_option(c("--cval"), type="numeric", default=150, help="Critical value for segmentation"),
                     make_option(c("--cvalPreproc"), type="numeric", default=25, help="Criticial segmentation value for preprocessing"),
                     make_option(c("--ampCopy"), type="numeric", default=5, help="Copy number to call an amplification"),
-                    #make_option(c("--maxCluster"), type="numeric", default=5, help=""),
                     make_option(c("--hetThres"), type="numeric", default=0.25, help="VAF value to call a SNP heterozygous"),
-                    make_option(c("--unmatch"), action="store_true", default=FALSE, help="Normal sample is not matched with tumor. In this case, heterogygous SNPs are called using tumor reads only and logOR calculations are different. Use het.thresh = 0.1 or lower in that case.")
+                    make_option(c("--unmatch"), action="store_true", default=FALSE, help="Normal sample is not matched with tumor. In this case, heterogygous SNPs are called using tumor reads only and logOR calculations are different. Use --hetThresh = 0.1 or lower in that case.")
                     )
 
 opt_parser <- OptionParser(option_list=option_list)
@@ -146,7 +145,6 @@ xx <- preProcSample(rcmat, ndepth=opt$normalDepth, het.thresh=opt$hetThres,
                     snp.nbhd=opt$windowSize, cval=opt$cvalPreproc, deltaCN=0,
                     gbuild=opt$assembly, hetscale=TRUE, unmatched=opt$unmatch,
                     ndepthmax=opt$maxDepth)
-# pc_het_snp <- round(nrow(xx$pmat[which(xx$pmat$het==1),])*100/nrow(xx$pmat),2)
 
 oo <- suppressWarnings(procSample(xx, cval=opt$cval,
                                   min.nhet=15, dipLogR=NULL))
@@ -167,12 +165,10 @@ if(!is.null(fit2$emflags)){
 write.table(fit2$cncf,paste0(outDir,"/",name,"_cnv_segments.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
 pdf(paste0(outDir,"/",name,"_cnv.pdf"), width=16, height=8)
-#facetsPlot(x=oo, emfit=fit2, sname=title, chromlevels=unique(xx$pmat$chrom))
 facetsPlot(x=oo, emfit=fit2, sname=title, chromlevels=oo$chromlevels)
 invisible(dev.off())
 
 df <- unique(data.frame("ID" = name,"cellularity" = round(fit2$cncf$purity,3), "ploidy" = round(fit2$cncf$ploidy,3)))
-
 write.table(df,paste0(outDir,"/",name,"_cnv_ploidy_cellularity.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
 
@@ -211,9 +207,7 @@ if(opt$assembly=="hg19" | opt$assembly=="hg18")
 write.table(tab, paste0(outDir,"/",name,"_cnv_segments.transformed.txt"),
             quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
 
-max_size <- 10000000
-
-tab_amp_del <- tab[which(tab$call =="DEL" | (tab$call == "AMP" & (as.numeric(tab$loc.end) - as.numeric(tab$loc.start)) <= max_size)),]
-
-write.table(tab_amp_del, paste0(outDir,"/",name,"_cnv_amp_del.txt"),
-            quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
+#max_size <- 10000000
+#tab_amp_del <- tab[which(tab$call =="DEL" | (tab$call == "AMP" & (as.numeric(tab$loc.end) - as.numeric(tab$loc.start)) <= max_size)),]
+#write.table(tab_amp_del, paste0(outDir,"/",name,"_cnv_amp_del.txt"),
+#            quote=FALSE, col.names=TRUE, row.names=FALSE, sep="\t")
