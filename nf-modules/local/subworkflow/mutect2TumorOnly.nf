@@ -146,28 +146,21 @@ workflow mutect2TumorOnlyFlow {
    * FILTER MUTECT CALL
    */
 
-  if (params.skipMutectContamination){
-    mutect2CallsToFilter = chMutect2MergedVcf
+  chConta = !params.skipMutectContamination ? calculateContamination.out.contamination : chMutect2MergedVcf.map{it->[it[0],[]]}
+  chContaSegment = !params.skipMutectContamination ? calculateContamination.out.segmentation : chMutect2MergedVcf.map{it->[it[0],[]]}
+  chOrientationModel = !params.skipMutectOrientationModel ? learnReadOrientationModel.out.orientation :	chMutect2MergedVcf.map{it->[it[0],[]]}
+  chMutect2CallsToFilter = chMutect2MergedVcf
       .join(chMutect2MergedStats)
-      .join(learnReadOrientationModel.out.orientation)
-      .map{meta, vcf, index, stats, orientation ->
-        newMeta = [id:meta.id, status:meta.status, sex:meta.sex]
-        [newMeta, vcf, index, stats, orientation, [], []]
-      }
-  }else{
-    mutect2CallsToFilter = chMutect2MergedVcf
-      .join(chMutect2MergedStats)
-      .join(learnReadOrientationModel.out.orientation)
-      .join(calculateContamination.out.contamination)
-      .join(calculateContamination.out.segmentation)
+      .join(chOrientationModel)
+      .join(chConta)
+      .join(chContaSegment)
       .map{meta, vcf, index, stats, orientation, conta, segment ->
-        newMeta = [id:meta.id, status:meta.status, sex:meta.sex]
+        newMeta = [tumor_id:meta.tumor_id, normal_id:meta.normal_id, pair_id:meta.pair_id, id:meta.id, status:meta.status, sex:meta.sex]
         [newMeta, vcf, index, stats, orientation, conta, segment]
       }
-  }
 
   filterMutect2Calls(
-    mutect2CallsToFilter,
+    chMutect2CallsToFilter,
     dict,
     fasta,
     fai,

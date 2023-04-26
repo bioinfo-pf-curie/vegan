@@ -258,9 +258,22 @@
       "group": "Variant calling"
     },
     {
-      "name": "orientationBiais",
-      "label": "orientation Biais filter",
-      "usage": "Specify to use the orientation Biais filter for Mutect2 calls (for FFPE samples)",
+      "name": "skipMutectOrientationModel",
+      "label": "Skip Orientation Biais filter",
+      "usage": "Do not apply the LearnOrientationModel step for Mutect2 calls filtering",
+      "type": "boolean",
+      "nargs": "+",
+      "choices": [],
+      "default_value": [],
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Variant calling"
+    },
+    {
+      "name": "skipMutectContamination",
+      "label": "Skip Mutect contamination filter",
+      "usage": "Do not apply the Contamination step for Mutect2 calls filtering",
       "type": "boolean",
       "nargs": "+",
       "choices": [],
@@ -323,7 +336,7 @@
       "group": "Annotation"
     },
     {
-      "name": "skipPreseq",
+      "name": "skipSaturation",
       "label": "Skip Preseq",
       "usage": "Disable Preseq",
       "type": "boolean",
@@ -388,9 +401,9 @@
       "group": "Skip options"
     },
     {
-      "name": "skipQC",
-      "label": "Skip all QCs",
-      "usage": "Disable all QCs",
+      "name": "skipBamQC",
+      "label": "Skip QCs on BAM files",
+      "usage": "Disable QCs on BAM files",
       "type": "boolean",
       "nargs": 0,
       "choices": [],
