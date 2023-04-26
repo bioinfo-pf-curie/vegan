@@ -1,28 +1,12 @@
 #!/usr/bin/env python
 
-#############################################################################################
-# Copyright Institut Curie 2020                                                             #
-#                                                                                           #
-# This software is a computer program whose purpose                                         #
-# is to analyze high-throughput sequencing data.                                            #
-# You can use, modify and/ or redistribute the software under                               #
-# the terms of license (see the LICENSE file for more details).                             #
-# The software is distributed in the hope that it will be useful,                           #
-# but "AS IS" WITHOUT ANY WARRANTY OF ANY KIND.                                             #
-# Users are therefore encouraged to test the software's suitabilityas regards               #
-# their requirements in conditions enabling the security of their systems and/or data.      #
-# The fact that you are presently reading this means that                                   #
-# you have had knowledge of the license and that you accept its terms.                      #
-#############################################################################################
-
 import argparse
 import csv
 import sys
 import re
 import os
 
-
-def parse_args():
+def argsParse():
     """
     Parsing input & outputs CSV files. Also takes in a boolean to indicate if
     the raw reads are single-end or paired-end
@@ -32,84 +16,88 @@ def parse_args():
     parser.add_argument("-s", "--sampleplan", dest="sampleplan", help="SamplePlan file (csv)")
     parser.add_argument("--singleEnd", help="Specify that input reads are single-end", action="store_true")
     args = parser.parse_args()
-    return args.design, args.sampleplan, args.singleEnd
+    inputDesign = args.design
+    inputData = args.sampleplan
+    singleEnd = args.singleEnd
+    return inputDesign, inputData, singleEnd
 
-
-def load_sample_plan(input_file, is_single_end=False):
+def loadSamplePlan(inputFile, isSingleEnd=False):
     """
     Load SamplePlan file with sampleId,sampelName,fastqR1,[fastqr2]
     """
-    sample_plan = {'SAMPLEID': [], 'SAMPLENAME': [], 'FASTQR1': []}
-    if not is_single_end:
-        sample_plan['FASTQR2'] = []
+    dictSamplePlan={'SAMPLEID':[], 'SAMPLENAME':[], 'FASTQR1':[]}
+    if not isSingleEnd:
+        dictSamplePlan['FASTQR2']=[]
 
-    with open(input_file, 'r') as dataFile:
+    with open(inputFile, 'r') as dataFile:
         lines = csv.reader(dataFile)
         for sample in lines:
-            sample_plan['SAMPLEID'].append(sample[0])
-            sample_plan['SAMPLENAME'].append(sample[1])
-            sample_plan['FASTQR1'].append(sample[2])
-            if not is_single_end:
-                sample_plan['FASTQR2'].append(sample[3])
-    return sample_plan
+            dictSamplePlan['SAMPLEID'].append(sample[0])
+            dictSamplePlan['SAMPLENAME'].append(sample[1])
+            dictSamplePlan['FASTQR1'].append(sample[2])
+            if not isSingleEnd:
+                dictSamplePlan['FASTQR2'].append(sample[3])
+    return(dictSamplePlan)
 
 
-def load_design(input_file, headers):
+def loadDesign(inputFile, headers):
     """
     Load Design file using the defined headers
     """
-    dict_design = dict.fromkeys(headers, '')
-    with open(input_file, 'r') as designFile:
+    dictDesign = dict.fromkeys(headers, '')
+    with open(inputFile, 'r') as designFile:
         lines = csv.reader(designFile)
         for sample in lines:
             for i in range(len(headers)):
-                if dict_design[headers[i]] == '':
-                    dict_design[headers[i]] = []
+                if dictDesign[headers[i]]=='':
+                    dictDesign[headers[i]]=[]
                 else:
-                    dict_design[headers[i]].append(sample[i])
-    return dict_design
+                    dictDesign[headers[i]].append(sample[i])
+    return(dictDesign)
 
 
-def check_headers(input_design, header_ref):
+def checkHeaders(inputDesign, headerDict):
     """
-    Check if headers on the design file corresponds to reference
+    Check headers on the design file
     """
-    # Checks for design file
-    with open(input_design, 'r') as design_file:
-        lines = csv.reader(design_file)
+    ### Checks for design file
+    with open(inputDesign, 'r') as designFile:
+        lines = csv.reader(designFile)
         header = next(lines)
         for i in range(0, len(header)):
             try:
-                if not header[i] == header_ref[i]:
-                    raise ()
-            except Exception:
-                print(f"\nError: Headers are not valid, should be : {[*header_ref]}")
+                if not header[i] == [*headerDict][i]:
+                    raise()
+            except:
+                print('\nError: Headers are not valid, should be : {}'
+                      .format([*headerDict]))
                 sys.exit(1)
 
 
-def check_column_content(column, values):
+def checkColumnContent(column, values):
     """
     Check the content of a column
     """
     for val in column:
         if not val in values:
-            print(f"\nError: The value \'{val}\' is invalid, should be : {[*values]}")
+            print('\nError: The value \'{}\' is invalid, should be : {}'
+                  .format(val, [*values]))
             sys.exit(1)
 
-
-def check_columns_match(col1, col2, exclusive=False):
+def checkColumnsMatch(col1, col2, exclusive=False):
     """
     Check that values in col1 are (not) in col2
     """
-    # Remove empty values from col1/col2
+    ## Remove empty values from col1/col2
     col1 = [i for i in col1 if i]
     col2 = [i for i in col2 if i]
 
-    match = []
+    match=[]
     for ID in col1:
         if ID in col2:
             if exclusive:
-                print(f"\nError: The value {ID} cannot be set in two columns")
+                print('\nError: The value {} cannot be set in two columns'
+                      .format(ID))
                 sys.exit(1)
             else:
                 if not ID in match:
@@ -122,39 +110,41 @@ def check_columns_match(col1, col2, exclusive=False):
 
 
 if __name__ == '__main__':
-    # define your design header
-    designHeader = ['GERMLINE_ID', 'TUMOR_ID', 'PAIR_ID', 'SEX']
 
-    # Get args
-    input_design, input_sample_plan, is_single_end = parse_args()
+    designHeader=['GERMLINE_ID','TUMOR_ID','PAIR_ID','SEX']
 
-    # Load SamplePlan
+    ## Get args
+    inputDesign, inputSamplePlan, isSingleEnd = argsParse()
+    
+    ## Load SamplePlan
     print("[SAMPLEPLAN] Load data ", end='...')
-    sample_plan = load_sample_plan(input_sample_plan, is_single_end)
-    print("ok")
+    dictSamplePlan=loadSamplePlan(inputSamplePlan, isSingleEnd)
+    print("ok") 
 
-    # Check Design headers
+    ## Check Design headers
     print("[DESIGN] Check headers ", end='...')
-    check_headers(input_design, designHeader)
+    checkHeaders(inputDesign, designHeader)
     print("ok")
 
-    # Load Design
+    ## Load Design
     print("[DESIGN] Load data ", end="...")
-    design = load_design(input_design, designHeader)
+    dictDesign=loadDesign(inputDesign, designHeader)
     print("ok")
 
-    # Checks for design file
-    print("[DESIGN] Check sex type content ", end='...')
-    check_column_content(design['SEX'], ['XX', 'XY'])
+    ## Checks for design file
+    print("[DESIGN] Check peak type content ", end='...')
+    checkColumnContent(dictDesign['SEX'], ['', 'XX', 'XY'])
     print("ok")
 
-    # Check that a germline is not a tumor
-    print("[DESIGN] Check germline/tumor IDs ", end='...')
-    check_columns_match(design['GERMLINE_ID'], design['TUMOR_ID'], exclusive=True)
+    ## Check that a sample is not a control
+    print("[DESIGN] Check tumors/controls IDs ", end='...') 
+    checkColumnsMatch(dictDesign['GERMLINE_ID'], dictDesign['TUMOR_ID'], exclusive=True)
     print("ok")
 
-    # Check that all samples from samplePlan are also in the design file (and the reverse)
+    ## Check that all samples from samplePlan are also in the design file (and the reverse)
     print("[DESIGN] Check samples matches between samplePlan and design ", end='...')
-    check_columns_match(sample_plan['SAMPLEID'], design['GERMLINE_ID'] + design['TUMOR_ID'])
-    check_columns_match(design['GERMLINE_ID'] + design['TUMOR_ID'], sample_plan['SAMPLEID'])
+    checkColumnsMatch(dictSamplePlan['SAMPLEID'], dictDesign['GERMLINE_ID'] + dictDesign['TUMOR_ID'])
+    checkColumnsMatch(dictDesign['TUMOR_ID'] + dictDesign['GERMLINE_ID'], dictSamplePlan['SAMPLEID'])
     print("ok")
+
+

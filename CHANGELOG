@@ -1,9 +1,15 @@
 ***********************************
 versions-2.2.0dev
 
+NEW FEATURES
+
+  - New --skipMutectOrientationModel option to turn off the learn orientation model step
+
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Default mapper is now bwa-mem2
   - Speed-up parallel processing and avoid waiting for all the samples at the different steps #158
+  - Update skip options
   - Add --facetsOpts parameter #168
   - Update Facets outputs #168
 
