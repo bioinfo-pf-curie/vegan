@@ -36,8 +36,6 @@ def checkAlignmentPercent(prefix, logs) {
 
   def loadDesign(designPath) {
     def designFile = designPath ? file(designPath) : null
-    //def designExt = designPath ? getExtension(designPath, ["tsv", "csv"]) : ""
-    //def separator = (designExt == 'tsv') ? '\t' : (designExt == 'csv') ? ',' : ''
     def separator = designFile.toString().endsWith(".csv") ? ',' : designFile.toString().endsWith(".tsv") ? '\t':  ''
     if (designFile) {
       return Channel.of(designFile)
@@ -45,5 +43,16 @@ def checkAlignmentPercent(prefix, logs) {
         .map { row -> [row.TUMOR_ID, row.GERMLINE_ID, row.PAIR_ID, row.SEX] }
     } else {
       return Channel.empty()
+    }
+  }
+
+  /**
+   * Check if PON is defined for tumor only samples
+   *
+   */
+
+  def checkTumorOnly(ids, params){
+    if (ids.size() > 0 && !params.pon){
+      exit 1, "Missing --pon option for tumor only samples"
     }
   }

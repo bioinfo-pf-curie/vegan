@@ -46,6 +46,7 @@ customRunName = NFTools.checkRunName(workflow.runName, params.name)
 mqcReport = []
 include {checkAlignmentPercent} from './lib/functions'
 include {loadDesign} from './lib/functions'
+include {checkTumorOnly} from './lib/functions'
 
 tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
 
@@ -124,6 +125,10 @@ if (!params.skipBQSR && ('haplotypecaller' in tools || 'mutect2' in tools) && (!
 
 if (!params.skipMutectContamination && 'mutect2' in tools && !params.germlineResource){
   exit 1, "Missing annotation file(s) for Mutect2 filtering (germlineResource): Please use '--skipMutectContamination'"
+}
+
+if (('tmb' in tools) && !('snpeff' in tools)){
+  exit 1, "Running an annotation tool (--tools 'snpeff') is required for TMB calculation"
 }
 
 if (tools && ('ascat' in tools) && (!params.acLoci || !params.acLociGC)) {
@@ -257,17 +262,15 @@ if (params.design){
 
   chDesign = loadDesign(params.design)
 
-  //Separate the design in germline only / tumor only / germline + tumor
+  //Separate the design in paired / tumor only / germline only
   chDesign = chDesign
     .branch{
       paired: it[0] != '' && it[1] != ''
       tumorOnly: it[0] != '' && it[1] == ''
       germlineOnly: it[0] == '' && it[1] != ''
   }
-
-//  if (chDesign.tumorOnly.count() > 0 && !params.pon){
-//    exit 1, "Tumor only samples detected without panels of normal: Please use '--pon'"
-//  }
+  // Check if PON is defined for tumor only samples
+  chDesign.tumorOnly.map{it->it[0]}.toList().map{ it -> checkTumorOnly(it, params) }
 
 }else{
   chDesignFile = Channel.empty()
@@ -300,6 +303,7 @@ include { facetsFlow } from './nf-modules/local/subworkflow/facets'
 include { ascatFlow } from './nf-modules/local/subworkflow/ascat'
 
 // Processes
+include { checkDesign } from './nf-modules/local/process/checkDesign'
 include { getSoftwareVersions } from './nf-modules/common/process/utils/getSoftwareVersions'
 include { outputDocumentation } from './nf-modules/common/process/utils/outputDocumentation'
 include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
@@ -341,6 +345,13 @@ workflow {
       chOutputDocs,
       chOutputDocsImages
     )
+
+    // Check design
+    if (params.design){
+      checkDesign(
+      chDesignFile, 
+      chSplan)
+    }
 
     //********************************************
     // SUB-WORKFLOW : Prepare intervals list
@@ -385,7 +396,7 @@ workflow {
     //*******************************************
     // Process : Preseq
 
-    if (!params.skipPreseq){
+    if (!params.skipSaturation){
       preseq(
         chAlignedBam
       )
@@ -411,7 +422,7 @@ workflow {
       //*******************************************
       //SUB-WORKFLOW : bamQcFlow
 
-      if (!params.skipQC){
+      if (!params.skipBamQC){
         bamQcFlow(
           chFilteredBam,
           chTargetBed,
