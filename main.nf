@@ -497,16 +497,6 @@ workflow {
         [meta, it[1][2], it[1][3], it[1][4], it[1][5]]
       }
 
-    //[meta], tumor_bam, tumor_bai, normal_bam, normal_bai
-    //chProcBam
-    //  .combine(chProcBam)
-    //  .combine(chDesign.paired)
-    //  .filter { it[0].id == it[6] && it[3].id == it[7] }
-    //  .map{ it ->
-    //    def meta = [tumor_id:it[6], normal_id:it[7], pair_id:it[8], id:it[6]+"_vs_"+it[7], status:"pair", sex:it[9]]
-    //    return [meta, it[1], it[2], it[4], it[5] ]
-    //  }
-
     //[meta], tumor_bam, tumor_bai
     chTumorBam = chPairBam
       .map{ it ->
@@ -534,14 +524,6 @@ workflow {
       }
     chSingleBam = chSingleBam.mix(chTumorOnlyBam) 
 
-//    chProcBam
-//      .combine(chDesign.tumorOnly)
-//      .filter { it[0].id == it[3] }
-//      .map{ it ->
-//        def meta = [id:it[3], status: "tumor", sex:it[6]]
-//        return [meta, it[1], it[2] ]
-//      }.view()
-
     //*******************
     // GERMLINE ONLY
 
@@ -553,15 +535,6 @@ workflow {
         return [meta, it[1][1], it[1][2] ]
       }
     chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
-
-//    chProcBam
-//      .combine(chDesign.germlineOnly)
-//      .filter { it[0].id == it[4] }
-//      .map{ it ->
-//        def meta = [id:it[4], status: "normal", sex:it[6]]
-//        return [meta, it[1], it[2] ]
-//      }.view()
-//    chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
   }
 
 

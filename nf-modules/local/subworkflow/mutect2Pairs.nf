@@ -11,6 +11,7 @@ include { gatherPileupSummaries as gatherPileupSummariesTumor } from '../../comm
 include { gatherPileupSummaries as gatherPileupSummariesNormal } from '../../common/process/gatk/gatherPileupSummaries'
 include { calculateContamination } from '../../common/process/gatk/calculateContamination'
 include { filterMutect2Calls } from '../../common/process/gatk/filterMutect2Calls'
+include { filterVcf } from '../../local/process/filterVcf'
 include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
 include { mergeVCFs } from '../../common/process/gatk/mergeVCFs'
 
@@ -200,15 +201,23 @@ workflow mutect2PairsFlow {
   )
   chVersions = chVersions.mix(filterMutect2Calls.out.versions)
 
+  /*
+   * POST-PROCESSING
+   */
+
+  filterVcf(
+    filterMutect2Calls.out.vcf
+  )
+
   bcftoolsNorm(
-    filterMutect2Calls.out.vcf,
+    filterVcf.out.vcf,
     fasta
   )
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 
   emit:
   versions = chVersions
-  vcfRaw = chMutect2MergedVcf
+  vcf = filterMutect2Calls.out.vcf
   vcfFiltered = bcftoolsNorm.out.vcf
   stats = chMutect2MergedStats
 }
