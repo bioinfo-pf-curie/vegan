@@ -7,6 +7,8 @@ NEW FEATURES
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Distinguish the annotation of somatic and germline variants
+  - Automatically clean the work directory (see --disableAutoClean)
   - By default, only PASS variants are exported - use `--saveVcfIntermediatest` to export additional results
   - Default mapper is now bwa-mem2
   - Speed-up parallel processing and avoid waiting for all the samples at the different steps #158

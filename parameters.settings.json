@@ -414,6 +414,19 @@
       "group": "Skip options"
     },
     {
+      "name": "disableAutoClean",
+      "label": "Disable auto cleaning",
+      "usage": "Disable cleaning of work directory",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Other options"
+    },
+    {
       "name": "sequencingCenter",
       "label": "Sequencing center name",
       "usage": "Name of sequencing center to be displayed in BAM file",

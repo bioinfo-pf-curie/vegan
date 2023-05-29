@@ -518,6 +518,26 @@ Available Profiles
     ************************************/
 
     /**
+     * Automatic deletion of work/ folder in the pipeline run successfully
+     * @param workflow
+     * @param params
+     * @return
+     */
+
+    public static void autoCleanOnComplete(workflow, params){
+      def colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
+
+      if (!params.disableAutoClean && workflow.success){
+        def wdir = workflow.workDir
+        log.info "[$workflow.manifest.name]${colors.green} Automatic cleaning of work directory [${wdir.toString()}] ... ${colors.reset}"
+        def delRet = wdir.deleteDir()
+        if (!delRet){
+          log.info "[$workflow.manifest.name]${colors.red} Failed - workDir not removed ${colors.reset}"
+        }
+      } 
+    }
+
+    /**
      * Generate reports at the end of the workflow
      * @param workflow
      * @param params
