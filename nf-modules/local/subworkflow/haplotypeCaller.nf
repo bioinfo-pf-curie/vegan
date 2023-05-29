@@ -103,6 +103,6 @@ workflow haplotypeCallerFlow {
 
   emit:
   vcf = chVcf
-  vcfNorm = bcftoolsNorm.out.vcf
+  vcfFiltered = bcftoolsNorm.out.vcf
   versions = chVersions
 }

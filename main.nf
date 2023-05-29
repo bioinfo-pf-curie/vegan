@@ -294,7 +294,8 @@ include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCa
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
 include { mutect2TumorOnlyFlow } from './nf-modules/local/subworkflow/mutect2TumorOnly'
 include { vcfQcFlow } from './nf-modules/local/subworkflow/vcfQc'
-include { annotateSomaticFlow as  annotateFlow} from './nf-modules/local/subworkflow/annotateSomatic'
+include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
+include { annotateGermlineFlow } from './nf-modules/local/subworkflow/annotateGermline'
 include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
@@ -544,13 +545,13 @@ workflow {
   ================================================================================
   */
 
-  chAllVcf = Channel.empty()
   if (params.step == "mapping" || params.step == "filtering" || params.step == "calling"){
 
     //*******************************************
     //SUB-WORKFLOW : HaplotypeCaller
 
     chSingleBam = chSingleBam.unique()
+    chAllGermlineVcf=Channel.empty()
 
     if('haplotypecaller' in tools){
       haplotypeCallerFlow(
@@ -563,14 +564,15 @@ workflow {
         chDict
       )
       chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-      chAllVcf = chAllVcf.mix(haplotypeCallerFlow.out.vcfNorm)
+      chAllGermlineVcf = haplotypeCallerFlow.out.vcf
     }
 
     //*******************************************
     //SUB-WORKFLOW : Mutect2
 
     chMutect2MetricsMqc = Channel.empty()
-    
+    chAllSomaticVcf = Channel.empty()
+
     if('mutect2' in tools){
 
       mutect2PairsFlow(
@@ -587,7 +589,7 @@ workflow {
         chPonIndex,
       )
       chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-      chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFiltered)
+      chAllSomaticVcf = mutect2PairsFlow.out.vcfFiltered
 
       mutect2TumorOnlyFlow(
         chTumorOnlyBam,
@@ -603,7 +605,7 @@ workflow {
         chPonIndex
       )
       chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
-      chAllVcf = chAllVcf.mix(mutect2TumorOnlyFlow.out.vcfFiltered)
+      chAllSomaticVcf = chAllSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcfFiltered)
     }
   }
 
@@ -613,6 +615,7 @@ workflow {
   ================================================================================
   */
 
+  chAllVcf = chAllGermlineVcf.concat(chAllSomaticVcf)
   vcfQcFlow(
     chAllVcf
   )
@@ -627,8 +630,8 @@ workflow {
 
   // Annotation somatic vcf
   if('snpeff' in tools || params.step == 'annotate'){
-    annotateFlow(
-      chAllVcf,
+    annotateSomaticFlow(
+      chAllSomaticVcf,
       chSnpeffDb,
       chSnpeffCache,
       chCosmicDb,
@@ -642,8 +645,22 @@ workflow {
       chDbnsfp,
       chDbnsfpIndex
     )
-    chSnpEffMqc = annotateFlow.out.snpEffReport
-    chTMB = annotateFlow.out.vcf.filter{ it[0].status != "normal" }
+    chSnpEffMqc = annotateSomaticFlow.out.snpEffReport
+    chVersions = chVersions.mix(annotateSomaticFlow.out.versions)
+
+    annotateGermlineFlow(
+      chAllGermlineVcf,
+      chSnpeffDb,
+      chSnpeffCache,
+      chGnomadDb,
+      chGnomadDbIndex,
+      chDbnsfp,
+      chDbnsfpIndex
+    )
+
+    chSnpEffMqc = chSnpEffMqc.mix(annotateGermlineFlow.out.snpEffReport)
+    chVersions = chVersions.mix(annotateGermlineFlow.out.versions)
+
   }else{
     chTMB = Channel.empty()
   }
@@ -656,7 +673,7 @@ workflow {
 
   if('snpeff' in tools || params.step == 'annotate'){
     tableReportFlow(
-      annotateFlow.out.vcf
+      annotateSomaticFlow.out.vcf
     )
   }
 
@@ -666,9 +683,9 @@ workflow {
   ================================================================================
   */
 
-  if('tmb' in tools || params.step == 'annotate'){
+  if('tmb' in tools){
     tmbFlow(
-      chTMB,
+      annotateSomaticFlow.out.vcf,
       chTargetBed,
       chEffGenomeSize
     )
@@ -681,7 +698,7 @@ workflow {
   ================================================================================
   */
 
-  if('msisensor' in tools && params.step != 'annotate'){
+  if('msisensor' in tools){
     msiFlow(
       chPairBam,
       chFasta,
@@ -698,7 +715,7 @@ workflow {
 
   // STEP MANTA
 
-  if ('manta' in tools && params.step != 'annotate'){
+  if ('manta' in tools){
     mantaFlow(
       chPairBam,
       chTargetBed,
@@ -715,14 +732,14 @@ workflow {
   ================================================================================
   */
 
-  if('facets' in tools && params.step != 'annotate'){
+  if('facets' in tools){
     facetsFlow(
       chPairBam,
       chDbsnp
     )
   }
 
-  if('ascat' in tools && params.step != 'annotate'){
+  if('ascat' in tools){
     ascatFlow(
       chSingleBam,
       chAcLoci,
@@ -780,4 +797,5 @@ workflow {
 
 workflow.onComplete {
   NFTools.makeReports(workflow, params, summary, customRunName, mqcReport)
+  NFTools.autoCleanOnComplete(workflow, params)
 }

@@ -39,7 +39,7 @@ process snpEff {
   bgzip < ${prefix}.ann.vcf > ${prefix}.ann.vcf.gz
   tabix ${prefix}.ann.vcf.gz
 
-  echo \$(snpEff -version | cut -d" " -f1,2) > versions.txt
+  echo \$(snpEff -version | awk -F"\t" '{print \$1,\$2}') > versions.txt
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt
   """
 }

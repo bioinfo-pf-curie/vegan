@@ -15,12 +15,6 @@ workflow annotateGermlineFlow {
   vcf
   snpEffDb
   snpEffCache
-  cosmic
-  cosmicIndex
-  icgc
-  icgcIndex
-  cancerHotspots
-  cancerHotspotsIndex
   gnomAd
   gnomAdIndex
   dbnsfp
@@ -66,5 +60,6 @@ workflow annotateGermlineFlow {
 
   emit:
   vcf = chAnnotVcf
+  snpEffReport = snpEff.out.report
   versions = chVersions
 }
