@@ -296,7 +296,9 @@ Available Profiles
       */
 
       public static boolean hasExtension(it, String extension) {
-        it.toString().toLowerCase().endsWith(extension.toLowerCase())
+        //it.toString().toLowerCase().endsWith(extension.toLowerCase())
+        def extension_rg = extension.toLowerCase().replace(".", "\\.")
+        it.toString().toLowerCase().matches(/(?i).*($extension_rg)$/)
       }
 
       /**
@@ -451,6 +453,7 @@ Available Profiles
               checkNumberOfItem(row, 2 + extension.size(), params)
               meta.id = row[0]
               meta.name = row[1]
+              meta.singleEnd = params.singleEnd ? true : false
 	      def inputFiles=[]
 	      for (int i=0; i<extension.size(); i++){
                 def ifile=returnFile(row[i+2], params)
@@ -463,7 +466,6 @@ Available Profiles
               return [meta, inputFiles]
             }
       }
-
 
       /*
        * Channeling the samplePlan and create a file is no samplePlan is provided

@@ -238,11 +238,10 @@ if (params.step == "mapping"){
   chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
 }else if (params.step == "filtering"){
   chRawReads = Channel.empty()
-  chAlignedBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam','.bai'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam'],  params).map{it ->[it[0], it[1][0]]}
 }else if (params.step == "calling"){
   chRawReads = Channel.empty()
-  chAlignedBam = Channel.empty()
-  chFilteredBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam','.bai'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam'],  params).map{it ->[it[0], it[1][0]]}
 }else if (params.step == "annotate"){
   chRawReads = Channel.empty()
   chAlignedBam = Channel.empty()
@@ -286,6 +285,7 @@ if (params.design){
 // Workflows
 include { prepareIntervalsFlow } from './nf-modules/local/subworkflow/prepareIntervals'
 include { mappingFlow } from './nf-modules/local/subworkflow/mapping'
+include { loadBamFlow } from './nf-modules/local/subworkflow/loadBam'
 include { bamFiltersFlow } from './nf-modules/local/subworkflow/bamFiltering'
 include { bamQcFlow } from './nf-modules/local/subworkflow/bamQc'
 include { identitoFlow } from './nf-modules/common/subworkflow/identito'
@@ -392,6 +392,21 @@ workflow {
       chMappingStats = mappingFlow.out.stats
       chMappingFlagstat = mappingFlow.out.flagstat
       chVersions = chVersions.mix(mappingFlow.out.versions)
+
+    }else if (params.step == "filtering" || params.step == "calling"){
+
+      loadBamFlow(
+        chInputBam
+      )
+      if (params.step == "filtering"){
+        chAlignedBam = loadBamFlow.out.bam
+      }else{
+        chAlignedBam = Channel.empty()
+        chFilteredBam = loadBamFlow.out.bam
+      }
+      chMappingStats = loadBamFlow.out.stats
+      chMappingFlagstat = loadBamFlow.out.flagstat
+      chVersions = chVersions.mix(loadBamFlow.out.versions)
     }
 
     //*******************************************

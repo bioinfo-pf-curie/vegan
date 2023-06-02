@@ -87,6 +87,8 @@ workflow mappingFlow {
 
   }
 
+  chBams.view()
+
   // Merge BAM file with the same prefix and use a groupKey to speed up the process
   chBamMapped = chBams
     .map{meta, bam ->
