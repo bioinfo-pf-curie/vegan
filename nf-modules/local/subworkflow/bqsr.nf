@@ -90,7 +90,8 @@ workflow bqsrFlow {
     }.groupTuple()
 
   samtoolsMerge(
-    chBQSRbam
+    chBQSRbam,
+    Channel.value([])
   )
   chVersions = chVersions.mix(samtoolsMerge.out.versions)
   chBamBQSR = params.noIntervals || params.targetBed ? applyBQSR.out.bam : samtoolsMerge.out.bam

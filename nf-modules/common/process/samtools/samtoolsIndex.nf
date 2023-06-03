@@ -1,5 +1,5 @@
 /*
- * Samtools - Index
+ * Samtools - Index BAM/CRAM file
  */
 
 process samtoolsIndex {
@@ -12,8 +12,9 @@ process samtoolsIndex {
   tuple val(meta), path (bam)
 
   output:
-  tuple val(meta), path("*bam.bai"), emit: bai
-  path("versions.txt") , emit: versions
+  tuple val(meta), path("*bam.bai")  , optional: true, emit: bai
+  tuple val(meta), path("*cram.crai"), optional: true, emit: crai
+  path("versions.txt")               , emit: versions
 
   when:
   task.ext.when == null || task.ext.when

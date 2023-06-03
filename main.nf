@@ -238,10 +238,10 @@ if (params.step == "mapping"){
   chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
 }else if (params.step == "filtering"){
   chRawReads = Channel.empty()
-  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam'],  params).map{it ->[it[0], it[1][0]]}
+  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam|.cram'],  params).map{it ->[it[0], it[1][0]]}
 }else if (params.step == "calling"){
   chRawReads = Channel.empty()
-  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam'],  params).map{it ->[it[0], it[1][0]]}
+  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam|.cram'],  params).map{it ->[it[0], it[1][0]]}
 }else if (params.step == "annotate"){
   chRawReads = Channel.empty()
   chAlignedBam = Channel.empty()
@@ -396,7 +396,8 @@ workflow {
     }else if (params.step == "filtering" || params.step == "calling"){
 
       loadBamFlow(
-        chInputBam
+        chInputBam,
+	chFasta
       )
       if (params.step == "filtering"){
         chAlignedBam = loadBamFlow.out.bam

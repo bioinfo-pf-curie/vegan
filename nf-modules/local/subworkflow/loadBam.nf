@@ -33,7 +33,7 @@ workflow loadBamFlow {
     .flatMap { it -> setMetaChunk(it) }
     .collate(2)
 
-  // Merge BAM file with the same prefix and use a groupKey to speed up the process
+  // Merge BAM/CRAM files with the same prefix and use a groupKey to speed up the process
   chBamMapped = chBams
     .map{meta, bam ->
       def newMeta = [ id: meta.id, name: meta.name, singleEnd:meta.singleEnd, part:meta.part ] 
@@ -45,36 +45,39 @@ workflow loadBamFlow {
     }
 
   samtoolsMerge(
-    chBamMapped.multiple
+    chBamMapped.multiple,
+    fasta
   )
   chVersions = chVersions.mix(samtoolsMerge.out.versions)
 
   samtoolsSort(
-    samtoolsMerge.out.bam
+    samtoolsMerge.out.bam.mix(samtoolsMerge.out.cram)
   )
   chVersions = chVersions.mix(samtoolsSort.out.versions)
 
+  chAllAligned = samtoolsSort.out.bam.mix(samtoolsSort.out.cram, chBamMapped.single)
+
   samtoolsIndex(
-    samtoolsSort.out.bam.mix(chBamMapped.single)
+    chAllAligned
   )
   chVersions = chVersions.mix(samtoolsIndex.out.versions)
 
   samtoolsFlagstat(
-    samtoolsSort.out.bam.mix(chBamMapped.single)
+    chAllAligned
   )
   chVersions = chVersions.mix(samtoolsFlagstat.out.versions)
 
   samtoolsStats(
-    samtoolsSort.out.bam.mix(chBamMapped.single)
+    chAllAligned
   )
   chVersions = chVersions.mix(samtoolsStats.out.versions)
 
   // Remove groupKey object
-  chBamBai = samtoolsSort.out.bam
+  chBamBai = chAllAligned
     .join(samtoolsIndex.out.bai)
-    .map{meta, bam, bai -> 
+    .map{meta, mapping, index -> 
       def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
-      [ newMeta, bam, bai ] 
+      [ newMeta, mapping, index ] 
     }
 
   emit:
