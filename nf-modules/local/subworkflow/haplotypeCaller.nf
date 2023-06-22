@@ -37,6 +37,7 @@ workflow haplotypeCallerFlow {
       .map { meta, bam, bai, intervals, num ->
         def newMeta = meta.clone()
         newMeta.numIntervals = num
+        newMeta.intervals = intervals.getName()
         [newMeta, bam, bai, intervals]
       }
     }
@@ -55,6 +56,8 @@ workflow haplotypeCallerFlow {
     .join(haplotypeCaller.out.gvcf)
     .map{meta,bam,bai,intervals,gvcf,index -> [meta,gvcf,index,intervals]}
 
+  chGVCF.view()
+
   genotypeGVCFs(
     chGVCF,
     dbsnp,
@@ -67,7 +70,9 @@ workflow haplotypeCallerFlow {
 
   chVcfMerge = genotypeGVCFs.out.vcf
     .map{ meta, vcf, tbi ->
-      [groupKey(meta, meta.numIntervals), vcf, tbi]
+      def newMeta = meta.clone()
+      newMeta.remove('intervals')
+      [groupKey(newMeta, newMeta.numIntervals), vcf, tbi]
     }.groupTuple()
     .branch {
       single: it[0].numIntervals <= 1
