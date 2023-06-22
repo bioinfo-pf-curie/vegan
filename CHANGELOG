@@ -16,7 +16,8 @@ SIGNIFICANT USER-VISIBLE CHANGES
   - Add `--facetsOpts` parameter #168
   - Update Facets outputs #168
 
-BUG FIXES
+
+  - Fix bug with HaplotypeCaller for WGS in parallel mode (#175)BUG FIXES
 
   - Update mosdepth report in MultiQC #161
 
