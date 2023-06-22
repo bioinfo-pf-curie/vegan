@@ -400,10 +400,10 @@ workflow {
 	chFasta
       )
       if (params.step == "filtering"){
-        chAlignedBam = loadBamFlow.out.bam
+        chAlignedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
       }else{
         chAlignedBam = Channel.empty()
-        chFilteredBam = loadBamFlow.out.bam
+        chFilteredBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
       }
       chMappingStats = loadBamFlow.out.stats
       chMappingFlagstat = loadBamFlow.out.flagstat

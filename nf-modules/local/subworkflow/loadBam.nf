@@ -55,6 +55,7 @@ workflow loadBamFlow {
   )
   chVersions = chVersions.mix(samtoolsSort.out.versions)
 
+  // Merge BAM/CRAM files
   chAllAligned = samtoolsSort.out.bam.mix(samtoolsSort.out.cram, chBamMapped.single)
 
   samtoolsIndex(
@@ -75,13 +76,21 @@ workflow loadBamFlow {
   // Remove groupKey object
   chBamBai = chAllAligned
     .join(samtoolsIndex.out.bai)
-    .map{meta, mapping, index -> 
-      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
-      [ newMeta, mapping, index ] 
+    .map{meta, bam, bai -> 
+      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd, format: 'bam' ]
+      [ newMeta, bam, bai ] 
+    }
+
+  chCramCrai = chAllAligned
+    .join(samtoolsIndex.out.crai)
+    .map{meta, cram, crai ->
+      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd, format: 'cram' ]
+      [ newMeta, cram, crai ]
     }
 
   emit:
   bam = chBamBai
+  cram = chCramCrai
   flagstat = samtoolsFlagstat.out.stats.map{it-> it[1]}
   stats = samtoolsStats.out.stats.map{it-> it[1]}
   versions = chVersions
