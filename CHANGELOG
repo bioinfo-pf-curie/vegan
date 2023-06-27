@@ -5,6 +5,7 @@ NEW FEATURES
 
   - New --skipMutectOrientationModel option to turn off the learn orientation model step
   - Add `--facetsOpts` parameter #168
+  - Filter out low mapping samples
 
 SIGNIFICANT USER-VISIBLE CHANGES
 

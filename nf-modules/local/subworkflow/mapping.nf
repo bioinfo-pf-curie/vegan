@@ -11,6 +11,8 @@ include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
 include { samtoolsFlagstat } from '../../common/process/samtools/samtoolsFlagstat'
 include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
 
+include {checkAlignmentPercent} from '../../../lib/functions'
+
 // Set the meta.chunk value in case of technical replicates
 def setMetaChunk(row){
   def map = []
@@ -125,13 +127,24 @@ workflow mappingFlow {
   )
   chVersions = chVersions.mix(samtoolsStats.out.versions)
 
-  // Remove groupKey object
-  chBamBai = samtoolsSort.out.bam
+  // Filter all 'aligned' channels that fail the check
+  // And remove groupKey object
+  chBamBai = samtoolsFlagstat.out.stats
+    .join(samtoolsSort.out.bam)
     .join(samtoolsIndex.out.bai)
-    .map{meta, bam, bai -> 
+    .filter { meta, logs, bam, bai -> checkAlignmentPercent(meta, logs) }
+    .map { meta, logs, bam, bai -> 
       def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
-      [ newMeta, bam, bai ] 
+      [ newMeta, bam, bai ]
     }
+
+  // Remove groupKey object
+  //chBamBai = samtoolsSort.out.bam
+  //  .join(samtoolsIndex.out.bai)
+  //  .map{meta, bam, bai -> 
+  //    def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
+  //    [ newMeta, bam, bai ] 
+  //  }
 
   emit:
   bam = chBamBai
