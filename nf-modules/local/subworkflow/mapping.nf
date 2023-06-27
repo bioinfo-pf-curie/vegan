@@ -138,14 +138,6 @@ workflow mappingFlow {
       [ newMeta, bam, bai ]
     }
 
-  // Remove groupKey object
-  //chBamBai = samtoolsSort.out.bam
-  //  .join(samtoolsIndex.out.bai)
-  //  .map{meta, bam, bai -> 
-  //    def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
-  //    [ newMeta, bam, bai ] 
-  //  }
-
   emit:
   bam = chBamBai
   logs = chMappingLogs
