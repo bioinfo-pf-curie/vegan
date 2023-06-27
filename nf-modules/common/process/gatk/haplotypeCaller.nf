@@ -17,7 +17,8 @@ process haplotypeCaller {
   path(dict)
 
   output:
-  tuple val(meta), path("*.g.vcf"), path("*.g.vcf.idx"), emit: gvcf
+  tuple val(meta), path("*.vcf.gz"), emit: vcf
+  tuple val(meta), path("*.tbi"), optional: true, emit: tbi
   path("versions.txt"), emit: versions
 
   when:
@@ -31,13 +32,13 @@ process haplotypeCaller {
   """
   gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
     HaplotypeCaller \
-    -R ${fasta} \
-    -I ${bam} \
-    ${args} \
+    --reference ${fasta} \
+    --input ${bam} \
+    --output ${prefix}.vcf.gz \
     ${dbsnpCmd} \
     ${intervalCmd} \
-    -O ${prefix}.g.vcf \
-    -ERC GVCF
+    --tmp-dir . \
+    ${args}
 
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """

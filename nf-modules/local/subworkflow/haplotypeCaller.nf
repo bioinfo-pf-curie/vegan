@@ -52,23 +52,23 @@ workflow haplotypeCallerFlow {
   )
   chVersions = chVersions.mix(haplotypeCaller.out.versions)
 
-  chGVCF = chBamIntervals
-    .join(haplotypeCaller.out.gvcf)
-    .map{meta,bam,bai,intervals,gvcf,index -> [meta,gvcf,index,intervals]}
+//  chHCvcf = chBamIntervals
+//    .join(haplotypeCaller.out.vcf)
+//    .join(haplotypeCaller.out.vcf.tbi)
+//    .map{meta,bam,bai,intervals,vcf,tbi -> [meta,vcf,tbi,intervals]}.view()
 
-  chGVCF.view()
+//  genotypeGVCFs(
+//    chGVCF,
+//    dbsnp,
+//    dbsnpIndex,
+//    fasta,
+//    fastaFai,
+//    dict
+//  )
+//  chVersions = chVersions.mix(genotypeGVCFs.out.versions)
 
-  genotypeGVCFs(
-    chGVCF,
-    dbsnp,
-    dbsnpIndex,
-    fasta,
-    fastaFai,
-    dict
-  )
-  chVersions = chVersions.mix(genotypeGVCFs.out.versions)
-
-  chVcfMerge = genotypeGVCFs.out.vcf
+  chVcfMerge = haplotypeCaller.out.vcf
+    .join(haplotypeCaller.out.tbi)
     .map{ meta, vcf, tbi ->
       def newMeta = meta.clone()
       newMeta.remove('intervals')
@@ -96,18 +96,18 @@ workflow haplotypeCallerFlow {
    * POST-PROCESSING
    */
 
-  filterVcf(
-    chVcf
-  )
+  //filterVcf(
+  //  chVcf
+  //)
 
   bcftoolsNorm(
-    filterVcf.out.vcf,
+    chVcf,
     fasta
   )
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 
   emit:
   vcf = chVcf
-  vcfFiltered = bcftoolsNorm.out.vcf
+  vcfFiltered = Channel.empty() //bcftoolsNorm.out.vcf
   versions = chVersions
 }
