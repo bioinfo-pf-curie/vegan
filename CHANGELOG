@@ -4,22 +4,22 @@ versions-2.2.0dev
 NEW FEATURES
 
   - New --skipMutectOrientationModel option to turn off the learn orientation model step
+  - Add `--facetsOpts` parameter #168
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Replace all [-. ] in sample name by '_'
   - Distinguish the annotation of somatic and germline variants
   - Automatically clean the work directory (see --disableAutoClean)
-  - By default, only PASS variants are exported - use `--saveVcfIntermediatest` to export additional results
-  - Default mapper is now bwa-mem2
+  - By default, only PASS somatic variants are exported - use `--saveVcfIntermediatest` to export additional results
   - Speed-up parallel processing and avoid waiting for all the samples at the different steps #158
   - Update skip options
-  - Add `--facetsOpts` parameter #168
   - Update Facets outputs #168
-
-
-  - Fix bug with HaplotypeCaller for WGS in parallel mode (#175)BUG FIXES
-
   - Update mosdepth report in MultiQC #161
+
+BUG FIXES
+
+  - Fix bug with HaplotypeCaller for WGS in parallel mode (#175)
 
 ***********************************
 versions-2.1.1
