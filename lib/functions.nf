@@ -18,7 +18,7 @@ def checkAlignmentPercent(prefix, logs) {
     }
   }
   percentAligned = nbAligned.toFloat() / nbTotal.toFloat() * 100
-  if(percentAligned.toFloat() <= '2'.toFloat() ){
+  if(percentAligned.toFloat() <= '20'.toFloat() ){
       log.info "#################### VERY POOR ALIGNMENT RATE! IGNORING FOR FURTHER DOWNSTREAM ANALYSIS! ($prefix)    >> ${percentAligned}% <<"
       //skippedPoorAlignment << $prefix
       return false
