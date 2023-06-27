@@ -23,27 +23,29 @@ workflow bamFiltersFlow {
     chVersions = Channel.empty()
 
     // Remove duplicates
-    sambambaMarkdup(
-      bam
-    )
-    chVersions = chVersions.mix(sambambaMarkdup.out.versions)
+    //sambambaMarkdup(
+    //  bam
+    //)
+    //chVersions = chVersions.mix(sambambaMarkdup.out.versions)
 
-    samtoolsFlagstatMarkdup(
-      sambambaMarkdup.out.bam.map{it->[it[0], it[1]]}
-    )
+    //samtoolsFlagstatMarkdup(
+    //  sambambaMarkdup.out.bam.map{it->[it[0], it[1]]}
+    //)
 
     // Reduce to the target for WES analysis
-    intersectBed(
-      sambambaMarkdup.out.bam,
-      targetBed
-    )
-    chVersions = chVersions.mix(intersectBed.out.versions)
+    //intersectBed(
+    //  sambambaMarkdup.out.bam,
+    //  targetBed
+    //)
+    //chVersions = chVersions.mix(intersectBed.out.versions)
 
-    samtoolsFlagstatOnTarget(
-      intersectBed.out.bam
-    )
-    chVersions = chVersions.mix(samtoolsFlagstatOnTarget.out.versions)
-    chBam = params.targetBed ? intersectBed.out.bam : sambambaMarkdup.out.bam.map{it->[it[0], it[1]]}
+    //samtoolsFlagstatOnTarget(
+    //  intersectBed.out.bam
+    //)
+    //chVersions = chVersions.mix(samtoolsFlagstatOnTarget.out.versions)
+    //chBam = params.targetBed ? intersectBed.out.bam : sambambaMarkdup.out.bam.map{it->[it[0], it[1]]}
+
+    chBam = bam.map{it->[it[0], it[1]]}
 
     // Filter with samtools
     samtoolsFilter(
@@ -77,8 +79,8 @@ workflow bamFiltersFlow {
 
     emit:
     bam = samtoolsFilter.out.bam.join(samtoolsIndexFilter.out.bai)
-    markdupFlagstats = samtoolsFlagstatMarkdup.out.stats.map{it -> it[1]}
-    onTargetFlagstats = samtoolsFlagstatOnTarget.out.stats.map{it -> it[1]}
+    markdupFlagstats = Channel.empty() //samtoolsFlagstatMarkdup.out.stats.map{it -> it[1]}
+    onTargetFlagstats = Channel.empty() //samtoolsFlagstatOnTarget.out.stats.map{it -> it[1]}
     filteringFlagstats  = samtoolsFlagstatFilter.out.stats.map{it -> it[1]}
     idxstats  = samtoolsIdxstats.out.stats
     stats  = samtoolsStats.out.stats

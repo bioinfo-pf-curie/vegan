@@ -34,6 +34,7 @@ process collectWgsMetrics {
        ${args} \
        -I ${bamFiltered} \
        -O ${bamFiltered.baseName}_reorder.bam \
+       -R ${fasta} \
        -SD ${dict} \
        --TMP_DIR ${params.gatkTmpDir} \
 

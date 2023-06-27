@@ -10,6 +10,7 @@ process mosdepth {
 
   input:
   tuple val(meta), path(bamFiltered), path(baiFiltered)
+  path(fasta)
   path(bed)
 
   output:
@@ -32,8 +33,14 @@ process mosdepth {
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   bedOpts = bed ? "--by ${bed}" : ''
+  fastaOpts = fasta ? "--fasta ${fasta}" : ''
   """
   mosdepth --version &> versions.txt 2>&1 || true
-  mosdepth -t ${task.cpus} ${args} ${bedOpts} ${prefix} ${bamFiltered}
+  mosdepth -t ${task.cpus} \
+    ${args} \
+    ${bedOpts} \
+    ${fastaOpts} \
+    ${prefix} \
+    ${bamFiltered}
   """
 }

@@ -32,7 +32,8 @@ workflow bamQcFlow {
 
   mosdepth(
     bamFiltered,
-    targetBed
+    targetBed,
+    fasta
   )
   chVersions = chVersions.mix(mosdepth.out.versions)
   if (params.targetBed){
@@ -48,7 +49,8 @@ workflow bamQcFlow {
 
   genesCoverage(
     bamFiltered,
-    prepareExonInfo.out.exonBed.collect()
+    prepareExonInfo.out.exonBed.collect(),
+    fasta
   )
 
   collectWgsMetrics(

@@ -10,8 +10,9 @@ process genesCoverage {
   label 'medMem'
 
   input:
-  tuple val(meta), path(bamFiltered), path(baiFiltered)
+  tuple val(meta), path(bam), path(bai)
   path(exonBed)
+  path(fasta)
 
   output:
   path("*.mqc"), emit: geneCovMqc
@@ -20,8 +21,15 @@ process genesCoverage {
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
+  def fastaOpts = fasta ? "--fasta ${fasta}" : ''
   """
-  mosdepth -n -t ${task.cpus} --by ${exonBed} ${meta.id}.genecov ${bamFiltered}
+  mosdepth \
+    -n 
+    -t ${task.cpus} \
+    --by ${exonBed} \
+    ${fastaOpts}
+    ${meta.id}.genecov \
+    ${bam}
   geneCov.r --cov ${meta.id}.genecov.regions.bed.gz --oprefix ${meta.id}_covdensity
   """
 }
