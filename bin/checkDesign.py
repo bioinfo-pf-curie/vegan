@@ -14,29 +14,27 @@ def argsParse():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--design", dest="design", help="Design file (csv)", default=None)
     parser.add_argument("-s", "--sampleplan", dest="sampleplan", help="SamplePlan file (csv)")
-    parser.add_argument("--singleEnd", help="Specify that input reads are single-end", action="store_true")
     args = parser.parse_args()
     inputDesign = args.design
     inputData = args.sampleplan
-    singleEnd = args.singleEnd
-    return inputDesign, inputData, singleEnd
+    return inputDesign, inputData
 
-def loadSamplePlan(inputFile, isSingleEnd=False):
+def loadSamplePlan(inputFile):
     """
     Load SamplePlan file with sampleId,sampelName,fastqR1,[fastqr2]
     """
-    dictSamplePlan={'SAMPLEID':[], 'SAMPLENAME':[], 'FASTQR1':[]}
-    if not isSingleEnd:
-        dictSamplePlan['FASTQR2']=[]
+    dictSamplePlan={'SAMPLEID':[], 'SAMPLENAME':[], 'INPUT1':[]}
 
     with open(inputFile, 'r') as dataFile:
         lines = csv.reader(dataFile)
         for sample in lines:
             dictSamplePlan['SAMPLEID'].append(sample[0])
             dictSamplePlan['SAMPLENAME'].append(sample[1])
-            dictSamplePlan['FASTQR1'].append(sample[2])
-            if not isSingleEnd:
-                dictSamplePlan['FASTQR2'].append(sample[3])
+            dictSamplePlan['INPUT1'].append(sample[2])
+            if len(sample) > 3:
+                if "INPUT2" not in dictSamplePlan:
+                    dictSamplePlan['INPUT2']=[] 
+                dictSamplePlan['INPUT2'].append(sample[3])
     return(dictSamplePlan)
 
 
@@ -114,11 +112,11 @@ if __name__ == '__main__':
     designHeader=['GERMLINE_ID','TUMOR_ID','PAIR_ID','SEX']
 
     ## Get args
-    inputDesign, inputSamplePlan, isSingleEnd = argsParse()
+    inputDesign, inputSamplePlan = argsParse()
     
     ## Load SamplePlan
     print("[SAMPLEPLAN] Load data ", end='...')
-    dictSamplePlan=loadSamplePlan(inputSamplePlan, isSingleEnd)
+    dictSamplePlan=loadSamplePlan(inputSamplePlan)
     print("ok") 
 
     ## Check Design headers

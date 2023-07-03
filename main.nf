@@ -388,6 +388,7 @@ workflow {
         chAlignerIndex
       )
       chAlignedBam = mappingFlow.out.bam
+      chFilteredBam = Channel.empty()
       chMappingMqc = mappingFlow.out.logs
       chMappingStats = mappingFlow.out.stats
       chMappingFlagstat = mappingFlow.out.flagstat
@@ -398,11 +399,13 @@ workflow {
       loadBamFlow(
         chInputBam
       )
-      if (params.step == "filtering"){
-        chAlignedBam = loadBamFlow.out.bam
-      }else{
+
+      if (params.step == "calling"){
         chAlignedBam = Channel.empty()
         chFilteredBam = loadBamFlow.out.bam
+      }else{
+        chAlignedBam = loadBamFlow.out.bam
+        chFilteredBam = Channel.empty()
       }
       chMappingStats = loadBamFlow.out.stats
       chMappingFlagstat = loadBamFlow.out.flagstat
@@ -412,76 +415,71 @@ workflow {
     //*******************************************
     // Process : Preseq
 
-    if (!params.skipSaturation){
-      preseq(
-        chAlignedBam
-      )
-      chPreseqMqc = preseq.out.results.collect()
-      chVersions = chVersions.mix(preseq.out.versions)
-    }
+    preseq(
+      chAlignedBam.mix(chFilteredBam)
+    )
+    chPreseqMqc = preseq.out.results.collect()
+    chVersions = chVersions.mix(preseq.out.versions)
 
-    if (params.step == "mapping" || params.step == "filtering"){
+    //*******************************************
+    // SUB-WORKFLOW : bamFiltering
 
-      //*******************************************
-      // SUB-WORKFLOW : bamFiltering
+    bamFiltersFlow(
+      chAlignedBam,
+      chTargetBed
+    )
+    chVersions = chVersions.mix(bamFiltersFlow.out.versions)
+    chMarkdupStatsMqc = bamFiltersFlow.out.markdupFlagstats
+    chOnTargetStatsMqc = bamFiltersFlow.out.onTargetFlagstats
+    chFilteringStatsMqc = bamFiltersFlow.out.filteringFlagstats
+    chFilteredBam = bamFiltersFlow.out.bam.mix(chFilteredBam)
 
-      bamFiltersFlow(
-        chAlignedBam,
-        chTargetBed
-      )
-      chVersions = chVersions.mix(bamFiltersFlow.out.versions)
-      chMarkdupStatsMqc = bamFiltersFlow.out.markdupFlagstats
-      chOnTargetStatsMqc = bamFiltersFlow.out.onTargetFlagstats
-      chFilteringStatsMqc = bamFiltersFlow.out.filteringFlagstats
-      chFilteredBam = bamFiltersFlow.out.bam
+    //*******************************************
+    //SUB-WORKFLOW : bamQcFlow
 
-      //*******************************************
-      //SUB-WORKFLOW : bamQcFlow
-
-      if (!params.skipBamQC){
-        bamQcFlow(
-          chFilteredBam,
-          chTargetBed,
-          chGtf,
-          chFasta,
-          chDict
-        )
-        chGeneCovMqc = bamQcFlow.out.geneCovMqc
-        chMosdepthMqc = bamQcFlow.out.depth.map{it->it[1]}
-        chFragSizeMqc = bamQcFlow.out.fragSize
-        chWgsMetricsMqc = bamQcFlow.out.wgsMetrics
-        chVersions = chVersions.mix(bamQcFlow.out.versions)
-      }
-
-      // SUBWORKFLOW: Identito - polym and Monitoring
-      if (!params.skipIdentito){
-        identitoFlow(
-          chFilteredBam,
-          chFasta.collect(),
-          chFastaFai.collect(),
-          chPolyms.collect()
-        )
-        chIdentitoMqc = identitoFlow.out.results.collect()
-        chVersions = chVersions.mix(identitoFlow.out.versions)
-      }
-
-      //*****************************
-      // GATK4 - PRE-PROCESSING
-
-      bqsrFlow(
+    if (!params.skipBamQC){
+      bamQcFlow(
         chFilteredBam,
-        chIntervalBeds,
-        chDbsnp,
-        chDbsnpIndex,
+        chTargetBed,
+        chGtf,
         chFasta,
-        chFastaFai,
-        chKnownIndels,
-        chKnownIndelsIndex,
         chDict
       )
-      chVersions = chVersions.mix(bqsrFlow.out.versions)
+      chGeneCovMqc = bamQcFlow.out.geneCovMqc
+      chMosdepthMqc = bamQcFlow.out.depth.map{it->it[1]}
+      chFragSizeMqc = bamQcFlow.out.fragSize
+      chWgsMetricsMqc = bamQcFlow.out.wgsMetrics
+      chVersions = chVersions.mix(bamQcFlow.out.versions)
     }
 
+    // SUBWORKFLOW: Identito - polym and Monitoring
+    if (!params.skipIdentito){
+      identitoFlow(
+        chFilteredBam,
+        chFasta.collect(),
+        chFastaFai.collect(),
+        chPolyms.collect()
+      )
+      chIdentitoMqc = identitoFlow.out.results.collect()
+      chVersions = chVersions.mix(identitoFlow.out.versions)
+    }
+
+    //*****************************
+    // GATK4 - PRE-PROCESSING
+
+    bqsrFlow(
+      chFilteredBam,
+      chIntervalBeds,
+      chDbsnp,
+      chDbsnpIndex,
+      chFasta,
+      chFastaFai,
+      chKnownIndels,
+      chKnownIndelsIndex,
+      chDict
+    )
+    chVersions = chVersions.mix(bqsrFlow.out.versions)
+ 
     if (params.step != "annotate"){
       chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bam
     }
