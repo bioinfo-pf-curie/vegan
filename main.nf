@@ -190,7 +190,7 @@ chBwaIndex              = params.bwaIndex              ? Channel.fromPath(params
 chBwaMem2Index          = params.bwamem2Index          ? Channel.fromPath(params.bwamem2Index)                                          : Channel.empty()
 chDragmapIndex          = params.dragmapIndex          ? Channel.fromPath(params.dragmapIndex)                                          : Channel.empty()
 chEffGenomeSize         = params.effGenomeSize         ? Channel.value(params.effGenomeSize)                                            : Channel.value([]) //optionals
-
+chMsiBaselineConfig     = params.msiBaselineConfig     ? Channel.fromPath(params.msiBaselineConfig)                                     : Channel.value([]) // optionals
 /*
 ===========================
    SUMMARY
@@ -269,7 +269,7 @@ if (params.design){
       germlineOnly: it[0] == '' && it[1] != ''
   }
   // Check if PON is defined for tumor only samples
-  chDesign.tumorOnly.map{it->it[0]}.toList().map{ it -> checkTumorOnly(it, params) }
+  chDesign.tumorOnly.map{it->it[0]}.toList().map{ it -> checkTumorOnly(it, params, tools) }
 
 }else{
   chDesignFile = Channel.empty()
@@ -714,6 +714,9 @@ workflow {
   if('msisensor' in tools){
     msiFlow(
       chPairBam,
+      chTumorOnlyBam,
+      chNormalBam.mix(chGermlineOnlyBam),
+      chMsiBaselineConfig,
       chFasta,
       chTargetBed
     )

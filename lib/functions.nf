@@ -53,8 +53,8 @@ def checkAlignmentPercent(prefix, logs) {
    *
    */
 
-  def checkTumorOnly(ids, params){
-    if (ids.size() > 0 && !params.pon){
+  def checkTumorOnly(ids, params, tools){
+    if (ids.size() > 0 && !params.pon && ('mutect2' in tools)){
       exit 1, "Missing --pon option for tumor only samples"
     }
   }
