@@ -309,6 +309,44 @@
       "arity": 0,
       "group": "Variant calling"
     },
+
+    {
+      "name": "pon",
+      "label": "PATH to panels of normals",
+      "usage": "PATH to panels of normals (.vcf.gz)",
+      "type": "PATH",
+      "nargs": "1",
+      "default_value": [],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Tumor only"
+    },
+    {
+      "name": "ponIndex",
+      "label": "PATH to panels of normals index file",
+      "usage": "PATH to panels of normals index file (.tbi)",
+      "type": "PATH",
+      "nargs": "1",
+      "default_value": [],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Tumor only"
+    },
+    {
+      "name": "msiBaselineConfig",
+      "label": "PATH to Msisensor-pro baseline",
+      "usage": "PATH to Msisensor-pro baseline config file for tumor-only mode",
+      "type": "PATH",
+      "nargs": "1",
+      "default_value": [],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Tumor only"
+    },
+
     {
       "name": "ffpe",
       "label": "ffpe for TMB",
