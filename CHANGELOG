@@ -6,13 +6,13 @@ NEW FEATURES
   - New --skipMutectOrientationModel option to turn off the learn orientation model step
   - Add `--facetsOpts` parameter #168
   - Filter out low mapping samples
-  - Add MSIsensor-pro for tumor only samples (`--msiBaselineConfig`)
+  - Add MSIsensor-pro for tumor only samples (`--msiBaselineConfig`) #143
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
-  - Replace all [-. ] in sample name by '_'
+  - Replace all [-. ] in sample name by '_' #163
   - Distinguish the annotation of somatic and germline variants
-  - Automatically clean the work directory (see --disableAutoClean)
+  - Automatically clean the work directory (see --disableAutoClean) #183
   - By default, only PASS somatic variants are exported - use `--saveVcfIntermediatest` to export additional results
   - Speed-up parallel processing and avoid waiting for all the samples at the different steps #158
   - Update skip options
