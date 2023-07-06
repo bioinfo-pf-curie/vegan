@@ -14,6 +14,9 @@ process msisensorproPro {
 
   output:
   tuple val(meta), path("${meta.id}"), emit: outputReport
+  tuple val(meta), path("${meta.id}_dis")     , emit: outputDis
+  tuple val(meta), path("${meta.id}_all")     , emit: outputAll
+  tuple val(meta), path("${meta.id}_unstable"), emit: outputUnstable
   path "versions.txt" , emit: versions
 
   when:
