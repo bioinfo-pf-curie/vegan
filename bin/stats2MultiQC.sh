@@ -79,9 +79,6 @@ for sample in $all_samples; do
     output+=",${nb_frag},${nb_mapped},${perc_mapped}"
   fi
 
-  #if [[ -e mapping/${sample}_bwa.log ]]; then
-  #  tail -n +3 mapping/${sample}_bwa.log > mapping/${sample}_bwa.mqc
-  #fi
 
   ## Fragment length
   if [[ -e metrics/${sample}_insert_size_metrics.txt ]]; then
