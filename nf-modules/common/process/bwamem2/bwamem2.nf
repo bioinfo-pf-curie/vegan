@@ -14,7 +14,6 @@ process bwamem2{
 
   output:
   tuple val(meta), path("*.bam"), emit: bam
-  path("*.log"), emit: logs
   path("versions.txt"), emit: versions
 
   when:
@@ -35,7 +34,6 @@ process bwamem2{
         $reads \
         | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
 
-  getBWAstats.sh -i ${prefix}_\${refName}.bam -p ${task.cpus} > ${prefix}_bwa.log
   echo "Bwa-mem2 "\$(bwa-mem2 version 2> /dev/null) &> versions.txt
   """
 }

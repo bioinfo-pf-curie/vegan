@@ -65,7 +65,6 @@ workflow mappingFlow {
     )
     chVersions = chVersions.mix(bwamem.out.versions)
     chBams = bwamem.out.bam
-    chMappingLogs = bwamem.out.logs
 
   }else if (params.aligner == 'bwa-mem2'){
 
@@ -75,7 +74,6 @@ workflow mappingFlow {
     )
     chVersions = chVersions.mix(bwamem2.out.versions)
     chBams = bwamem2.out.bam
-    chMappingLogs = bwamem2.out.logs
 
   }else if (params.aligner == 'dragmap'){
 
@@ -85,7 +83,6 @@ workflow mappingFlow {
     )
     chVersions = chVersions.mix(dragmap.out.versions)
     chBams = dragmap.out.bam
-    chMappingLogs = dragmap.out.logs
 
   }
 
@@ -140,7 +137,6 @@ workflow mappingFlow {
 
   emit:
   bam = chBamBai
-  logs = chMappingLogs
   flagstat = samtoolsFlagstat.out.stats.map{it-> it[1]}
   stats = samtoolsStats.out.stats.map{it-> it[1]}
   versions = chVersions

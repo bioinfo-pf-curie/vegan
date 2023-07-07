@@ -17,7 +17,6 @@ process multiqc {
   path ('fastqc/*')
   path ('mapping/*')
   path ('mapping/*')
-  path ('mapping/*')
   path ('metrics/*')
   path ('metrics/*')
   path ('preseq/*')
