@@ -339,6 +339,9 @@ sp:
       fn: 'tmb_scores.mqc'
   msi:
       fn: 'msi_scores.mqc'
+  samtools_alignment_plot:
+      fn: '*.global.stats'
+      fn_ignore_files: '*onTarget.stats'
 
 ignore_images: true
 
@@ -454,10 +457,14 @@ remove_sections:
   - samtools-flagstat
 
 fn_clean_exts:
-    - '_bwa.log'
-    - '_bwa.mqc'
-    - '_covdensity.mqc'
-    - '.filtered.SNV.txt'
-    - '.filtered.SNV.bam'
+  - '_bwa.log'
+  - '_bwa.mqc'
+  - '_covdensity.mqc'
+  - '.filtered.SNV.txt'
+  - '.filtered.SNV.bam'
+  - '.global'
+
+fn_ignore_files:
+  - '*.onTarget.stats' 
 
 plots_force_interactive: True
