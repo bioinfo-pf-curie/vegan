@@ -326,7 +326,7 @@ workflow {
     chMappingStats = Channel.empty()
     chMappingMqc = Channel.empty()
     chMappingFlagstat = Channel.empty()
-    chOntargetStatsMqc = Channel.empty()
+    chOnTargetStatsMqc = Channel.empty()
     chFilteringStatsMqc = Channel.empty()
     chPreseqMqc = Channel.empty()
     chIdentitoMqc = Channel.empty()
