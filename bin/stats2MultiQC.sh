@@ -45,13 +45,16 @@ if [[ -z $splan ]]; then
 fi
 
 all_samples=$(awk -F, '{print $1}' $splan)
+#all_samples=$(awk -F, '{print $1}' $splan | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
 
 n_header=0
 #echo -e "Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads, Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_ontarget,Percent_reads_ontarget,Number_reads_after_filt,Percent_reads_after_filt,Mean_depth,30X_cov,50X_cov,100X_cov" > mqc.stats
 
-for sample in $all_samples; do
+for sample_raw in $all_samples; do
   #SAMPLE NAME
-  sname=$(grep "$sample," $splan | awk -F, '{print $2}')
+  sname_raw=$(grep "$sample_raw," $splan | awk -F, '{print $2}')
+  sname=$(echo $sname_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
+  sample=$(echo $sample_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
 
   header="Saple_ID,Sample_name"
   output="${sample},${sname}"
@@ -106,8 +109,8 @@ for sample in $all_samples; do
   fi
 
   #On target
-  if [[ -e preprocessing/${sample}.onTarget.flagstat ]]; then
-    nb_ontarget=$(grep "primary mapped (" preprocessing/${sample}.onTarget.flagstat | awk '{print $1}')
+  if [[ -e preprocessing/${sample}.onTarget.stats ]]; then
+    nb_ontarget=$(grep "reads mapped:" preprocessing/${sample}.onTarget.stats | awk '{print $4}')
     perc_ontarget=$(echo "${nb_ontarget} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     header+=",Number_reads_ontarget,Percent_reads_ontarget"
     output+=",${nb_ontarget},${perc_ontarget}"
