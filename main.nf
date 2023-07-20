@@ -324,7 +324,6 @@ workflow {
     // Init MultiQC Channels
     chFastqcMqc = Channel.empty()
     chMappingStats = Channel.empty()
-    chMappingMqc = Channel.empty()
     chMappingFlagstat = Channel.empty()
     chOnTargetStatsMqc = Channel.empty()
     chFilteringStatsMqc = Channel.empty()
@@ -388,7 +387,6 @@ workflow {
         chAlignerIndex
       )
       chAlignedBam = mappingFlow.out.bam
-      chMappingMqc = mappingFlow.out.logs
       chFilteredBam = Channel.empty()
       chMappingStats = mappingFlow.out.stats
       chMappingFlagstat = mappingFlow.out.flagstat
@@ -786,7 +784,6 @@ workflow {
       chMetadata.ifEmpty([]),
       chMultiqcConfig.ifEmpty([]),
       chFastqcMqc.collect().ifEmpty([]),
-      chMappingMqc.collect().ifEmpty([]),
       chMappingStats.collect().ifEmpty([]),
       chMappingFlagstat.collect().ifEmpty([]),
       chFragSizeMqc.collect().ifEmpty([]),
