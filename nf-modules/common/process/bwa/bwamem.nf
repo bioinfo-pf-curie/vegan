@@ -31,7 +31,7 @@ process bwamem{
     $args \
     -t $task.cpus \
     \${localIndex} \
-    $reads | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
+    $reads | samtools sort -O bam -@ $task.cpus -o ${prefix}_\${refName}.bam -
 
   echo "Bwa-mem "\$(bwa 2>&1 | grep Version | cut -d" " -f2) &> versions.txt
 

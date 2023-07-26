@@ -86,7 +86,6 @@ workflow mappingFlow {
 
   }
 
-  chBams.view()
 
   // Merge BAM file with the same prefix and use a groupKey to speed up the process
   chBamMapped = chBams
@@ -104,30 +103,25 @@ workflow mappingFlow {
   )
   chVersions = chVersions.mix(samtoolsMerge.out.versions)
 
-  samtoolsSort(
-    samtoolsMerge.out.bam.mix(chBamMapped.single)
-  )
-  chVersions = chVersions.mix(samtoolsSort.out.versions)
-
   samtoolsIndex(
-    samtoolsSort.out.bam
+    samtoolsMerge.out.bam.mix(chBamMapped.single)
   )
   chVersions = chVersions.mix(samtoolsIndex.out.versions)
 
   samtoolsFlagstat(
-    samtoolsSort.out.bam
+    samtoolsMerge.out.bam.mix(chBamMapped.single)
   )
   chVersions = chVersions.mix(samtoolsFlagstat.out.versions)
 
   samtoolsStats(
-    samtoolsSort.out.bam
+    samtoolsMerge.out.bam.mix(chBamMapped.single)
   )
   chVersions = chVersions.mix(samtoolsStats.out.versions)
 
   // Filter all 'aligned' channels that fail the check
   // And remove groupKey object
   chBamBai = samtoolsFlagstat.out.stats
-    .join(samtoolsSort.out.bam)
+    .join(samtoolsMerge.out.bam.mix(chBamMapped.single))
     .join(samtoolsIndex.out.bai)
     .filter { meta, logs, bam, bai -> checkAlignmentPercent(meta, logs) }
     .map { meta, logs, bam, bai -> 

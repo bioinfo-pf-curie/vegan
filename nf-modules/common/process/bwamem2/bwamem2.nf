@@ -32,7 +32,7 @@ process bwamem2{
         -t $task.cpus \
         \$localIndex \
         $reads \
-        | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
+        | samtools sort -O bam -@ $task.cpus -o ${prefix}_\${refName}.bam -
 
   echo "Bwa-mem2 "\$(bwa-mem2 version 2> /dev/null) &> versions.txt
   """
