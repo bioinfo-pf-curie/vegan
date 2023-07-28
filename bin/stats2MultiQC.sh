@@ -45,7 +45,6 @@ if [[ -z $splan ]]; then
 fi
 
 all_samples=$(awk -F, '{print $1}' $splan)
-#all_samples=$(awk -F, '{print $1}' $splan | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
 
 n_header=0
 #echo -e "Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads, Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_ontarget,Percent_reads_ontarget,Number_reads_after_filt,Percent_reads_after_filt,Mean_depth,30X_cov,50X_cov,100X_cov" > mqc.stats
