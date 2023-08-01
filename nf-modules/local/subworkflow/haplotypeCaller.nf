@@ -5,6 +5,7 @@
 include { haplotypeCaller } from '../../common/process/gatk/haplotypeCaller'
 include { genotypeGVCFs } from '../../common/process/gatk/genotypeGVCFs'
 include { mergeVCFs } from '../../common/process/gatk/mergeVCFs'
+include { filterVcf } from '../../local/process/filterVcf'
 include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
 
 workflow haplotypeCallerFlow {
@@ -53,8 +54,12 @@ workflow haplotypeCallerFlow {
   chVersions = chVersions.mix(mergeVCFs.out.versions)
   chVcf = params.noIntervals || params.targetBed ? genotypeGVCFs.out.vcf : mergeVCFs.out.vcf
 
+  filterVcf(
+    chVcf
+  )
+
   bcftoolsNorm(
-    chVcf,
+    filterVcf.out.vcf,
     fasta
   )
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
