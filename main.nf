@@ -531,7 +531,9 @@ workflow {
   ================================================================================
   */
 
-  chAllVcf = Channel.empty()
+  if (params.step != "annotate"){
+    chAllVcf = Channel.empty()
+  }
 
   if (params.step == "mapping" || params.step == "filtering" || params.step == "calling"){
 
@@ -618,7 +620,7 @@ workflow {
                                    VCF ANNOTATION
   ================================================================================
   */
-
+   
   // Annotation somatic vcf
   if('snpeff' in tools || params.step == 'annotate'){
     annotateFlow(
