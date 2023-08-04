@@ -184,7 +184,8 @@ workflow mutect2TumorOnlyFlow {
 
   emit:
   versions = chVersions
-  vcf = filterMutect2Calls.out.vcf
+  vcfRaw = filterMutect2Calls.out.vcf
   vcfFiltered = bcftoolsNorm.out.vcf
+  conta = chConta 
   stats = chMutect2MergedStats
 }

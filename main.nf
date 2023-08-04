@@ -625,10 +625,24 @@ workflow {
                                    VCF QC
   ================================================================================
   */
+  chVcfMetricsPairs = Channel.empty() 
+  chVcfMetricsPairs = chVcfMetricsPairs.concat(mutect2PairsFlow.out.vcfRaw)
+  	.concat(mutect2PairsFlow.out.vcfFiltered)
+  	.concat(mutect2PairsFlow.out.conta)
+  	.collect()
+  chVcfMetricsPairs = chVcfMetricsPairs.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }
+
+  chVcfMetricsTumorOnly = Channel.empty() 
+  chVcfMetricsTumorOnly = chVcfMetricsTumorOnly.concat(mutect2TumorOnlyFlow.out.vcfRaw)
+  	.concat(mutect2TumorOnlyFlow.out.vcfFiltered)
+  	.concat(mutect2TumorOnlyFlow.out.conta)
+  	.collect()
+  chVcfMetricsTumorOnly = chVcfMetricsTumorOnly.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }
 
   chAllVcf = chAllGermlineVcf.concat(chAllSomaticVcf)
+  
   vcfQcFlow(
-    chAllVcf
+	chVcfMetricsPairs.mix(chVcfMetricsTumorOnly) 
   )
   chVcfMetricsMqc = vcfQcFlow.out.mqc
   chTsTvMqc = vcfQcFlow.out.transition
