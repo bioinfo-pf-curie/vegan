@@ -11,7 +11,7 @@ process collectVCFmetrics {
   path("*.mqc"), emit: mqc
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = "${meta.id}"
   def filtOpt = vcfFilt.name != [] ? "-f $vcfFilt" : ""
   def contaOpt = conta.name != [] && !params.skipMutectContamination ? "-c $conta" : ""
   """

@@ -330,7 +330,7 @@ sp:
 #  identitoClustering:
 #      fn: '*_mqc.png'
   mutect2:
-      fn: '*_Mutect2_filtered_callingMetrics.mqc'
+      fn: '*_callingMetrics.mqc'
   hccaller:
       fn: '*_HaplotypeCaller_callingMetrics.mqc'
   transition:
