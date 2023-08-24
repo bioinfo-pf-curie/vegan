@@ -458,7 +458,7 @@ workflow {
         chFastaFai.collect(),
         chPolyms.collect()
       )
-      chIdentitoMqc = identitoFlow.out.results.collect()
+      chIdentitoMqc = identitoFlow.out.tsv
       chVersions = chVersions.mix(identitoFlow.out.versions)
     }
 
@@ -778,6 +778,7 @@ workflow {
     )
   }
 
+
   /*
   ================================================================================
                                  MULTIQC
@@ -791,7 +792,6 @@ workflow {
     getSoftwareVersions(
       chVersions.unique().collectFile()
     )
-
     multiqc(
       customRunName,
       chSplan.collect(),
