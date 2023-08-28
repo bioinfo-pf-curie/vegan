@@ -562,7 +562,8 @@ workflow {
     //SUB-WORKFLOW : Mutect2
 
     chMutect2MetricsMqc = Channel.empty()
-    
+    chAllSomaticVcf = Channel.empty()
+
     if('mutect2' in tools){
 
       mutect2PairsFlow(
@@ -582,6 +583,7 @@ workflow {
       //chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2PairsFlow.out.mqc)
       //chTsTvMqc = chTsTvMqc.mix(mutect2PairsFlow.out.transition)
       chAllVcf = chAllVcf.mix(mutect2PairsFlow.out.vcfFiltered)
+      chAllSomaticVcf = mutect2PairsFlow.out.vcfFiltered
 
       mutect2TumorOnlyFlow(
         chTumorOnlyBam,
@@ -600,6 +602,7 @@ workflow {
       //chMutect2MetricsMqc = chMutect2MetricsMqc.mix(mutect2TumorOnlyFlow.out.mqc)
       //chTsTvMqc = chTsTvMqc.mix(mutect2TumorOnlyFlow.out.transition)
       chAllVcf = chAllVcf.mix(mutect2TumorOnlyFlow.out.vcfFiltered)
+      chAllSomaticVcf = chAllSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcfFiltered)
     }
   }
 
@@ -608,7 +611,6 @@ workflow {
                                    VCF QC
   ================================================================================
   */
-  chAllVcf.view()
 
   vcfQcFlow(
     chAllVcf
@@ -625,7 +627,7 @@ workflow {
   // Annotation somatic vcf
   if('snpeff' in tools || params.step == 'annotate'){
     annotateFlow(
-      chAllVcf,
+      chAllSomaticVcf,
       chSnpeffDb,
       chSnpeffCache,
       chCosmicDb,
