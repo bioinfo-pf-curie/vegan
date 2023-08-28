@@ -54,12 +54,8 @@ workflow haplotypeCallerFlow {
   chVersions = chVersions.mix(mergeVCFs.out.versions)
   chVcf = params.noIntervals || params.targetBed ? genotypeGVCFs.out.vcf : mergeVCFs.out.vcf
 
-  filterVcf(
-    chVcf
-  )
-
   bcftoolsNorm(
-    filterVcf.out.vcf,
+    chVcf,
     fasta
   )
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
