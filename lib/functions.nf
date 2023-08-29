@@ -40,9 +40,7 @@ def checkAlignmentPercent(prefix, logs) {
     if (designFile) {
       return Channel.of(designFile)
         .splitCsv(sep: separator, header:true)
-        .map { row -> [row.TUMOR_ID.replaceAll("[-. ]","_"), 
-                       row.GERMLINE_ID.replaceAll("[-. ]","_"), 
-                       row.PAIR_ID.replaceAll("[-. ]","_"), row.SEX] }
+        .map { row -> [row.TUMOR_ID, row.GERMLINE_ID, row.PAIR_ID, row.SEX] }
     } else {
       return Channel.empty()
     }

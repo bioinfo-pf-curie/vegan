@@ -376,8 +376,8 @@ Available Profiles
             .splitCsv(header: false)
             .map { row ->
 	      def meta = [:]
-              meta.id = row[0].replaceAll("[-. ]","_")
-              meta.name = row[1].replaceAll("[-. ]","_")
+              meta.id = row[0]
+              meta.name = row[1]
               def inputFile1 = returnFile(row[2], params)
               def inputFile2 = 'null'
 
@@ -406,7 +406,7 @@ Available Profiles
             .fromList(readPaths)
             .map { row ->
 	      def meta = [:]
-              meta.id = row[0].replaceAll("[-. ]","_")
+              meta.id = row[0]
               def inputFile1 = returnFile(row[1][0], params)
               def inputFile2 = singleEnd ? null: returnFile(row[1][1], params)
               if (singleEnd) {
@@ -423,7 +423,7 @@ Available Profiles
             .ifEmpty { Nextflow.exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nNB: Path requires at least one * wildcard!\nIf this is single-end data, please specify --singleEnd on the command line." }
             .map { row ->
                    def meta = [:]
-                   meta.id = row[0].replaceAll("[-. ]","_")
+                   meta.id = row[0]
                    if (singleEnd) {
                      meta.singleEnd = true
                      return [meta, [row[1][0]]]
@@ -451,8 +451,8 @@ Available Profiles
             .map { row ->
 	          def meta = [:]
               checkNumberOfItem(row, 2 + extension.size(), params)
-              meta.id = row[0].replaceAll("[-. ]","_")
-              meta.name = row[1].replaceAll("[-. ]","_")
+              meta.id = row[0]
+              meta.name = row[1]
               meta.singleEnd = params.singleEnd ? true : false
 	      def inputFiles=[]
 	      for (int i=0; i<extension.size(); i++){
