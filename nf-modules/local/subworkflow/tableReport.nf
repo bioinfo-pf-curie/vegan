@@ -2,7 +2,7 @@
  * VCF to table report sub-workflow
  */
 
-include { snpSiftExtractFields } from '../../common/process/snpSift/snpSiftExtractFields'
+include { snpSiftExtractFieldsPatch } from '../../common/process/snpSift/snpSiftExtractFieldsPatch'
 
 workflow tableReportFlow {
 
@@ -12,11 +12,11 @@ workflow tableReportFlow {
   main:
   chVersions = Channel.empty()
 
-  snpSiftExtractFields(
+  snpSiftExtractFieldsPatch(
     vcf
   )
 
   emit:
-  tsv = snpSiftExtractFields.out.tsv
+  tsv = snpSiftExtractFieldsPatch.out.tsv
   versions = chVersions
 }
