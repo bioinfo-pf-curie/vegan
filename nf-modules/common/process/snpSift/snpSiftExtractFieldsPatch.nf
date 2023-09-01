@@ -31,18 +31,14 @@ process snpSiftExtractFieldsPatch {
   def j = ''
   """
   SAMPLES=\$(zgrep CHROM ${vcf[0]}  | sed -n 's/^.*FORMAT//p')
-  echo \$SAMPLES
   var="" ; for j in \$(echo AD DP AF); do var=\${var}" "\$(echo \${SAMPLES} | sed "s/ /.\${j}\\t/g" | sed "s/\$/.\${j}/g"); done
   echo "Chrom Pos Ref Alt Gene Effect Transcript Exon HGVS_C HGVS_P ${gnomadHeader} ${db} \${var}" | sed "s/ /\\t/g"  > ${prefix}.tsv
-  echo \$SAMPLES
-  echo \$var
   SnpSift -Xmx${task.memory.toGiga()}g \
     extractFields \
     ${args} \
     ${vcf[0]} \
-    ${args2} ${gnomadExtract} ${db} ${args3} | sed 's/;/\\t/g'  | grep -v CHROM | head >> ${prefix}.tsv
+    ${args2} ${gnomadExtract} ${db} ${args3} | sed 's/;/\\t/g'  | grep -v CHROM >> ${prefix}.tsv
 
   echo "snpSift "\$(SnpSift 2>&1 | awk '\$0~"SnpSift version"{print \$3}') > versions.txt
-  echo "tot"
   """
 }
