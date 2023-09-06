@@ -293,6 +293,8 @@ include { bqsrFlow } from './nf-modules/local/subworkflow/bqsr'
 include { haplotypeCallerFlow } from './nf-modules/local/subworkflow/haplotypeCaller'
 include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
 include { mutect2TumorOnlyFlow } from './nf-modules/local/subworkflow/mutect2TumorOnly'
+include { filterSomaticFlow } from './nf-modules/local/subworkflow/filterSomatic'
+//include { filterGermlineFlow } from './nf-modules/local/subworkflow/filterGermline'
 include { vcfQcFlow } from './nf-modules/local/subworkflow/vcfQc'
 include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
 include { annotateGermlineFlow } from './nf-modules/local/subworkflow/annotateGermline'
@@ -582,7 +584,7 @@ workflow {
     //SUB-WORKFLOW : Mutect2
 
     chMutect2MetricsMqc = Channel.empty()
-    chAllSomaticVcf = Channel.empty()
+    chRawSomaticVcf = Channel.empty()
 
     if('mutect2' in tools){
 
@@ -600,7 +602,7 @@ workflow {
         chPonIndex,
       )
       chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-      chAllSomaticVcf = mutect2PairsFlow.out.vcfFiltered
+      chRawSomaticVcf = mutect2PairsFlow.out.vcf
 
       mutect2TumorOnlyFlow(
         chTumorOnlyBam,
@@ -616,8 +618,30 @@ workflow {
         chPonIndex
       )
       chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
-      chAllSomaticVcf = chAllSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcfFiltered)
+      chRawSomaticVcf = chRawSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcf)
     }
+  }
+
+  /*
+  ================================================================================
+                                   VCF FILTERING
+  ================================================================================
+  */
+
+  // Filtering somatic vcf
+
+  chAllSomaticVcf = Channel.empty()
+
+  if('mutect2' in tools){
+
+    filterSomaticFlow(
+    chRawSomaticVcf,
+    chFasta,
+    chGnomadDb,
+    chGnomadDbIndex
+    )
+    chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+    chAllSomaticVcf = filterSomaticFlow.out.vcfFiltered
   }
 
   /*
@@ -625,27 +649,31 @@ workflow {
                                    VCF QC
   ================================================================================
   */
-  chVcfMetricsPairs = Channel.empty() 
-  chVcfMetricsPairs = chVcfMetricsPairs.concat(mutect2PairsFlow.out.vcfRaw)
-  	.concat(mutect2PairsFlow.out.vcfFiltered)
-  	.concat(mutect2PairsFlow.out.conta)
+  chVcfMetrics = Channel.empty()
+  chConta = Channel.empty()
+  chConta = mutect2PairsFlow.out.conta
+    .mix(mutect2TumorOnlyFlow.out.conta)
+  chVcfMetrics = chVcfMetrics.concat(filterSomaticFlow.out.vcfRaw)
+  	.concat(filterSomaticFlow.out.vcfPass)
+  	.concat(chConta)
   	.collect()
-  chVcfMetricsPairs = chVcfMetricsPairs.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }
+  chVcfMetrics = chVcfMetrics.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }
 
-  chVcfMetricsTumorOnly = Channel.empty() 
-  chVcfMetricsTumorOnly = chVcfMetricsTumorOnly.concat(mutect2TumorOnlyFlow.out.vcfRaw)
-  	.concat(mutect2TumorOnlyFlow.out.vcfFiltered)
-  	.concat(mutect2TumorOnlyFlow.out.conta)
-  	.collect()
-  chVcfMetricsTumorOnly = chVcfMetricsTumorOnly.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }
+  // chVcfMetricsTumorOnly = Channel.empty()
+  // chVcfMetricsTumorOnly = chVcfMetricsTumorOnly.concat(mutect2TumorOnlyFlow.out.vcfRaw)
+  // 	.concat(mutect2TumorOnlyFlow.out.vcfFiltered)
+  // 	.concat(mutect2TumorOnlyFlow.out.conta)
+  // 	.collect()
+  // chVcfMetricsTumorOnly = chVcfMetricsTumorOnly.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }
 
-  chAllVcf = chAllGermlineVcf.concat(chAllSomaticVcf)
+  // chAllVcf = chAllGermlineVcf.concat(chAllSomaticVcf)
   
   vcfQcFlow(
-	chVcfMetricsPairs.mix(chVcfMetricsTumorOnly) 
+	chVcfMetrics
   )
   chVcfMetricsMqc = vcfQcFlow.out.mqc
   chTsTvMqc = vcfQcFlow.out.transition
+
 
   /*
   ================================================================================

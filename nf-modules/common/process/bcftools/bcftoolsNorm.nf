@@ -23,6 +23,7 @@ process bcftoolsNorm {
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   """
+  echo ${prefix}
   bcftools norm -Oz -m -both -f ${fasta} --threads ${task.cpus} ${vcf} -o ${prefix}_norm.vcf.gz
   tabix ${prefix}_norm.vcf.gz
 

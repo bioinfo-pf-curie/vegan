@@ -6,7 +6,7 @@ include { snpEff } from '../../common/process/snpEff/snpEff'
 include { snpSiftAnnotate as snpSiftCosmic } from '../../common/process/snpSift/snpSiftAnnotate'
 include { snpSiftAnnotate as snpSiftIcgc } from '../../common/process/snpSift/snpSiftAnnotate'
 include { snpSiftAnnotate as snpSiftCancerHotspots } from '../../common/process/snpSift/snpSiftAnnotate'
-include { snpSiftAnnotate as snpSiftGnomAD } from '../../common/process/snpSift/snpSiftAnnotate'
+// include { snpSiftAnnotate as snpSiftGnomAD } from '../../common/process/snpSift/snpSiftAnnotate'
 include { snpSiftDbnsfp } from '../../common/process/snpSift/snpSiftDbnsfp'
 
 workflow annotateSomaticFlow {
@@ -82,12 +82,12 @@ workflow annotateSomaticFlow {
    * GnomAD annotations
    */
 
-  snpSiftGnomAD(
-    chAnnotVcf,
-    gnomAd.combine(gnomAdIndex).collect()
-  )
-  chVersions = chVersions.mix(snpSiftGnomAD.out.versions)
-  chAnnotVcf = 'gnomad' in annotDb ? snpSiftGnomAD.out.vcf : chAnnotVcf
+  // snpSiftGnomAD(
+  //   chAnnotVcf,
+  //   gnomAd.combine(gnomAdIndex).collect()
+  // )
+  // chVersions = chVersions.mix(snpSiftGnomAD.out.versions)
+  // chAnnotVcf = 'gnomad' in annotDb ? snpSiftGnomAD.out.vcf : chAnnotVcf
 
   /*
    * SnpSift dbNSFP
