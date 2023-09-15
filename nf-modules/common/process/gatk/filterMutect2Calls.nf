@@ -16,7 +16,7 @@ process filterMutect2Calls {
   path(fastaFai)
 
   output:
-  tuple val(meta), path("*_tagged.vcf.gz"), path("*_tagged.vcf.gz.tbi"), emit:vcf
+  tuple val(meta), path("*.vcf.gz"), path("*.vcf.gz.tbi"), emit:vcf
   tuple val(meta), path("*filteringStats.tsv"), emit: stats
   path("versions.txt"), emit: versions
 
@@ -32,7 +32,7 @@ process filterMutect2Calls {
     --variant ${vcf} \
     --stats ${stats} \
     --reference ${fasta} \
-    --output ${prefix}_tagged.vcf.gz \
+    --output ${prefix}_fmc.vcf.gz \
     ${orientationCmd} \
     ${segmentationCmd} \
     ${contaminationCmd} \

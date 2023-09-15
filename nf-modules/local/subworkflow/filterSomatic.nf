@@ -3,9 +3,12 @@
  */
 
 include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
-include { filterVcf as keepPassOnly } from '../../local/process/filterVcf'
 include { snpSiftAnnotate as snpSiftGnomAD } from '../../common/process/snpSift/snpSiftAnnotate'
-include { filterDpFreqMaf } from '../../common/process/bcftools/filterDpFreqMaf'
+// include { filter as filterDp } from '../../common/process/bcftools/bcftoolsFilter'
+// include { filter as filterFreq } from '../../common/process/bcftools/bcftoolsFilter'
+// include { filter as filterMaf } from '../../common/process/bcftools/bcftoolsFilter'
+include { bcftoolsFilter } from '../../common/process/bcftools/bcftoolsFilter'
+// include { filter as keepPassOnly } from '../../common/process/bcftools/bcftoolsFilter'
 
 workflow filterSomaticFlow {
 
@@ -25,12 +28,7 @@ workflow filterSomaticFlow {
     fasta
   )
   chVersions = chVersions.mix(bcftoolsNorm.out.versions)
-
-  // Keep only PASS variants
-  keepPassOnly(
-    bcftoolsNorm.out.vcf
-  )
-  chFilterVcf = keepPassOnly.out.vcf.map{it -> [it[0], [it[1],it[2]]] }
+  chFilterVcf = bcftoolsNorm.out.vcf
 
   // Annotation with gnomAD
   snpSiftGnomAD(
@@ -38,20 +36,41 @@ workflow filterSomaticFlow {
     gnomAd.combine(gnomAdIndex).collect()
   )
   chVersions = chVersions.mix(snpSiftGnomAD.out.versions)
-
-  chFilterVcf = ('gnomad' in annotDb) ? snpSiftGnomAD.out.vcf : chFilterVcf
-  chFilterVcf = params.filter ? chFilterVcf : chFilterVcf.map{it -> [it[0],it[1][0],it[1][1]]}
-
+  chFilterVcf = (params.annotDb && params.annotDb.contains('gnomad')) ? snpSiftGnomAD.out.vcf : chFilterVcf
+  
   // Filtering on DP,FREQ MAF via bcftools
-  filterDpFreqMaf(
+  // filterDp(
+  //   chFilterVcf
+  // )
+  // chFilterVcf = params.filterDp != 0 ? filterDp.out.vcf : chFilterVcf
+
+  // filterFreq(
+  //   chFilterVcf
+  // )
+  // chFilterVcf = params.filterFreq != 0 ? filterFreq.out.vcf : chFilterVcf
+
+  // filterMaf(
+  //   chFilterVcf
+  // )
+  // chVersions = chVersions.mix(filterMaf.out.versions)
+  // chFilterVcf = (params.filterMaf &&  params.annotDb && params.annotDb.contains('gnomad')) ? filterMaf.out.vcf : chFilterVcf
+
+  bcftoolsFilter(
     chFilterVcf
   )
-  chVersions = chVersions.mix(filterDpFreqMaf.out.versions)
-  chFilterVcf = params.filter ? filterDpFreqMaf.out.vcf : chFilterVcf
+  chVersions = chVersions.mix(bcftoolsFilter.out.versions)
+  chFilterVcf = bcftoolsFilter.out.vcf
+
+
+  // // Keep only PASS variants
+  // keepPassOnly(
+  //   chFilterVcf
+  // )
+  // chFilterVcf = keepPassOnly.out.vcf
 
   emit:
   versions = chVersions
   vcfRaw = bcftoolsNorm.out.vcf
-  vcfPass = keepPassOnly.out.vcf
+  vcfPass = chFilterVcf
   vcfFiltered = chFilterVcf
 }

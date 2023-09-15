@@ -43,17 +43,6 @@ workflow annotateSomaticFlow {
   chAnnotVcf = snpEff.out.vcf
 
   /*
-   * COSMIC annotations
-   */
-
-  snpSiftCosmic(
-    chAnnotVcf,
-    cosmic.combine(cosmicIndex).collect()
-  )
-  chVersions = chVersions.mix(snpSiftCosmic.out.versions)
-  chAnnotVcf = 'cosmic' in annotDb ? snpSiftCosmic.out.vcf : chAnnotVcf
-
-  /*
    * ICGC annotations
    */
 
@@ -79,15 +68,15 @@ workflow annotateSomaticFlow {
   chAnnotVcf = 'cancerhotspots' in annotDb ? snpSiftCancerHotspots.out.vcf : chAnnotVcf
 
   /*
-   * GnomAD annotations
+   * COSMIC annotations
    */
 
-  // snpSiftGnomAD(
-  //   chAnnotVcf,
-  //   gnomAd.combine(gnomAdIndex).collect()
-  // )
-  // chVersions = chVersions.mix(snpSiftGnomAD.out.versions)
-  // chAnnotVcf = 'gnomad' in annotDb ? snpSiftGnomAD.out.vcf : chAnnotVcf
+  snpSiftCosmic(
+    chAnnotVcf,
+    cosmic.combine(cosmicIndex).collect()
+  )
+  chVersions = chVersions.mix(snpSiftCosmic.out.versions)
+  chAnnotVcf = 'cosmic' in annotDb ? snpSiftCosmic.out.vcf : chAnnotVcf
 
   /*
    * SnpSift dbNSFP

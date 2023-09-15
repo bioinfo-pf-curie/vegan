@@ -12,7 +12,7 @@ process filterDpFreqMaf {
   tuple val(meta), path(vcf)
 
   output:
-  tuple val(meta), path("*_filtered.vcf.gz"), path("*_filtered.vcf.gz.tbi"), emit: vcf
+  tuple val(meta), path("*_filtered.vcf{.gz,.gz.tbi}"), emit: vcf
   path("versions.txt"), emit: versions
 
   when:

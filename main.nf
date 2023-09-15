@@ -514,7 +514,7 @@ workflow {
     //[meta], tumor_bam, tumor_bai
     chTumorBam = chPairBam
       .map{ it ->
-        def meta = [id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
+        def meta = [tumor_id:it[0].tumor_id,id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
         return [meta, it[1], it[2] ]
       }
 
@@ -533,7 +533,7 @@ workflow {
       .map{ meta, bam, bai -> [meta.id, [meta, bam, bai]]}
       .combine(chDesignTumorOnly, by:0)
       .map{ it ->
-        def meta = [id:it[0], status: "tumor", sex:it[2][3]]
+        def meta = [tumor_id:it[0], id:it[0], status: "tumor", sex:it[2][3]]
         return [meta, it[1][1], it[1][2] ]
       }
     chSingleBam = chSingleBam.mix(chTumorOnlyBam) 
@@ -629,7 +629,7 @@ workflow {
   */
 
   // Filtering somatic vcf
-
+  chRawSomaticVcf.view()
   chAllSomaticVcf = Channel.empty()
 
   if('mutect2' in tools){
@@ -641,7 +641,7 @@ workflow {
     chGnomadDbIndex
     )
     chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-    chAllSomaticVcf = filterSomaticFlow.out.vcfFiltered
+    chAllSomaticVcf = filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]}
   }
 
   /*
@@ -653,8 +653,8 @@ workflow {
   chConta = Channel.empty()
   chConta = mutect2PairsFlow.out.conta
     .mix(mutect2TumorOnlyFlow.out.conta)
-  chVcfMetrics = chVcfMetrics.concat(filterSomaticFlow.out.vcfRaw)
-  	.concat(filterSomaticFlow.out.vcfPass)
+  chVcfMetrics = chVcfMetrics.concat(filterSomaticFlow.out.vcfRaw.map{it -> [it[0],it[1][0],it[1][1]]})
+  	.concat(filterSomaticFlow.out.vcfPass.map{it -> [it[0],it[1][0],it[1][1]]})
   	.concat(chConta)
   	.collect()
   chVcfMetrics = chVcfMetrics.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }

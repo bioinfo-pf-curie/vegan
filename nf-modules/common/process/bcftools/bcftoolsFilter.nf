@@ -1,16 +1,15 @@
 /*
- * Normalize VCF with bcftools
+ * Filter on DP, AF and MAF
  */
 
-process bcftoolsNorm {
+process bcftoolsFilter {
   label 'bcftools'
   label 'medCpu'
   label 'medMem'
   tag "${meta.id}"
 
   input:
-  tuple val(meta), path(vcf), path(tbi)
-  path(fasta)
+  tuple val(meta), path(vcf)
 
   output:
   tuple val(meta), path("*.vcf{.gz,.gz.tbi}"), emit: vcf
@@ -22,10 +21,16 @@ process bcftoolsNorm {
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
+  def id = 0
+  
   """
-  echo ${prefix}
-  bcftools norm -Oz -m -both -f ${fasta} --threads ${task.cpus} ${vcf} -o ${prefix}_norm.vcf.gz
-  tabix ${prefix}_norm.vcf.gz
+  if [ ${meta.tumor_id} = \$(zgrep "#CHROM" ${vcf[0]} | cut -f10) ] ; then id=0; else id=1; fi
+  bcftools view \
+    -Oz -i '${args}' \
+    ${vcf[0]} \
+    --threads ${task.cpus} \
+    -o ${prefix}_filtered.vcf.gz
+  tabix ${prefix}_filtered.vcf.gz
 
   echo \$(bcftools --version | head -1) > versions.txt
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt
