@@ -32,7 +32,7 @@ process filterMutect2Calls {
     --variant ${vcf} \
     --stats ${stats} \
     --reference ${fasta} \
-    --output ${prefix}_fmc.vcf.gz \
+    --output ${prefix}_calls.vcf.gz \
     ${orientationCmd} \
     ${segmentationCmd} \
     ${contaminationCmd} \

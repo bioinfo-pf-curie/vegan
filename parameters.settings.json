@@ -348,6 +348,46 @@
     },
 
     {
+      "name": "filterSomaticDP",
+      "label": "Min DP to filter somatic variants",
+      "usage": "Minimum sequencing depth to consider a somatic variant",
+      "type": "integer",
+      "nargs": 1,
+      "choices": [],
+      "default_value": 20,
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "VCF filters"
+    },
+    {
+      "name": "filterSomaticVAF",
+      "label": "Min VAF to filter somatic variants",
+      "usage": "Minimum variant allele frequency to consider a somatic variant",
+      "type": "integer",
+      "nargs": 1,
+      "choices": [],
+      "default_value": 0.05,
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "VCF filters"
+    },
+    {
+      "name": "filterSomaticMAF",
+      "label": "Max MAF to filter somatic variants",
+      "usage": "Maximum variant frequency in the general population to consider a somatic variant",
+      "type": "integer",
+      "nargs": 1,
+      "choices": [],
+      "default_value": 0,
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "VCF filters"
+    },
+
+    {
       "name": "ffpe",
       "label": "ffpe for TMB",
       "usage": "Specify to use the ffpe parameters and filters for TMB computation",

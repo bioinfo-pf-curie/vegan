@@ -1,5 +1,5 @@
 /* 
- * Mapping Worflow with BWA
+ * Mapping Worflow
  */
 
 include { bwamem } from '../../common/process/bwa/bwamem'
@@ -61,7 +61,8 @@ workflow mappingFlow {
 
     bwamem(
       chReads,
-      index.collect()
+      index.collect(),
+      Channel.of(true).collect()
     )
     chVersions = chVersions.mix(bwamem.out.versions)
     chBams = bwamem.out.bam
@@ -70,7 +71,8 @@ workflow mappingFlow {
 
     bwamem2(
       chReads,
-      index.collect()
+      index.collect(),
+      Channel.of(true).collect()
     )
     chVersions = chVersions.mix(bwamem2.out.versions)
     chBams = bwamem2.out.bam
@@ -79,7 +81,8 @@ workflow mappingFlow {
 
     dragmap(
       chReads,
-      index.collect()
+      index.collect(),
+      Channel.of(true).collect()
     )
     chVersions = chVersions.mix(dragmap.out.versions)
     chBams = dragmap.out.bam

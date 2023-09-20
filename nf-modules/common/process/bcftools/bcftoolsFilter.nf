@@ -24,7 +24,7 @@ process bcftoolsFilter {
   def id = 0
   
   """
-  if [ ${meta.tumor_id} = \$(zgrep "#CHROM" ${vcf[0]} | cut -f10) ] ; then id=0; else id=1; fi
+  if [ ${meta.tumor_id} == \$(zgrep "#CHROM" ${vcf[0]} | cut -f10) ] ; then id=0; else id=1; fi
   bcftools view \
     -Oz -i '${args}' \
     ${vcf[0]} \

@@ -500,11 +500,12 @@ workflow {
     chDesignPaired=chDesign.paired.map{it -> [[it[0], it[1]], it]}
     chDesignTumorOnly=chDesign.tumorOnly.map{it -> [it[0], it]}
     chDesignGermlineOnly=chDesign.germlineOnly.map{it -> [it[1], it]}
-    
+
     chPairBam = chProcBam
       .combine(chProcBam)
       .map{meta1, bam1, bai1, meta2, bam2, bai2 ->
           [[meta1.id, meta2.id], [meta1, meta2, bam1, bai1, bam2, bai2]]}
+      .view()
       .combine(chDesignPaired, by:0)
       .map{it ->
         def meta = [tumor_id:it[1][0].id, normal_id:it[1][1].id, pair_id:it[2][2], id:it[0][0]+"_vs_"+it[0][1], status:"pair", sex:it[2][3]]
@@ -588,6 +589,12 @@ workflow {
 
     if('mutect2' in tools){
 
+      /*
+      ================================================================================
+                                  SOMATIC SNV CALLING
+      ================================================================================
+      */
+
       mutect2PairsFlow(
         chPairBam,
         chIntervalBeds,
@@ -624,49 +631,32 @@ workflow {
 
   /*
   ================================================================================
-                                   VCF FILTERING
+                                   VCF BASIC FILTERING
   ================================================================================
   */
 
-  // Filtering somatic vcf
-  chRawSomaticVcf.view()
-  chAllSomaticVcf = Channel.empty()
-
-  if('mutect2' in tools){
-
-    filterSomaticFlow(
+  filterSomaticFlow(
     chRawSomaticVcf,
     chFasta,
     chGnomadDb,
     chGnomadDbIndex
-    )
-    chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-    chAllSomaticVcf = filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]}
-  }
+  )
+  chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+  chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]}
 
   /*
   ================================================================================
                                    VCF QC
   ================================================================================
   */
-  chVcfMetrics = Channel.empty()
-  chConta = Channel.empty()
+  
   chConta = mutect2PairsFlow.out.conta
     .mix(mutect2TumorOnlyFlow.out.conta)
-  chVcfMetrics = chVcfMetrics.concat(filterSomaticFlow.out.vcfRaw.map{it -> [it[0],it[1][0],it[1][1]]})
-  	.concat(filterSomaticFlow.out.vcfPass.map{it -> [it[0],it[1][0],it[1][1]]})
-  	.concat(chConta)
-  	.collect()
+  chVcfMetrics = filterSomaticFlow.out.vcfRaw.map{it -> [it[0],it[1][0],it[1][1]]}
+    .concat(filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]})
+    .concat(chConta)
+    .collect()
   chVcfMetrics = chVcfMetrics.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }
-
-  // chVcfMetricsTumorOnly = Channel.empty()
-  // chVcfMetricsTumorOnly = chVcfMetricsTumorOnly.concat(mutect2TumorOnlyFlow.out.vcfRaw)
-  // 	.concat(mutect2TumorOnlyFlow.out.vcfFiltered)
-  // 	.concat(mutect2TumorOnlyFlow.out.conta)
-  // 	.collect()
-  // chVcfMetricsTumorOnly = chVcfMetricsTumorOnly.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }
-
-  // chAllVcf = chAllGermlineVcf.concat(chAllSomaticVcf)
   
   vcfQcFlow(
 	chVcfMetrics
@@ -684,7 +674,7 @@ workflow {
   // Annotation somatic vcf
   if('snpeff' in tools || params.step == 'annotate'){
     annotateSomaticFlow(
-      chAllSomaticVcf,
+      chFilteredSomaticVcf,
       chSnpeffDb,
       chSnpeffCache,
       chCosmicDb,

@@ -31,7 +31,8 @@ process snpEff {
   snpEff -Xmx${task.memory.toGiga()}g \\
     ${db} \\
     ${args} \\
-    -csvStats ${prefix}.csv \\
+    -csvStats ${prefix}_snpEff_stats.csv \\
+    -stats ${prefix}_snpEff_summary.html \\
     $cacheCmd \\
     ${vcf[0]} \\
     > ${prefix}.ann.vcf
