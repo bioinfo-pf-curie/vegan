@@ -123,25 +123,21 @@ for sample_raw in $all_samples; do
     output+=",${nb_filt},${perc_filt}"
   fi
 
-  ##Coverage
-  if [[ -e coverage/${sample}.mosdepth.summary.txt ]]; then
+  ## Coverage
+  if [[ -e coverage/${sample}.region.bed.gz ]]; then
+    mean_depth=zcat ${sample}.regions.bed.gz | awk '{ w=($3-$2); cov+=w*$4; tot+=w}END{print cov/tot}'
+    cov30=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $4>=30{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
+    cov50=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $4>=50{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
+    cov100=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $4>=30{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
+    header+=",Mean_depth,30X_cov,50X_cov,100X_cov"
+    output+=",${mean_depth},${cov30},${cov50},${cov100}"
+  elif [[ -e coverage/${sample}.mosdepth.global.dist.txt && -e coverage/${sample}.mosdepth.summary.txt ]]; then
     mean_depth=$(tail -n 1 coverage/${sample}.mosdepth.summary.txt | awk '{print $4}')
-    header+=",Mean_depth"
-    output+=",${mean_depth}"
-  fi
-
-  if [[ -e coverage/${sample}.mosdepth.region.dist.txt ]]; then
-    cov30=$(awk 'BEGIN{cov=0}$1=="total" && $2=="30"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.region.dist.txt)
-    cov50=$(awk 'BEGIN{cov=0}$1=="total" && $2=="50"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.region.dist.txt)
-    cov100=$(awk 'BEGIN{cov=0}$1=="total" && $2=="100"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.region.dist.txt)
-    header+=",30X_cov,50X_cov,100X_cov"
-    output+=",${cov30},${cov50},${cov100}"
-  elif [[ -e coverage/${sample}.mosdepth.global.dist.txt ]]; then
     cov30=$(awk 'BEGIN{cov=0}$1=="total" && $2=="30"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.global.dist.txt)
     cov50=$(awk 'BEGIN{cov=0}$1=="total" && $2=="50"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.global.dist.txt)
     cov100=$(awk 'BEGIN{cov=0}$1=="total" && $2=="100"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.global.dist.txt)
-    header+=",30X_cov,50X_cov,100X_cov"
-    output+=",${cov30},${cov50},${cov100}"
+    header+=",Mean_depth,30X_cov,50X_cov,100X_cov"
+    output+=",${mean_depth},${cov30},${cov50},${cov100}"
   fi
 
   if [ $n_header == 0 ]; then
