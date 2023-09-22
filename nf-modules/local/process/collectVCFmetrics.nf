@@ -8,13 +8,13 @@ process collectVCFmetrics {
   tuple val(meta), path(vcf), path(index), file(vcfFilt), path(indexFilt)
 
   output:
-  path("*.mqc"), emit: mqc
+  tuple val(meta), path("*.stats"), emit: stats
 
   script:
   def prefix = "${meta.id}"
   """
   getCallingMetrics.sh -i ${vcf} \
                        -f ${vcfFilt} \
-                       -n ${prefix} > ${prefix}_callingMetrics.mqc
+                       -n ${prefix} > ${prefix}_callingMetrics.stats
   """
 }

@@ -23,6 +23,6 @@ workflow vcfQcFlow {
 
   emit:
   transition = computeTransition.out.metrics
-  mqc = collectVCFmetrics.out.mqc
+  stats = collectVCFmetrics.out.stats
   versions = chVersions
 }

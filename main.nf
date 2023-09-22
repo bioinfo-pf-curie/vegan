@@ -44,9 +44,9 @@ customRunName = NFTools.checkRunName(workflow.runName, params.name)
 
 // Custom functions/variables
 mqcReport = []
-include {checkAlignmentPercent} from './lib/functions'
 include {loadDesign} from './lib/functions'
 include {checkTumorOnly} from './lib/functions'
+include {checkVarNumber} from './lib/functions'
 
 tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
 
@@ -189,8 +189,9 @@ chIntervals             = params.intervals             ? Channel.fromPath(params
 chBwaIndex              = params.bwaIndex              ? Channel.fromPath(params.bwaIndex)                                              : Channel.empty()
 chBwaMem2Index          = params.bwamem2Index          ? Channel.fromPath(params.bwamem2Index)                                          : Channel.empty()
 chDragmapIndex          = params.dragmapIndex          ? Channel.fromPath(params.dragmapIndex)                                          : Channel.empty()
-chEffGenomeSize         = params.effGenomeSize         ? Channel.value(params.effGenomeSize)                                            : Channel.value([]) //optionals
-chMsiBaselineConfig     = params.msiBaselineConfig     ? Channel.fromPath(params.msiBaselineConfig)                                     : Channel.value([]) // optionals
+chEffGenomeSize         = params.effGenomeSize         ? Channel.value(params.effGenomeSize)                                            : Channel.value([]) //optional
+chMsiBaselineConfig     = params.msiBaselineConfig     ? Channel.fromPath(params.msiBaselineConfig)                                     : Channel.empty()
+
 /*
 ===========================
    SUMMARY
@@ -640,7 +641,7 @@ workflow {
     chGnomadDbIndex
   )
   chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-  chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]}
+  //chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]}
 
   /*
   ================================================================================
@@ -654,9 +655,14 @@ workflow {
   vcfQcFlow(
 	chVcfMetrics
   )
-  chVcfMetricsMqc = vcfQcFlow.out.mqc
+  chVcfMetricsMqc = vcfQcFlow.out.stats
   chTsTvMqc = vcfQcFlow.out.transition
 
+  // Remove samples with two few SNVs
+  chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
+    .join(vcfQcFlow.out.stats)
+    .filter{ meta, vcf, stats -> checkVarNumber(meta, stats) }
+    .map{ meta, vcf, stats -> [meta, vcf[0], vcf[1]]}
 
   /*
   ================================================================================
@@ -820,8 +826,8 @@ workflow {
       chGeneCovMqc.collect().ifEmpty([]),
       chMosdepthMqc.collect().ifEmpty([]),
       chIdentitoMqc.collect().ifEmpty([]),
-      chVcfMetricsMqc.collect().ifEmpty([]),
-      chTsTvMqc.collect().ifEmpty([]),
+      chVcfMetricsMqc.map{it -> it[1]}.collect().ifEmpty([]),
+      chTsTvMqc.map{it -> it[1]}.collect().ifEmpty([]),
       chSnpEffMqc.collect().ifEmpty([]),
       chMSIMqc.collect().ifEmpty([]),
       chTMBMqc.collect().ifEmpty([]),
