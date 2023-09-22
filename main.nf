@@ -457,7 +457,8 @@ workflow {
         chFilteredBam,
         chFasta.collect(),
         chFastaFai.collect(),
-        chPolyms.collect()
+        chPolyms.collect(),
+        customRunName
       )
       chIdentitoMqc = identitoFlow.out.tsv
       chVersions = chVersions.mix(identitoFlow.out.versions)

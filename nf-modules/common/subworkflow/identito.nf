@@ -12,6 +12,7 @@ workflow identitoFlow {
     fasta
     fai
     polymBed
+    runName
 
     main:
     chVersions = Channel.empty()
@@ -25,12 +26,14 @@ workflow identitoFlow {
     chVersions = chVersions.mix(identitoPolym.out.versions)
 
     identitoCombine(
-      identitoPolym.out.tsv.collect()
+      identitoPolym.out.tsv.collect(),
+      runName
     )
     chVersions = chVersions.mix(identitoCombine.out.versions)
 
     identitoClustering(
-      identitoCombine.out.tsv.collect()
+      identitoCombine.out.tsv.collect(),
+      runName
     )
 
     emit:
