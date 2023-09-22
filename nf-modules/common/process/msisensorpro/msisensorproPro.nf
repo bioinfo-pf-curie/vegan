@@ -13,7 +13,7 @@ process msisensorproPro {
   path(bed)
 
   output:
-  tuple val(meta), path("${meta.id}"), emit: outputReport
+  tuple val(meta), path("${meta.id}_msi.txt") , emit: outputReport
   tuple val(meta), path("${meta.id}_dis")     , emit: outputDis
   tuple val(meta), path("${meta.id}_all")     , emit: outputAll
   tuple val(meta), path("${meta.id}_unstable"), emit: outputUnstable
@@ -33,7 +33,7 @@ process msisensorproPro {
       ${bed} \\
       -d ${baseline} \\
       -t ${bam} \\
-      -o ${prefix}
+      -o ${prefix}_msi.txt
 
   echo "msisensor-pro "\$(msisensor-pro 2>&1 | sed -nE 's/Version:\\sv([0-9]\\.[0-9])/\\1/ p') > versions.txt
   """
