@@ -8,17 +8,17 @@ include { computeTransition } from '../../local/process/computeTransition'
 workflow vcfQcFlow {
 
   take:
-  allVcf
+  vcfs //meta, vcf_raw, tbi_raw, vcf_filt, tbi_filt
 
   main:
   chVersions = Channel.empty()
 
   collectVCFmetrics(
-    allVcf
+    vcfs
   )
 
   computeTransition(
-    allVcf.map{ it -> [it[0], it[3], it[4]]}
+    vcfs.map{ it -> [it[0], it[3], it[4]]}
   )
 
   emit:

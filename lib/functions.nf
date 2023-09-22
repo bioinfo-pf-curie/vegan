@@ -53,6 +53,9 @@ def checkAlignmentPercent(prefix, logs) {
 
   def checkTumorOnly(ids, params, tools){
     if (ids.size() > 0 && !params.pon && ('mutect2' in tools)){
-      exit 1, "Missing --pon option for tumor only samples"
+      exit 1, "Missing --pon option to run Mutect2 on tumor-only samples"
+    }
+    if (ids.size() > 0 && !params.msiBaselineConfig && ('msisensor' in tools)){
+      exit 1, "Missing --msiBaselineConfig option to run MSIsensor-pro on tumor-only samples"
     }
   }

@@ -61,15 +61,16 @@ def checkHeaders(inputDesign, headerDict):
     ### Checks for design file
     with open(inputDesign, 'r') as designFile:
         lines = csv.reader(designFile)
-        header = next(lines)
-        for i in range(0, len(header)):
+        headers = next(lines)
+        for i in range(0, len(headers)):
             try:
-                if not header[i] == [*headerDict][i]:
+                if headers[i] not in headerDict: ##== [*headerDict][i]:
                     raise()
             except:
                 print('\nError: Headers are not valid, should be : {}'
                       .format([*headerDict]))
                 sys.exit(1)
+    return headers
 
 
 def checkColumnContent(column, values):
@@ -121,7 +122,7 @@ if __name__ == '__main__':
 
     ## Check Design headers
     print("[DESIGN] Check headers ", end='...')
-    checkHeaders(inputDesign, designHeader)
+    designHeader = checkHeaders(inputDesign, designHeader)
     print("ok")
 
     ## Load Design
@@ -129,6 +130,7 @@ if __name__ == '__main__':
     dictDesign=loadDesign(inputDesign, designHeader)
     print("ok")
 
+    print(dictDesign)
     ## Checks for design file
     print("[DESIGN] Check peak type content ", end='...')
     checkColumnContent(dictDesign['SEX'], ['', 'XX', 'XY'])

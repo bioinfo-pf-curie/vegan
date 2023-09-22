@@ -269,7 +269,6 @@ if (params.design){
   }
   // Check if PON is defined for tumor only samples
   chDesign.tumorOnly.map{it->it[0]}.toList().map{ it -> checkTumorOnly(it, params, tools) }
-
 }else{
   chDesignFile = Channel.empty()
   chDesign = Channel.empty()
@@ -505,7 +504,6 @@ workflow {
       .combine(chProcBam)
       .map{meta1, bam1, bai1, meta2, bam2, bai2 ->
           [[meta1.id, meta2.id], [meta1, meta2, bam1, bai1, bam2, bai2]]}
-      .view()
       .combine(chDesignPaired, by:0)
       .map{it ->
         def meta = [tumor_id:it[1][0].id, normal_id:it[1][1].id, pair_id:it[2][2], id:it[0][0]+"_vs_"+it[0][1], status:"pair", sex:it[2][3]]
@@ -650,13 +648,8 @@ workflow {
   ================================================================================
   */
   
-  chConta = mutect2PairsFlow.out.conta
-    .mix(mutect2TumorOnlyFlow.out.conta)
   chVcfMetrics = filterSomaticFlow.out.vcfRaw.map{it -> [it[0],it[1][0],it[1][1]]}
-    .concat(filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]})
-    .concat(chConta)
-    .collect()
-  chVcfMetrics = chVcfMetrics.map{ meta1, vcf1, tbi1, meta2, vcf2, tbi2, meta3, conta -> [meta2, vcf1, tbi1, vcf2, tbi2, conta] }
+    .join(filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]})
   
   vcfQcFlow(
 	chVcfMetrics
@@ -745,7 +738,7 @@ workflow {
     msiFlow(
       chPairBam,
       chTumorOnlyBam,
-      chNormalBam.mix(chGermlineOnlyBam),
+      chNormalBam.mix(chGermlineOnlyBam).unique(),
       chMsiBaselineConfig,
       chFasta,
       chTargetBed

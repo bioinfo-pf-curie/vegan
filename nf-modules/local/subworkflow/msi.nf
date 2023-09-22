@@ -2,6 +2,7 @@
  * MSI
  */
 
+include { prepareBaselineConfig } from '../../common/process/msisensorpro/prepareBaselineConfig.nf'
 include { msisensorproScan } from '../../common/process/msisensorpro/msisensorproScan.nf'
 include { msisensorproMsi } from '../../common/process/msisensorpro/msisensorproMsi.nf'
 include { msisensorproBaseline } from '../../common/process/msisensorpro/msisensorproBaseline.nf'
@@ -25,19 +26,9 @@ workflow msiFlow {
   )
 
   /* Tumor only BAM files */
-
-  // Use either a params.config file or all normal samples as baseline
-  if (params.msiBaselineConfig){
-    chBaseline = baselineConfig
-  }else{
-    chBaseline = baselineBam
-      .map{meta,bam,bai -> "${meta.id}\t${bam}"}
-      .collectFile(name:"msi_baseline.txt", newLine:true)
-  }
-
   msisensorproBaseline(
     msisensorproScan.out.list.collect(),
-    chBaseline
+    baselineConfig
   )
   chVersions = chVersions.mix(msisensorproBaseline.out.versions)
 
