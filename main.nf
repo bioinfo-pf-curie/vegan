@@ -200,6 +200,8 @@ chMsiBaselineConfig     = params.msiBaselineConfig     ? Channel.fromPath(params
 summary = [
   'Pipeline' : workflow.manifest.name ?: null,
   'Version': workflow.manifest.version ?: null,
+  'Git Info': workflow.repository ?: null,
+  'Git Commit': workflow.commitId ?: null,
   'DOI': workflow.manifest.doi ?: null,
   'Run Name': customRunName,
   'Step' : params.step ?: null,
@@ -218,11 +220,8 @@ summary = [
   'Output Dir' : params.outDir,
   'Working Dir': workflow.workDir,
   'Max Resources': "${params.maxMemory} memory, ${params.maxCpus} cpus, ${params.maxTime} time per job",
-  'Container': workflow.containerEngine && workflow.container ? "${workflow.containerEngine} - ${workflow.container}" : null,
   'User': workflow.userName,
-  'Config Description': params.configProfileDescription ?: null,
-  'Config Contact': params.configProfileContact ?: null,
-  'Config URL': params.configProfileUrl ?: null,
+  'CommandLine': workflow.commandLine 
 ].findAll{ it.value != null }
 
 workflowSummaryCh = NFTools.summarize(summary, workflow, params)
