@@ -3,9 +3,10 @@ versions-2.2.0dev
 
 NEW FEATURES
 
-  - New --skipMutectOrientationModel option to turn off the learn orientation model step
+  - Add a filtering step for somatic variants based on VAF/DP/MAF (`--filterSomaticDP`, `filterSomaticVAF`, `filterSomaticMAF`)
+  - New `--skipMutectOrientationModel` option to turn off the learn orientation model step
   - Add `--facetsOpts` parameter #168
-  - Filter out low mapping samples
+  - Filter out low mapping samples and emtpy VCFs
   - Add MSIsensor-pro for tumor only samples (`--msiBaselineConfig`) #143
   - Add `-profile testwgs` and `-profile testwes` for Tumor-Only and WGS test set
 

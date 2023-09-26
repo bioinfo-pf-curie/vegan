@@ -348,7 +348,7 @@ ignore_images: true
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
         pass:
-          - gt: 80
+          - gt: 79.9
         warn:
           - lt: 80
         fail:
@@ -360,28 +360,28 @@ table_cond_formatting_rules:
           - gt: 20
     Percent_of_duplicates:
         pass:
-          - lt: 25
+          - lt: 24.9
         warn:
           - gt: 25
         fail:
           - gt: 50
     Percent_reads_ontarget:
         pass:
-          - gt: 70
+          - gt: 69.9
         warn:
           - lt: 70
         fail:
           - lt: 50
     Percent_reads_after_filt:
         pass:
-          - gt: 60
+          - gt: 59.9
         warn:
           - lt: 60
         fail:
           - lt: 50
     Mean_depth:
         pass:
-          - gt: 75
+          - gt: 74.9
         warn:
           - lt: 75
         fail:

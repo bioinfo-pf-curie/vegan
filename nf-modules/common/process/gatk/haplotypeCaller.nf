@@ -5,8 +5,8 @@
 process haplotypeCaller {
   tag "${meta.id}"
   label 'gatk'
-  label 'medMemSq'
-  label 'lowCpu'
+  label 'highMem'
+  label 'medCpu'
 
   input:
   tuple val(meta), path(bam), path(bai), path(intervals)

@@ -28,13 +28,14 @@ def loadSamplePlan(inputFile):
     with open(inputFile, 'r') as dataFile:
         lines = csv.reader(dataFile)
         for sample in lines:
-            dictSamplePlan['SAMPLEID'].append(sample[0])
-            dictSamplePlan['SAMPLENAME'].append(sample[1])
-            dictSamplePlan['INPUT1'].append(sample[2])
-            if len(sample) > 3:
-                if "INPUT2" not in dictSamplePlan:
-                    dictSamplePlan['INPUT2']=[] 
-                dictSamplePlan['INPUT2'].append(sample[3])
+            if len(sample)>0:
+                dictSamplePlan['SAMPLEID'].append(sample[0])
+                dictSamplePlan['SAMPLENAME'].append(sample[1])
+                dictSamplePlan['INPUT1'].append(sample[2])
+                if len(sample) > 3:
+                    if "INPUT2" not in dictSamplePlan:
+                        dictSamplePlan['INPUT2']=[] 
+                    dictSamplePlan['INPUT2'].append(sample[3])
     return(dictSamplePlan)
 
 
@@ -46,11 +47,12 @@ def loadDesign(inputFile, headers):
     with open(inputFile, 'r') as designFile:
         lines = csv.reader(designFile)
         for sample in lines:
-            for i in range(len(headers)):
-                if dictDesign[headers[i]]=='':
-                    dictDesign[headers[i]]=[]
-                else:
-                    dictDesign[headers[i]].append(sample[i])
+            if len(sample)>0:
+                for i in range(len(headers)):
+                    if dictDesign[headers[i]]=='':
+                        dictDesign[headers[i]]=[]
+                    else:
+                        dictDesign[headers[i]].append(sample[i])
     return(dictDesign)
 
 
