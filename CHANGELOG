@@ -13,6 +13,7 @@ NEW FEATURES
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Clean haplotypecaller sub-workflow to remove filtering so far #176
   - Use samtools flagstat for alignment statistics #179
   - Sort BAM file on-the-fly in the mapping command #181
   - Remove intersection with bed file for WES analysis #159
