@@ -29,8 +29,9 @@ process haplotypeCaller {
   def prefix = task.ext.prefix ?: "${meta.id}"
   def intervalCmd = intervals ? "-L ${intervals}" : ""
   def dbsnpCmd = dbsnp ? "--D ${dbsnp}" : ""
+  def availMem = (task.memory.mega*0.8).intValue()
   """
-  gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
+  gatk --java-options "-Xmx${availMem}M -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
     HaplotypeCaller \
     --reference ${fasta} \
     --input ${bam} \
