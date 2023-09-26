@@ -37,7 +37,7 @@ process msisensorproMsi {
       -t ${tumor} \\
       ${fasta} \\
       ${bed} \\
-      -o $prefix \\
+      -o ${prefix}_msi.txt \\
       -b ${task.cpus} \\
       $args
 
