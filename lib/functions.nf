@@ -18,12 +18,11 @@ def checkAlignmentPercent(prefix, logs) {
     }
   }
   percentAligned = nbAligned.toFloat() / nbTotal.toFloat() * 100
-  if(percentAligned.toFloat() <= '2'.toFloat() ){
-      log.info "#################### VERY POOR ALIGNMENT RATE! IGNORING FOR FURTHER DOWNSTREAM ANALYSIS! ($prefix)    >> ${percentAligned}% <<"
-      //skippedPoorAlignment << $prefix
+  if(percentAligned.toFloat() <= '20'.toFloat() ){
+      log.info "[WARNING] Very poor alignment rate! Ignoring sample for downstream analysis! [$prefix] >> ${percentAligned}% <<"
       return false
   } else {
-      log.info "          Passed alignment > ${prefix} >> ${percentAligned}% <<"
+      log.info "[INFO] Passed alignment > ${prefix} >> ${percentAligned}% <<"
       return true
   }
 }
@@ -51,8 +50,35 @@ def checkAlignmentPercent(prefix, logs) {
    *
    */
 
-  def checkTumorOnly(ids, params){
-    if (ids.size() > 0 && !params.pon){
-      exit 1, "Missing --pon option for tumor only samples"
+  def checkTumorOnly(ids, params, tools){
+    if (ids.size() > 0 && !params.pon && ('mutect2' in tools)){
+      exit 1, "Missing --pon option to run Mutect2 on tumor-only samples"
+    }
+    if (ids.size() > 0 && !params.msiBaselineConfig && ('msisensor' in tools)){
+      exit 1, "Missing --msiBaselineConfig option to run MSIsensor-pro on tumor-only samples"
     }
   }
+
+/**
+ * Check number of SNVs n VCF
+ *
+ * @params prefix
+ * @params logs
+ */
+
+def checkVarNumber(prefix, stats) {
+  nline=0
+  nvar=0
+  stats.eachLine { line ->
+    if (nline == 1){
+      nvar = line.split(',')[3]
+    }
+    nline += 1 
+  }
+  if(nvar.toInteger() < 1){
+      log.info "[WARNING] No SNVs detected after filtering! Ignoring sample for downstream analysis! [$prefix]"
+      return false
+  } else {
+      return true
+  }
+}

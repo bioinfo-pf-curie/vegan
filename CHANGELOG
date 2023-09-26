@@ -3,22 +3,31 @@ versions-2.2.0dev
 
 NEW FEATURES
 
-  - New --skipMutectOrientationModel option to turn off the learn orientation model step
+  - Add a filtering step for somatic variants based on VAF/DP/MAF (`--filterSomaticDP`, `filterSomaticVAF`, `filterSomaticMAF`)
+  - New `--skipMutectOrientationModel` option to turn off the learn orientation model step
+  - Add `--facetsOpts` parameter #168
+  - Filter out low mapping samples and emtpy VCFs
+  - Add MSIsensor-pro for tumor only samples (`--msiBaselineConfig`) #143
+  - Add `-profile testwgs` and `-profile testwes` for Tumor-Only and WGS test set
+  - Check design file before running the pipeline
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
+  - Use samtools flagstat for alignment statistics #179
+  - Sort BAM file on-the-fly in the mapping command #181
+  - Remove intersection with bed file for WES analysis #159
+  - Replace all [-. ] in sample name by '_' #163
   - Distinguish the annotation of somatic and germline variants
-  - Automatically clean the work directory (see --disableAutoClean)
-  - By default, only PASS variants are exported - use `--saveVcfIntermediatest` to export additional results
-  - Default mapper is now bwa-mem2
+  - Automatically clean the work directory (see --disableAutoClean) #183
+  - By default, only PASS somatic variants are exported - use `--saveVcfIntermediatest` to export additional results
   - Speed-up parallel processing and avoid waiting for all the samples at the different steps #158
   - Update skip options
-  - Add `--facetsOpts` parameter #168
   - Update Facets outputs #168
+  - Update mosdepth report in MultiQC #161
 
 BUG FIXES
 
-  - Update mosdepth report in MultiQC #161
+  - Fix bug with HaplotypeCaller for WGS in parallel mode (#175)
 
 ***********************************
 versions-2.1.1

@@ -14,29 +14,28 @@ def argsParse():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--design", dest="design", help="Design file (csv)", default=None)
     parser.add_argument("-s", "--sampleplan", dest="sampleplan", help="SamplePlan file (csv)")
-    parser.add_argument("--singleEnd", help="Specify that input reads are single-end", action="store_true")
     args = parser.parse_args()
     inputDesign = args.design
     inputData = args.sampleplan
-    singleEnd = args.singleEnd
-    return inputDesign, inputData, singleEnd
+    return inputDesign, inputData
 
-def loadSamplePlan(inputFile, isSingleEnd=False):
+def loadSamplePlan(inputFile):
     """
     Load SamplePlan file with sampleId,sampelName,fastqR1,[fastqr2]
     """
-    dictSamplePlan={'SAMPLEID':[], 'SAMPLENAME':[], 'FASTQR1':[]}
-    if not isSingleEnd:
-        dictSamplePlan['FASTQR2']=[]
+    dictSamplePlan={'SAMPLEID':[], 'SAMPLENAME':[], 'INPUT1':[]}
 
     with open(inputFile, 'r') as dataFile:
         lines = csv.reader(dataFile)
         for sample in lines:
-            dictSamplePlan['SAMPLEID'].append(sample[0])
-            dictSamplePlan['SAMPLENAME'].append(sample[1])
-            dictSamplePlan['FASTQR1'].append(sample[2])
-            if not isSingleEnd:
-                dictSamplePlan['FASTQR2'].append(sample[3])
+            if len(sample)>0:
+                dictSamplePlan['SAMPLEID'].append(sample[0])
+                dictSamplePlan['SAMPLENAME'].append(sample[1])
+                dictSamplePlan['INPUT1'].append(sample[2])
+                if len(sample) > 3:
+                    if "INPUT2" not in dictSamplePlan:
+                        dictSamplePlan['INPUT2']=[] 
+                    dictSamplePlan['INPUT2'].append(sample[3])
     return(dictSamplePlan)
 
 
@@ -48,11 +47,12 @@ def loadDesign(inputFile, headers):
     with open(inputFile, 'r') as designFile:
         lines = csv.reader(designFile)
         for sample in lines:
-            for i in range(len(headers)):
-                if dictDesign[headers[i]]=='':
-                    dictDesign[headers[i]]=[]
-                else:
-                    dictDesign[headers[i]].append(sample[i])
+            if len(sample)>0:
+                for i in range(len(headers)):
+                    if dictDesign[headers[i]]=='':
+                        dictDesign[headers[i]]=[]
+                    else:
+                        dictDesign[headers[i]].append(sample[i])
     return(dictDesign)
 
 
@@ -63,15 +63,16 @@ def checkHeaders(inputDesign, headerDict):
     ### Checks for design file
     with open(inputDesign, 'r') as designFile:
         lines = csv.reader(designFile)
-        header = next(lines)
-        for i in range(0, len(header)):
+        headers = next(lines)
+        for i in range(0, len(headers)):
             try:
-                if not header[i] == [*headerDict][i]:
+                if headers[i] not in headerDict: ##== [*headerDict][i]:
                     raise()
             except:
                 print('\nError: Headers are not valid, should be : {}'
                       .format([*headerDict]))
                 sys.exit(1)
+    return headers
 
 
 def checkColumnContent(column, values):
@@ -114,16 +115,16 @@ if __name__ == '__main__':
     designHeader=['GERMLINE_ID','TUMOR_ID','PAIR_ID','SEX']
 
     ## Get args
-    inputDesign, inputSamplePlan, isSingleEnd = argsParse()
+    inputDesign, inputSamplePlan = argsParse()
     
     ## Load SamplePlan
     print("[SAMPLEPLAN] Load data ", end='...')
-    dictSamplePlan=loadSamplePlan(inputSamplePlan, isSingleEnd)
+    dictSamplePlan=loadSamplePlan(inputSamplePlan)
     print("ok") 
 
     ## Check Design headers
     print("[DESIGN] Check headers ", end='...')
-    checkHeaders(inputDesign, designHeader)
+    designHeader = checkHeaders(inputDesign, designHeader)
     print("ok")
 
     ## Load Design
@@ -131,6 +132,7 @@ if __name__ == '__main__':
     dictDesign=loadDesign(inputDesign, designHeader)
     print("ok")
 
+    print(dictDesign)
     ## Checks for design file
     print("[DESIGN] Check peak type content ", end='...')
     checkColumnContent(dictDesign['SEX'], ['', 'XX', 'XY'])

@@ -12,7 +12,7 @@ process computeTransition {
   tuple val(meta), path(vcf), path(index)
 
   output:
-  path("*table.tsv"), emit: metrics
+  tuple val(meta), path("*table.tsv"), emit: metrics
 
   when:
   task.ext.when == null || task.ext.when

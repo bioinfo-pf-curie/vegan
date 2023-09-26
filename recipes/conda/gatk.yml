@@ -5,5 +5,5 @@ channels:
   - defaults
 dependencies:
   - bioconda::tabix=1.11=hdfd78af_0
-  - bioconda::gatk4=4.1.8.0
+  - bioconda::gatk4=4.1.8.0=py38h37ae868_0
 

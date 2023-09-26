@@ -8,6 +8,7 @@ library(optparse)
 option_list <- list(make_option(c("-i", "--input"), type="character", default=NULL, help="Input file with SNPs allelic frequencies", metavar="path"),
                     make_option(c("-s", "--splan"), type="character", default=NULL, help="Sample plan", metavar="path"),
                     make_option(c("-o", "--odir"), type="character", default="./", help="Output director", metavar="path"),
+                    make_option(c("-p", "--prefix"), type="character", default="", help="Output prefix", metavar="path"),
                     make_option(c("-d", "--dist"), type="character", default='ejaccard', help="Clustering distance", metavar="character"),
                     make_option(c("-m", "--minsnp"), type="integer", default='22', help="Minimum SNPs number to consider a sample", metavar="int"))
 
@@ -23,12 +24,13 @@ opt <- parse_args(opt_parser)
 inputTable <- opt$input
 samplePlan <- opt$splan
 outputDir <- opt$odir
+prefix <- opt$prefix
 distance <- opt$dist
 minSNPsNumber <- opt$minsnp
 
 # Handle path & Output Names
-outputPlot <- paste0(outputDir,"/clustering_identito_mqc.png")
-outputMatrix <- paste0(outputDir,"/clustering_identito.csv")
+outputPlot <- paste0(outputDir, "/", prefix, "clustering_identito.png")
+outputMatrix <- paste0(outputDir, "/", prefix, "clustering_identito.csv")
 
 #Load data
 d <- read.table(inputTable, header=TRUE, stringsAsFactors=FALSE, row.names=1)

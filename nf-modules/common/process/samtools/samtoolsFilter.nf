@@ -10,6 +10,7 @@ process samtoolsFilter {
 
   input:
   tuple val(meta), path(bam)
+  path(bed)
 
   output:
   tuple val(meta), path("*filtered.bam"), emit: bam

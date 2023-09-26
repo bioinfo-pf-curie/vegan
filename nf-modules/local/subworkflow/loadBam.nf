@@ -24,7 +24,6 @@ workflow loadBamFlow {
 
   take:
   bams
-  fasta
 
   main:
   chVersions = Channel.empty()
@@ -75,6 +74,7 @@ workflow loadBamFlow {
 
   // Remove groupKey object
   chBamBai = chAllAligned
+    .mix(chBamMapped.single)
     .join(samtoolsIndex.out.bai)
     .map{meta, bam, bai -> 
       def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd, format: 'bam' ]

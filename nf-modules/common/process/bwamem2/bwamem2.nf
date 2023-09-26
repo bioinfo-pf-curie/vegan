@@ -11,10 +11,10 @@ process bwamem2{
   input:
   tuple val(meta), path(reads)
   path(index)
+  val(sortBam)
 
   output:
   tuple val(meta), path("*.bam"), emit: bam
-  path("*.log"), emit: logs
   path("versions.txt"), emit: versions
 
   when:
@@ -23,6 +23,7 @@ process bwamem2{
   script:
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
+  def samtoolsCmd = sortBam ? 'sort' : 'view'
   """
   localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
   refName=\$(basename \${localIndex})
@@ -33,9 +34,8 @@ process bwamem2{
         -t $task.cpus \
         \$localIndex \
         $reads \
-        | samtools view -bS -@ $task.cpus -o ${prefix}_\${refName}.bam -
+        | samtools ${samtoolsCmd} -O bam -@ ${task.cpus} -o ${prefix}_\${refName}.bam -
 
-  getBWAstats.sh -i ${prefix}_\${refName}.bam -p ${task.cpus} > ${prefix}_bwa.log
   echo "Bwa-mem2 "\$(bwa-mem2 version 2> /dev/null) &> versions.txt
   """
 }

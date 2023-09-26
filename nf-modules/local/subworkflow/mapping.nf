@@ -1,5 +1,5 @@
 /* 
- * Mapping Worflow with BWA
+ * Mapping Worflow
  */
 
 include { bwamem } from '../../common/process/bwa/bwamem'
@@ -10,6 +10,8 @@ include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
 include { samtoolsFlagstat } from '../../common/process/samtools/samtoolsFlagstat'
 include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
+
+include {checkAlignmentPercent} from '../../../lib/functions'
 
 // Set the meta.chunk value in case of technical replicates
 def setMetaChunk(row){
@@ -59,35 +61,34 @@ workflow mappingFlow {
 
     bwamem(
       chReads,
-      index.collect()
+      index.collect(),
+      Channel.of(true).collect()
     )
     chVersions = chVersions.mix(bwamem.out.versions)
     chBams = bwamem.out.bam
-    chMappingLogs = bwamem.out.logs
 
   }else if (params.aligner == 'bwa-mem2'){
 
     bwamem2(
       chReads,
-      index.collect()
+      index.collect(),
+      Channel.of(true).collect()
     )
     chVersions = chVersions.mix(bwamem2.out.versions)
     chBams = bwamem2.out.bam
-    chMappingLogs = bwamem2.out.logs
 
   }else if (params.aligner == 'dragmap'){
 
     dragmap(
       chReads,
-      index.collect()
+      index.collect(),
+      Channel.of(true).collect()
     )
     chVersions = chVersions.mix(dragmap.out.versions)
     chBams = dragmap.out.bam
-    chMappingLogs = dragmap.out.logs
 
   }
 
-  chBams.view()
 
   // Merge BAM file with the same prefix and use a groupKey to speed up the process
   chBamMapped = chBams
@@ -105,37 +106,34 @@ workflow mappingFlow {
   )
   chVersions = chVersions.mix(samtoolsMerge.out.versions)
 
-  samtoolsSort(
-    samtoolsMerge.out.bam.mix(chBamMapped.single)
-  )
-  chVersions = chVersions.mix(samtoolsSort.out.versions)
-
   samtoolsIndex(
-    samtoolsSort.out.bam
+    samtoolsMerge.out.bam.mix(chBamMapped.single)
   )
   chVersions = chVersions.mix(samtoolsIndex.out.versions)
 
   samtoolsFlagstat(
-    samtoolsSort.out.bam
+    samtoolsMerge.out.bam.mix(chBamMapped.single)
   )
   chVersions = chVersions.mix(samtoolsFlagstat.out.versions)
 
   samtoolsStats(
-    samtoolsSort.out.bam
+    samtoolsMerge.out.bam.mix(chBamMapped.single)
   )
   chVersions = chVersions.mix(samtoolsStats.out.versions)
 
-  // Remove groupKey object
-  chBamBai = samtoolsSort.out.bam
+  // Filter all 'aligned' channels that fail the check
+  // And remove groupKey object
+  chBamBai = samtoolsFlagstat.out.stats
+    .join(samtoolsMerge.out.bam.mix(chBamMapped.single))
     .join(samtoolsIndex.out.bai)
-    .map{meta, bam, bai -> 
+    .filter { meta, logs, bam, bai -> checkAlignmentPercent(meta, logs) }
+    .map { meta, logs, bam, bai -> 
       def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
-      [ newMeta, bam, bai ] 
+      [ newMeta, bam, bai ]
     }
 
   emit:
   bam = chBamBai
-  logs = chMappingLogs
   flagstat = samtoolsFlagstat.out.stats.map{it-> it[1]}
   stats = samtoolsStats.out.stats.map{it-> it[1]}
   versions = chVersions

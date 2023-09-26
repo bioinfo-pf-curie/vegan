@@ -16,7 +16,7 @@ custom_data:
     gstats:
         file_format: 'csv'
         section_name: 'General Metrics'
-        description: ' of sequenced data. High (low)-quality alignments show the number of aligned reads with a mapping quality higher (lower) than 20. Reads are filtered according to the specified parameters (for SNV calling by default), keeping only those overlapping the targets file (if any). The fragment length, overlapping bases and sequencing depth are calculated after reads filtering.'
+        description: ' General metrics of sequenced data. High (low)-quality alignments show the number of aligned reads with a mapping quality higher (lower) than 20. Reads are filtered according to the specified parameters (for SNV calling by default), keeping only those overlapping the targets file (if any). The fragment length, overlapping bases and sequencing depth are calculated after reads filtering.'
         plot_type: 'table'
         pconfig:
             namespace: 'gstats'
@@ -172,7 +172,7 @@ custom_data:
     bwa_logs:
         file_format: 'tsv'
         section_name: 'Bwa-mem'
-        description: 'statistics on aligned data. Number of unique and multiple mapped reads, as well unmapped reads are reported.'
+        description: 'Statistics on aligned data. Number of unique and multiple mapped reads, as well unmapped reads are reported.'
         plot_type: 'bargraph'
         pconfig:
             namespace: 'bwalogs'
@@ -183,7 +183,7 @@ custom_data:
     genes_cov:
         file_format: 'tsv'
         section_name: 'Genes Coverage'
-        description: 'distribution calculed from exonic regions overlapping the capture regions (if any).'
+        description: 'Distribution calculed from exonic regions overlapping the capture regions (if any).'
         plot_type: 'linegraph'
         pconfig:
             namescape: 'genescov'
@@ -207,7 +207,7 @@ custom_data:
     identitoPolym:
         file_format: 'tsv'
         section_name: 'Identito Monitoring'
-        description: ' from a list of know polymorphisms.'
+        description: ' Identito monitoring from a list of know polymorphisms.'
         plot_type: 'table'
         pconfig:
             title: 'Polymorphisms'
@@ -223,7 +223,7 @@ custom_data:
     mutect2:
         file_format: 'csv'
         section_name: 'Mutect2'
-        description: ' variant calling. Total number of variants detected by the Mutect2 workflow before and after filtering with the FilterMutectCalls function. The cross-contamination values have been calculated with the GATK CalculateContamination software.'
+        description: ' Variant calling. Total number of variants detected by the Mutect2 workflow before and after filtering with the FilterMutectCalls function. The cross-contamination values have been calculated with the GATK CalculateContamination software.'
         plot_type: 'table'
         pconfig:
             title: 'Mutect2 Variant Calling'
@@ -262,7 +262,7 @@ custom_data:
     hccaller:
         file_format: 'csv'
         section_name: 'HaplotypeCaller'
-        description: ' variant calling. Total number of variants detected by the HaplotypeCaller workflow (GATK4).'
+        description: ' Variant calling. Total number of variants detected by the HaplotypeCaller workflow (GATK4).'
         plot_type: 'table'
         pconfig:
             title: 'HaplotypeCaller Variant Calling'
@@ -286,7 +286,7 @@ custom_data:
     transition:
         file_format: 'tsv'
         section_name: 'Transition/Transversion'
-        description: 'from variants called with HaplotypeCaller. The number of transitions (A>G,T>C,C>T,G>A), transversions (A>C,T>G,C>A,G>T,A>T,T>A,C>G,G>C) and short insertions/delations (indels) was extracted for each sample.'
+        description: 'Transition/Transversion from variants called with HaplotypeCaller. The number of transitions (A>G,T>C,C>T,G>A), transversions (A>C,T>G,C>A,G>T,A>T,T>A,C>G,G>C) and short insertions/delations (indels) was extracted for each sample.'
         plot_type: 'bargraph'
         pconfig:
             namespace: 'transition'
@@ -330,7 +330,7 @@ sp:
 #  identitoClustering:
 #      fn: '*_mqc.png'
   mutect2:
-      fn: '*_Mutect2_callingMetrics.mqc'
+      fn: '*_callingMetrics.mqc'
   hccaller:
       fn: '*_HaplotypeCaller_callingMetrics.mqc'
   transition:
@@ -339,13 +339,16 @@ sp:
       fn: 'tmb_scores.mqc'
   msi:
       fn: 'msi_scores.mqc'
+  samtools_alignment_plot:
+      fn: '*.global.stats'
+      fn_ignore_files: '*onTarget.stats'
 
 ignore_images: true
 
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
         pass:
-          - gt: 80
+          - gt: 79.9
         warn:
           - lt: 80
         fail:
@@ -357,28 +360,28 @@ table_cond_formatting_rules:
           - gt: 20
     Percent_of_duplicates:
         pass:
-          - lt: 25
+          - lt: 24.9
         warn:
           - gt: 25
         fail:
           - gt: 50
     Percent_reads_ontarget:
         pass:
-          - gt: 70
+          - gt: 69.9
         warn:
           - lt: 70
         fail:
           - lt: 50
     Percent_reads_after_filt:
         pass:
-          - gt: 60
+          - gt: 59.9
         warn:
           - lt: 60
         fail:
           - lt: 50
     Mean_depth:
         pass:
-          - gt: 75
+          - gt: 74.9
         warn:
           - lt: 75
         fail:
@@ -454,10 +457,14 @@ remove_sections:
   - samtools-flagstat
 
 fn_clean_exts:
-    - '_bwa.log'
-    - '_bwa.mqc'
-    - '_covdensity.mqc'
-    - '.filtered.SNV.txt'
-    - '.filtered.SNV.bam'
+  - '_bwa.log'
+  - '_bwa.mqc'
+  - '_covdensity.mqc'
+  - '.filtered.SNV.txt'
+  - '.filtered.SNV.bam'
+  - '.global'
+
+fn_ignore_files:
+  - '*.onTarget.stats' 
 
 plots_force_interactive: True

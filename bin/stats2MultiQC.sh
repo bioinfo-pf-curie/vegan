@@ -49,9 +49,11 @@ all_samples=$(awk -F, '{print $1}' $splan)
 n_header=0
 #echo -e "Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads, Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_ontarget,Percent_reads_ontarget,Number_reads_after_filt,Percent_reads_after_filt,Mean_depth,30X_cov,50X_cov,100X_cov" > mqc.stats
 
-for sample in $all_samples; do
+for sample_raw in $all_samples; do
   #SAMPLE NAME
-  sname=$(grep "$sample," $splan | awk -F, '{print $2}')
+  sname_raw=$(grep "$sample_raw," $splan | awk -F, '{print $2}')
+  sname=$(echo $sname_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
+  sample=$(echo $sample_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
 
   header="Saple_ID,Sample_name"
   output="${sample},${sname}"
@@ -79,9 +81,6 @@ for sample in $all_samples; do
     output+=",${nb_frag},${nb_mapped},${perc_mapped}"
   fi
 
-  #if [[ -e mapping/${sample}_bwa.log ]]; then
-  #  tail -n +3 mapping/${sample}_bwa.log > mapping/${sample}_bwa.mqc
-  #fi
 
   ## Fragment length
   if [[ -e metrics/${sample}_insert_size_metrics.txt ]]; then
@@ -109,8 +108,8 @@ for sample in $all_samples; do
   fi
 
   #On target
-  if [[ -e preprocessing/${sample}.onTarget.flagstat ]]; then
-    nb_ontarget=$(grep "primary mapped (" preprocessing/${sample}.onTarget.flagstat | awk '{print $1}')
+  if [[ -e preprocessing/${sample}.onTarget.stats ]]; then
+    nb_ontarget=$(grep "reads mapped:" preprocessing/${sample}.onTarget.stats | awk '{print $4}')
     perc_ontarget=$(echo "${nb_ontarget} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     header+=",Number_reads_ontarget,Percent_reads_ontarget"
     output+=",${nb_ontarget},${perc_ontarget}"
@@ -124,25 +123,21 @@ for sample in $all_samples; do
     output+=",${nb_filt},${perc_filt}"
   fi
 
-  ##Coverage
-  if [[ -e coverage/${sample}.mosdepth.summary.txt ]]; then
+  ## Coverage
+  if [[ -e coverage/${sample}.region.bed.gz ]]; then
+    mean_depth=zcat ${sample}.regions.bed.gz | awk '{ w=($3-$2); cov+=w*$4; tot+=w}END{print cov/tot}'
+    cov30=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $4>=30{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
+    cov50=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $4>=50{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
+    cov100=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $4>=30{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
+    header+=",Mean_depth,30X_cov,50X_cov,100X_cov"
+    output+=",${mean_depth},${cov30},${cov50},${cov100}"
+  elif [[ -e coverage/${sample}.mosdepth.global.dist.txt && -e coverage/${sample}.mosdepth.summary.txt ]]; then
     mean_depth=$(tail -n 1 coverage/${sample}.mosdepth.summary.txt | awk '{print $4}')
-    header+=",Mean_depth"
-    output+=",${mean_depth}"
-  fi
-
-  if [[ -e coverage/${sample}.mosdepth.region.dist.txt ]]; then
-    cov30=$(awk 'BEGIN{cov=0}$1=="total" && $2=="30"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.region.dist.txt)
-    cov50=$(awk 'BEGIN{cov=0}$1=="total" && $2=="50"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.region.dist.txt)
-    cov100=$(awk 'BEGIN{cov=0}$1=="total" && $2=="100"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.region.dist.txt)
-    header+=",30X_cov,50X_cov,100X_cov"
-    output+=",${cov30},${cov50},${cov100}"
-  elif [[ -e coverage/${sample}.mosdepth.global.dist.txt ]]; then
     cov30=$(awk 'BEGIN{cov=0}$1=="total" && $2=="30"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.global.dist.txt)
     cov50=$(awk 'BEGIN{cov=0}$1=="total" && $2=="50"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.global.dist.txt)
     cov100=$(awk 'BEGIN{cov=0}$1=="total" && $2=="100"{cov=$3*100}END{printf "%.*f",2,cov}' coverage/${sample}.mosdepth.global.dist.txt)
-    header+=",30X_cov,50X_cov,100X_cov"
-    output+=",${cov30},${cov50},${cov100}"
+    header+=",Mean_depth,30X_cov,50X_cov,100X_cov"
+    output+=",${mean_depth},${cov30},${cov50},${cov100}"
   fi
 
   if [ $n_header == 0 ]; then

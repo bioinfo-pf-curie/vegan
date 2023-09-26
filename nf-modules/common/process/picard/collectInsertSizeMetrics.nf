@@ -5,8 +5,8 @@
 process collectInsertSizeMetrics {
   tag "${meta.id}"
   label 'picard'
-  label 'lowCpu'
-  label 'medMem'
+  label 'medCpu'
+  label 'highMem'
 
   input:
   tuple val(meta), path(bam), path(bai)

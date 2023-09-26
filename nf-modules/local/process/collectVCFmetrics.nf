@@ -5,19 +5,16 @@ process collectVCFmetrics {
   tag "${meta.id}"
 
   input:
-  tuple val(meta), path(vcf), path(index), file(vcfFilt), path(indexFilt), file(conta)
+  tuple val(meta), path(vcf), path(index), file(vcfFilt), path(indexFilt)
 
   output:
-  path("*.mqc"), emit: mqc
+  tuple val(meta), path("*.stats"), emit: stats
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
-  def filtOpt = vcfFilt.name != [] ? "-f $vcfFilt" : ""
-  def contaOpt = conta.name != [] && !params.skipMutectContamination ? "-c $conta" : ""
+  def prefix = "${meta.id}"
   """
   getCallingMetrics.sh -i ${vcf} \
-                        ${filtOpt} \
-                        ${contaOpt} \
-                       -n ${prefix} > ${prefix}_callingMetrics.mqc
+                       -f ${vcfFilt} \
+                       -n ${prefix} > ${prefix}_callingMetrics.stats
   """
 }

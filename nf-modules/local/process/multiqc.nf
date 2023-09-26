@@ -17,7 +17,6 @@ process multiqc {
   path ('fastqc/*')
   path ('mapping/*')
   path ('mapping/*')
-  path ('mapping/*')
   path ('metrics/*')
   path ('metrics/*')
   path ('preseq/*')
@@ -43,7 +42,7 @@ process multiqc {
 
   script:
   rtitle = customRunName ? "--title \"$customRunName\"" : ''
-  rfilename = customRunName ? "--filename " + customRunName + "_rnaseq_report" : "--filename rnaseq_report"
+  rfilename = customRunName ? "--filename " + customRunName + "_multiqc_report" : "--filename multiqc_report"
   metadataOpts = params.metadata ? "--metadata ${metadata}" : ""
   designOpts= params.design ? "-d ${params.design}" : ""
   splanOpts = params.samplePlan ? "--splan ${params.samplePlan}" : ""
