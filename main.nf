@@ -400,10 +400,11 @@ workflow {
 	chFasta
       )
       if (params.step == "filtering"){
-        chAlignedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
+        chAlignedBam = loadBamFlow.out.bam
+        chFilteredBam = Channel.empty()
       }else{
         chAlignedBam = Channel.empty()
-        chFilteredBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
+        chFilteredBam = loadBamFlow.out.bam
       }
       chMappingStats = loadBamFlow.out.stats
       chMappingFlagstat = loadBamFlow.out.flagstat
@@ -424,13 +425,15 @@ workflow {
 
     bamFiltersFlow(
       chAlignedBam,
-      chTargetBed
+      chTargetBed,
+      chFasta,
+      chFastaFai
     )
     chVersions = chVersions.mix(bamFiltersFlow.out.versions)
-    chMarkdupStatsMqc = bamFiltersFlow.out.markdupFlagstats
-    chOnTargetStatsMqc = bamFiltersFlow.out.onTargetStats
-    chFilteringStatsMqc = bamFiltersFlow.out.filteringFlagstats
-    chFilteredBam = bamFiltersFlow.out.bam.mix(chFilteredBam)
+    chMarkdupStatsMqc = bamFiltersFlow.out.markdupStats.map{it->it[1]}
+    chOnTargetStatsMqc = bamFiltersFlow.out.onTargetStats.map{it->it[1]}
+    chFilteringStatsMqc = bamFiltersFlow.out.filteringStats.map{it->it[1]}
+    chFilteredBam = bamFiltersFlow.out.bam.mix(bamFiltersFlow.out.cram, chFilteredBam)
 
     //*******************************************
     //SUB-WORKFLOW : bamQcFlow
@@ -441,12 +444,13 @@ workflow {
         chTargetBed,
         chGtf,
         chFasta,
+        chFastaFai,
         chDict
       )
-      chGeneCovMqc = bamQcFlow.out.geneCovMqc
+      //chGeneCovMqc = bamQcFlow.out.geneCovMqc
       chMosdepthMqc = bamQcFlow.out.depth.map{it->it[1]}
-      chFragSizeMqc = bamQcFlow.out.fragSize
-      chWgsMetricsMqc = bamQcFlow.out.wgsMetrics
+      chFragSizeMqc = bamQcFlow.out.fragSize.map{it->it[1]}
+      chWgsMetricsMqc = bamQcFlow.out.wgsMetrics.map{it->it[1]}
       chVersions = chVersions.mix(bamQcFlow.out.versions)
     }
 
@@ -490,6 +494,9 @@ workflow {
   */
 
   chSingleBam = Channel.empty()
+  chPairBam = Channel.empty()
+  chTumorOnlyBam = Channel.empty()
+  chGermlineOnlyBam = Channel.empty()
 
   if (params.design && (params.step == "mapping" || params.step == "filtering" || params.step == "calling")){
 
@@ -549,7 +556,6 @@ workflow {
       }
     chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
   }
-
 
   /*
   ================================================================================
@@ -633,14 +639,18 @@ workflow {
   ================================================================================
   */
 
-  filterSomaticFlow(
-    chRawSomaticVcf,
-    chFasta,
-    chGnomadDb,
-    chGnomadDbIndex
-  )
-  chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-  //chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]}
+  chFilteredSomaticVcf = Channel.empty()
+
+  if('mutect2' in tools){
+    filterSomaticFlow(
+      chRawSomaticVcf,
+      chFasta,
+      chGnomadDb,
+      chGnomadDbIndex
+    )
+    chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+    chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
+  }
 
   /*
   ================================================================================
@@ -658,7 +668,7 @@ workflow {
   chTsTvMqc = vcfQcFlow.out.transition
 
   // Remove samples with two few SNVs
-  chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
+  chFilteredSomaticVcf = chFilteredSomaticVcf
     .join(vcfQcFlow.out.stats)
     .filter{ meta, vcf, stats -> checkVarNumber(meta, stats) }
     .map{ meta, vcf, stats -> [meta, vcf[0], vcf[1]]}
@@ -743,7 +753,6 @@ workflow {
     msiFlow(
       chPairBam,
       chTumorOnlyBam,
-      chNormalBam.mix(chGermlineOnlyBam).unique(),
       chMsiBaselineConfig,
       chFasta,
       chTargetBed

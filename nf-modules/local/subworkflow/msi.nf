@@ -13,7 +13,6 @@ workflow msiFlow {
   take:
   pairedBam
   tumorOnlyBam
-  baselineBam
   baselineConfig
   fasta
   bed

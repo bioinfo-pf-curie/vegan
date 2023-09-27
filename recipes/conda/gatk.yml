@@ -6,4 +6,4 @@ channels:
 dependencies:
   - bioconda::tabix=1.11=hdfd78af_0
   - bioconda::gatk4=4.1.8.0=py38h37ae868_0
-
+  - bioconda::samtools=1.15.1=h6899075_1

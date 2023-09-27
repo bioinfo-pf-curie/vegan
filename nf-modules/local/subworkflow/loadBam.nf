@@ -1,5 +1,5 @@
 /* 
- * Load BAM files
+ * Load BAM/CRAM files
  */
 
 include { samtoolsSort } from '../../common/process/samtools/samtoolsSort'
@@ -24,6 +24,7 @@ workflow loadBamFlow {
 
   take:
   bams
+  fasta
 
   main:
   chVersions = Channel.empty()
@@ -49,13 +50,14 @@ workflow loadBamFlow {
   )
   chVersions = chVersions.mix(samtoolsMerge.out.versions)
 
+  // Sort file and convert CRAM to BAM format
   samtoolsSort(
     samtoolsMerge.out.bam.mix(samtoolsMerge.out.cram)
   )
   chVersions = chVersions.mix(samtoolsSort.out.versions)
 
-  // Merge BAM/CRAM files
-  chAllAligned = samtoolsSort.out.bam.mix(samtoolsSort.out.cram, chBamMapped.single)
+  // Merge BAM files
+  chAllAligned = samtoolsSort.out.bam.mix(chBamMapped.single)
 
   samtoolsIndex(
     chAllAligned
@@ -68,7 +70,8 @@ workflow loadBamFlow {
   chVersions = chVersions.mix(samtoolsFlagstat.out.versions)
 
   samtoolsStats(
-    chAllAligned
+    chAllAligned,
+    Channel.value([])
   )
   chVersions = chVersions.mix(samtoolsStats.out.versions)
 
@@ -90,7 +93,6 @@ workflow loadBamFlow {
 
   emit:
   bam = chBamBai
-  cram = chCramCrai
   flagstat = samtoolsFlagstat.out.stats.map{it-> it[1]}
   stats = samtoolsStats.out.stats.map{it-> it[1]}
   versions = chVersions

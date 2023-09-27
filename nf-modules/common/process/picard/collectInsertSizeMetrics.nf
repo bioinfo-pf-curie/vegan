@@ -10,9 +10,10 @@ process collectInsertSizeMetrics {
 
   input:
   tuple val(meta), path(bam), path(bai)
+  path(fasta)
 
   output:
-  path("*insert_size*.{pdf,txt}"), emit: results
+  tuple val(meta), path("*insert_size*.{pdf,txt}"), emit: results
   path("versions.txt"), emit: versions
 
   when:
@@ -21,12 +22,14 @@ process collectInsertSizeMetrics {
   script:
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
+  def reference = fasta ? "R=${fasta}" : ''
   """
   echo \$(picard CollectInsertSizeMetrics --version 2>&1 | sed -e 's/Version:/picard /') > versions.txt
   picard CollectInsertSizeMetrics \\
       I=${bam} \\
       O=${prefix}_insert_size_metrics.txt \\
       H=${prefix}_insert_size_histogram.pdf \\
+      ${reference} \\
       ${args}
   """
 }

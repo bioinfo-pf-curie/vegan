@@ -10,8 +10,8 @@ process mosdepth {
 
   input:
   tuple val(meta), path(bamFiltered), path(baiFiltered)
-  path(fasta)
   path(bed)
+  path(fasta)
 
   output:
   tuple val(meta), path('*.summary.txt')          , emit: summary

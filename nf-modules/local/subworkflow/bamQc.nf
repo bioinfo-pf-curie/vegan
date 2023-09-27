@@ -1,28 +1,31 @@
 /*
- * QC Worflow for Bam files
+ * QC Worflow for BAM files
  */
 
 include { collectInsertSizeMetrics } from '../../common/process/picard/collectInsertSizeMetrics'
 include { mosdepth } from '../../common/process/mosdepth/mosdepth'
-include { prepareExonInfo } from '../../local/process/prepareExonInfo'
-include { genesCoverage } from '../../local/process/genesCoverage'
+//include { prepareExonInfo } from '../../local/process/prepareExonInfo'
+//include { genesCoverage } from '../../local/process/genesCoverage'
 include { collectWgsMetrics } from '../../common/process/gatk/collectWgsMetrics'
 
 workflow bamQcFlow {
 
   take:
-  bamFiltered
-  targetBed
+  bam
+  bed
   gtf
   fasta
+  fai
   dict
 
   main:
   chVersions = Channel.empty()
 
+  // Insert size for paired-end data
   if (!params.singleEnd){
     collectInsertSizeMetrics(
-      bamFiltered
+      bam,
+      fasta
     )
     chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
     chFragSize = collectInsertSizeMetrics.out.results
@@ -30,41 +33,40 @@ workflow bamQcFlow {
     chFragSize = Channel.empty()
   }
 
+  // Sequencing depth
   mosdepth(
-    bamFiltered,
-    targetBed,
+    bam,
+    bed,
     fasta
   )
   chVersions = chVersions.mix(mosdepth.out.versions)
-  if (params.targetBed){
-    chMosdepthLog = mosdepth.out.regionsTxt
-  }else{
-    chMosdepthLog = mosdepth.out.globalTxt
-  }
+  chMosdepthLog = params.targetBed ? mosdepth.out.regionsTxt : mosdepth.out.globalTxt
 
-  prepareExonInfo(
-    gtf,
-    targetBed
-  )
+  //prepareExonInfo(
+  //  gtf,
+  //  bed
+  //)
 
-  genesCoverage(
-    bamFiltered,
-    prepareExonInfo.out.exonBed.collect(),
-    fasta
-  )
+  //genesCoverage(
+  //  bam,
+  //  prepareExonInfo.out.exonBed.collect(),
+  //  fasta
+  //)
 
+  // WGS metrics
   collectWgsMetrics(
-    bamFiltered,
-    targetBed,
+    bam,
+    bed,
     fasta,
+    fai,
     dict
   )
   chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
   emit:
-    fragSize = chFragSize
-    depth = chMosdepthLog
-    geneCovMqc = genesCoverage.out.geneCovMqc
-    wgsMetrics = collectWgsMetrics.out.metrics
-    versions = chVersions
+  fragSize = chFragSize
+  depth = chMosdepthLog
+  //geneCovMqc = Channel.empty()//genesCoverage.out.geneCovMqc
+  wgsMetrics = collectWgsMetrics.out.metrics
+  versions = chVersions
 }

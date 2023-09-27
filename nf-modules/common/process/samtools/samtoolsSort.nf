@@ -22,7 +22,10 @@ process samtoolsSort {
   script:
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${bam.baseName}_sorted"
-  def extension = bam.getExtension()
+  def extension = args.contains("-O sam") ? "sam" :
+                  args.contains("-O bam") ? "bam" :
+                  args.contains("-O cram") ? "cram" :
+                  bam.getExtension()
   """
   echo \$(samtools --version | head -1 ) > versions.txt
   samtools sort \\

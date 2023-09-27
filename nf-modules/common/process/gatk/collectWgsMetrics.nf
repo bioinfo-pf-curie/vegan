@@ -12,10 +12,11 @@ process collectWgsMetrics {
   tuple val(meta), path(bamFiltered), path(baiFiltered)
   path(intervals)
   path(fasta)
+  path(fai)
   path(dict)
 
   output:
-  path("*metrics.txt"), emit: metrics
+  tuple val(meta), path("*metrics.txt"), emit: metrics
   path("versions.txt"), emit: versions
 
   when:
@@ -45,6 +46,9 @@ process collectWgsMetrics {
        -R ${fasta} \
        ${intervalCmd} \
        ${args2}
+
+  rm ${bamFiltered.baseName}_reorder.bam
+
   echo "GATK "\$(gatk --version 2>&1 | grep \\(GATK\\) | sed 's/^.*(GATK) v//') > versions.txt
   """
 }
