@@ -3,20 +3,17 @@
  */
 
 include { sambambaMarkdup } from '../../common/process/sambamba/sambambaMarkdup'
-include { samtoolsFilter } from '../../common/process/samtools/samtoolsFilter'
-include { samtoolsIndex as samtoolsIndexTarget } from '../../common/process/samtools/samtoolsIndex'
-include { samtoolsIndex as samtoolsIndexFilter } from '../../common/process/samtools/samtoolsIndex'
-include { samtoolsFlagstat as samtoolsFlagstatMarkdup } from '../../common/process/samtools/samtoolsFlagstat'
-include { samtoolsStatsOnTarget } from '../../common/process/samtools/samtoolsStatsOnTarget'
-include { samtoolsFlagstat as samtoolsFlagstatFilter  } from '../../common/process/samtools/samtoolsFlagstat'
-include { samtoolsIdxstats } from '../../common/process/samtools/samtoolsIdxstats'
-include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
+include { samtoolsView as samtoolsFilter } from '../../common/process/samtools/samtoolsView'
+include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
+include { samtoolsFlagstat as samtoolsStatsMarkdup } from '../../common/process/samtools/samtoolsFlagstat'
+include { samtoolsFlagstat as samtoolsStatsFilter  } from '../../common/process/samtools/samtoolsFlagstat'
+include { samtoolsStats as samtoolsStatsOnTarget } from '../../common/process/samtools/samtoolsStats'
 
 workflow bamFiltersFlow {
 
     take:
     bam // [prefix, bam, bai]
-    targetBed
+    bed
 
     main:
     chVersions = Channel.empty()
@@ -27,55 +24,41 @@ workflow bamFiltersFlow {
     )
     chVersions = chVersions.mix(sambambaMarkdup.out.versions)
 
-    samtoolsFlagstatMarkdup(
-      sambambaMarkdup.out.bam.map{it->[it[0], it[1]]}
+    // Stats on duplicates
+    samtoolsStatsMarkdup(
+      sambambaMarkdup.out.bam.map(it->[it[0], it[1]])
     )
+    chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
 
+    // Stats on target if any
     samtoolsStatsOnTarget(
-      sambambaMarkdup.out.bam.map{it->[it[0], it[1]]},
-      targetBed
+      sambambaMarkdup.out.bam.map(it->[it[0], it[1]]),
+      bed
     )
-
     chVersions = chVersions.mix(samtoolsStatsOnTarget.out.versions)
 
-    // Filter with samtools
+    // Filter reads with samtools
     samtoolsFilter(
-      sambambaMarkdup.out.bam.map{it->[it[0], it[1]]},
-      targetBed
+      sambambaMarkdup.out.bam.map(it->[it[0], it[1]])
     )
-
     chVersions = chVersions.mix(samtoolsFilter.out.versions)
 
-    // index
-    samtoolsIndexFilter(
+    // Index
+    samtoolsIndex(
       samtoolsFilter.out.bam
     )
-    chVersions = chVersions.mix(samtoolsIndexFilter.out.versions)
+    chVersions = chVersions.mix(samtoolsIndex.out.versions)
 
-    // flagstat
-    samtoolsFlagstatFilter(
+    // Stats after filtering
+    samtoolsStatsFilter(
       samtoolsFilter.out.bam
     )
-    chVersions = chVersions.mix(samtoolsFlagstatFilter.out.versions)
-
-    // IdxStats
-    samtoolsIdxstats(
-      samtoolsFilter.out.bam
-    )
-    chVersions = chVersions.mix(samtoolsIdxstats.out.versions)
-
-    // Stats
-    samtoolsStats(
-      samtoolsFilter.out.bam
-    )
-    chVersions = chVersions.mix(samtoolsStats.out.versions)
+    chVersions = chVersions.mix(samtoolsStatsFilter.out.versions)
 
     emit:
-    bam = samtoolsFilter.out.bam.join(samtoolsIndexFilter.out.bai)
-    markdupFlagstats = samtoolsFlagstatMarkdup.out.stats.map{it -> it[1]}
-    onTargetStats = params.targetBed ? samtoolsStatsOnTarget.out.stats.map{it -> it[1]} : Channel.empty()
-    filteringFlagstats  = samtoolsFlagstatFilter.out.stats.map{it -> it[1]}
-    idxstats  = samtoolsIdxstats.out.stats
-    stats  = samtoolsStats.out.stats
+    bam = samtoolsFilter.out.bam.join(samtoolsIndex.out.bai)
+    markdupStats = samtoolsStatsMarkdup.out.stats
+    onTargetStats = bed ? samtoolsStatsOnTarget.out.stats : Channel.empty()
+    filteringStats  = samtoolsStatsFilter.out.stats
     versions = chVersions
 }

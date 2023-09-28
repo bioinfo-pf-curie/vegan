@@ -9,11 +9,12 @@ process samtoolsView {
   label 'medMem'
 
   input:
-  tuple val(meta), path (sam)
+  tuple val(meta), path(input)
 
   output:
-  tuple val(meta), path ("*.bam"), emit: bam
-  path("*.log"), emit: logs
+  tuple val(meta), path ("*.sam"), optional:true, emit: sam
+  tuple val(meta), path ("*.bam"), optional:true, emit: bam
+  tuple val(meta), path ("*.cram"), optional:true, emit: cram
   path("versions.txt") , emit: versions
 
   when:
@@ -21,14 +22,19 @@ process samtoolsView {
 
   script:
   def args = task.ext.args ?: ''
-  def prefix = task.ext.prefix ?: "${sam.baseName}"
-  """
-  echo \$(samtools --version | head -1 ) > versions.txt
-  samtools view -bS\\
-    -@  ${task.cpus}  \\
-    -o ${prefix}.bam  \\
-    ${sam}
+  def prefix = task.ext.prefix ?: "${meta.id}"
+  def extension = args.contains("--output-fmt sam") ? "sam" :
+                  args.contains("--output-fmt bam") ? "bam" :
+                  args.contains("--output-fmt cram") ? "cram" :
+                  input.getExtension()
 
-  getBWAstats.sh -i ${prefix}.bam -p ${task.cpus} > ${prefix}_bwa.log
+  """
+  samtools view \\
+    ${args} \\
+    -@  ${task.cpus} \\
+    -o ${prefix}.${extension} \\
+    ${input}
+
+  echo \$(samtools --version | head -1 ) > versions.txt
   """
 }

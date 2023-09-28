@@ -13,11 +13,11 @@ process msisensorproPro {
   path(bed)
 
   output:
-  tuple val(meta), path("${meta.id}_msi.txt") , emit: outputReport
-  tuple val(meta), path("${meta.id}_dis")     , emit: outputDis
-  tuple val(meta), path("${meta.id}_all")     , emit: outputAll
-  tuple val(meta), path("${meta.id}_unstable"), emit: outputUnstable
-  path "versions.txt" , emit: versions
+  tuple val(meta), path("*msi.txt"), emit: outputReport
+  tuple val(meta), path("*dis")             , emit: outputDis
+  tuple val(meta), path("*all")             , emit: outputAll
+  tuple val(meta), path("*unstable")        , emit: outputUnstable
+  path "versions.txt", emit: versions
 
   when:
   task.ext.when == null || task.ext.when

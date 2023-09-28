@@ -5,7 +5,7 @@
 include { haplotypeCaller } from '../../common/process/gatk/haplotypeCaller'
 include { mergeVCFs } from '../../common/process/gatk/mergeVCFs'
 
-workflow haplotypeCallerSingleSampleFlow {
+workflow haplotypeCallerFlow {
 
   take:
   bam

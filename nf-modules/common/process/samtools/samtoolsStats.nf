@@ -10,6 +10,7 @@ process samtoolsStats {
 
   input:
   tuple val(meta), path (bam)
+  path(bed)
 
   output:
   tuple val(meta), path("*stats"), emit: stats
@@ -19,9 +20,11 @@ process samtoolsStats {
   task.ext.when == null || task.ext.when
 
   script:
+  def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
+  targetOpts = bed ? "-t ${bed}" : ""
   """
   echo \$(samtools --version | head -1) > versions.txt
-  samtools stats ${bam} > ${prefix}.global.stats
+  samtools stats ${args} ${targetOpts} ${bam} > ${prefix}.stats
   """
 }

@@ -180,19 +180,19 @@ custom_data:
             id: 'bwalogs'
             scale: 'Set1'
 
-    genes_cov:
-        file_format: 'tsv'
-        section_name: 'Genes Coverage'
-        description: 'Distribution calculed from exonic regions overlapping the capture regions (if any).'
-        plot_type: 'linegraph'
-        pconfig:
-            namescape: 'genescov'
-            title: 'Genes Coverage'
-            id: 'genescov'
-            scale: 'Set1'
-            ylab: 'Cumulative Genes Fraction (%)'
-            xlab: 'Mean coverage (X)'
-            xmax: 1000
+#    genes_cov:
+#        file_format: 'tsv'
+#        section_name: 'Genes Coverage'
+#        description: 'Distribution calculed from exonic regions overlapping the capture regions (if any).'
+#        plot_type: 'linegraph'
+#        pconfig:
+#            namescape: 'genescov'
+#            title: 'Genes Coverage'
+#            id: 'genescov'
+#            scale: 'Set1'
+#            ylab: 'Cumulative Genes Fraction (%)'
+#            xlab: 'Mean coverage (X)'
+#            xmax: 1000
 
 #    identito:
 #        file_format: 'csv'
@@ -223,7 +223,7 @@ custom_data:
     mutect2:
         file_format: 'csv'
         section_name: 'Mutect2'
-        description: ' Variant calling. Total number of variants detected by the Mutect2 workflow before and after filtering with the FilterMutectCalls function. The cross-contamination values have been calculated with the GATK CalculateContamination software.'
+        description: ' Variant calling. Total number of variants detected by the Mutect2 workflow before and after filtering on DP/VAF/MAF.'
         plot_type: 'table'
         pconfig:
             title: 'Mutect2 Variant Calling'
@@ -238,11 +238,11 @@ custom_data:
               scale: false
               format: '{:.0f}'
               placement: 1000
-            conta:
-              title: 'Cross-contamination (%)'
-              scale: false
-              format: '{:,.2f}'
-              placement: 2000
+#            conta:
+#              title: 'Cross-contamination (%)'
+#              scale: false
+#              format: '{:,.2f}'
+#              placement: 2000
             nb_var:
               title: 'Total Variants'
               scale: false
@@ -323,16 +323,12 @@ sp:
       fn: '*bwa.mqc'
   genes_cov:
       fn: '*covdensity.mqc'
-#  identito:
-#      fn: '*_identito.csv'
   identitoPolym:
       fn: '*_polym.tsv'
-#  identitoClustering:
-#      fn: '*_mqc.png'
   mutect2:
-      fn: '*_callingMetrics.mqc'
+      fn: '*_callingMetrics.stats'
   hccaller:
-      fn: '*_HaplotypeCaller_callingMetrics.mqc'
+      fn: '*_HaplotypeCaller_callingMetrics.stats'
   transition:
       fn: '*.table.tsv'
   tmb:

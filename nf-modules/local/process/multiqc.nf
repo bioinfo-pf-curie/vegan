@@ -23,7 +23,7 @@ process multiqc {
   path ('preprocessing/*')
   path ('preprocessing/*')
   path ('preprocessing/*')
-  path ('coverage/*')
+  //path ('coverage/*')
   path ('coverage/*')
   path ('identito/*')
   path ('vcfMetrics/*')
