@@ -3,12 +3,9 @@
  */
 
 include { haplotypeCaller } from '../../common/process/gatk/haplotypeCaller'
-include { genotypeGVCFs } from '../../common/process/gatk/genotypeGVCFs'
 include { mergeVCFs } from '../../common/process/gatk/mergeVCFs'
-include { filterVcf } from '../../local/process/filterVcf'
-include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
 
-workflow haplotypeCallerFlow {
+workflow haplotypeCallerSingleSampleFlow {
 
   take:
   bam
@@ -25,7 +22,6 @@ workflow haplotypeCallerFlow {
   // Add intervals size for groupKey function
   chIntervalsNum = intervals.collect().map{it -> [it, it.size() ]}.transpose()
 
-  //chBamIntervals = params.noIntervals ? bam.map{ meta,bam,bai -> [meta,bam,bai,[]]} : bam.combine(intervals)
   if (params.noIntervals){
     chBamIntervals = bam.map{ meta, bam, bai ->
       def newMeta = meta.clone()
@@ -40,7 +36,7 @@ workflow haplotypeCallerFlow {
         newMeta.intervals = intervals.getName()
         [newMeta, bam, bai, intervals]
       }
-    }
+  }
 
   haplotypeCaller(
     chBamIntervals,
@@ -51,21 +47,6 @@ workflow haplotypeCallerFlow {
     dict
   )
   chVersions = chVersions.mix(haplotypeCaller.out.versions)
-
-//  chHCvcf = chBamIntervals
-//    .join(haplotypeCaller.out.vcf)
-//    .join(haplotypeCaller.out.vcf.tbi)
-//    .map{meta,bam,bai,intervals,vcf,tbi -> [meta,vcf,tbi,intervals]}.view()
-
-//  genotypeGVCFs(
-//    chGVCF,
-//    dbsnp,
-//    dbsnpIndex,
-//    fasta,
-//    fastaFai,
-//    dict
-//  )
-//  chVersions = chVersions.mix(genotypeGVCFs.out.versions)
 
   chVcfMerge = haplotypeCaller.out.vcf
     .join(haplotypeCaller.out.tbi)
@@ -89,25 +70,11 @@ workflow haplotypeCallerFlow {
     .mix(chVcfMerge.single)
     .map{meta, vcf, tbi ->
       def newMeta = [ id: meta.id, status: meta.status, sex: meta.sex ]
-      [ newMeta, vcf, tbi ] 
+      [ newMeta, vcf, tbi ]
     }
-
-  /*
-   * POST-PROCESSING
-   */
-
-  //filterVcf(
-  //  chVcf
-  //)
-
-  bcftoolsNorm(
-    chVcf,
-    fasta
-  )
-  chVersions = chVersions.mix(bcftoolsNorm.out.versions)
 
   emit:
   vcf = chVcf
-  vcfFiltered = Channel.empty() //bcftoolsNorm.out.vcf
+  vcfFiltered = Channel.empty()
   versions = chVersions
 }
