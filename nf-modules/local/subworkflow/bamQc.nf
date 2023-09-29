@@ -1,5 +1,5 @@
 /*
- * QC Worflow for Bam files
+ * QC Worflow for BAM files
  */
 
 include { collectInsertSizeMetrics } from '../../common/process/picard/collectInsertSizeMetrics'
@@ -11,18 +11,21 @@ include { collectWgsMetrics } from '../../common/process/gatk/collectWgsMetrics'
 workflow bamQcFlow {
 
   take:
-  bamFiltered
-  targetBed
+  bam
+  bed
   //gtf
   fasta
+  fai
   dict
 
   main:
   chVersions = Channel.empty()
 
-//  if (!params.singleEnd){
+  // Insert size for paired-end data
+  //if (!params.singleEnd){
   collectInsertSizeMetrics(
-    bamFiltered
+    bam,
+    fasta
   )
   chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
   chFragSize = collectInsertSizeMetrics.out.results
@@ -30,34 +33,40 @@ workflow bamQcFlow {
   //  chFragSize = Channel.empty()
   //}
 
+  // Sequencing depth
   mosdepth(
-    bamFiltered,
-    targetBed
+    bam,
+    bed,
+    fasta
   )
   chVersions = chVersions.mix(mosdepth.out.versions)
+  chMosdepthLog = params.targetBed ? mosdepth.out.regionsTxt : mosdepth.out.globalTxt
 
   //prepareExonInfo(
   //  gtf,
-  //  targetBed
+  //  bed
   //)
 
   //genesCoverage(
-  //  bamFiltered,
-  //  prepareExonInfo.out.exonBed.collect()
+  //  bam,
+  //  prepareExonInfo.out.exonBed.collect(),
+  //  fasta
   //)
 
+  // WGS metrics
   collectWgsMetrics(
-    bamFiltered,
-    targetBed,
+    bam,
+    bed,
     fasta,
+    fai,
     dict
   )
   chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
   emit:
   fragSize = chFragSize
-  depth = mosdepth.out.regionsBed
-  //geneCovMqc = genesCoverage.out.geneCovMqc
+  depth = chMosdepthLog
+  //geneCovMqc = Channel.empty()//genesCoverage.out.geneCovMqc
   wgsMetrics = collectWgsMetrics.out.metrics
   versions = chVersions
 }

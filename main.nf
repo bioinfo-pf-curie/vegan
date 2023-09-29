@@ -442,6 +442,7 @@ workflow {
         chTargetBed,
         //chGtf,
         chFasta,
+        chFastaFai,
         chDict
       )
       //chGeneCovMqc = bamQcFlow.out.geneCovMqc
