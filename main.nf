@@ -447,8 +447,8 @@ workflow {
       )
       //chGeneCovMqc = bamQcFlow.out.geneCovMqc
       chMosdepthMqc = bamQcFlow.out.depth.map{it->it[1]}
-      chFragSizeMqc = bamQcFlow.out.fragSize
-      chWgsMetricsMqc = bamQcFlow.out.wgsMetrics
+      chFragSizeMqc = bamQcFlow.out.fragSize.map{it->it[1]}
+      chWgsMetricsMqc = bamQcFlow.out.wgsMetrics.map{it->it[1]}
       chVersions = chVersions.mix(bamQcFlow.out.versions)
     }
 
