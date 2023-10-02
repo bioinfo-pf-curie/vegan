@@ -30,13 +30,6 @@ workflow bamFiltersFlow {
     )
     chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
 
-    // Stats on target if any
-    samtoolsStatsOnTarget(
-      sambambaMarkdup.out.bam.map(it->[it[0], it[1]]),
-      bed
-    )
-    chVersions = chVersions.mix(samtoolsStatsOnTarget.out.versions)
-
     // Filter reads with samtools
     samtoolsFilter(
       sambambaMarkdup.out.bam.map(it->[it[0], it[1]])
@@ -55,10 +48,17 @@ workflow bamFiltersFlow {
     )
     chVersions = chVersions.mix(samtoolsStatsFilter.out.versions)
 
+    // Stats on target if any
+    samtoolsStatsOnTarget(
+      samtoolsFilter.out.bam.map(it->[it[0], it[1]]),
+      bed
+    )
+    chVersions = chVersions.mix(samtoolsStatsOnTarget.out.versions)
+
     emit:
     bam = samtoolsFilter.out.bam.join(samtoolsIndex.out.bai)
     markdupStats = samtoolsStatsMarkdup.out.stats
-    onTargetStats = bed ? samtoolsStatsOnTarget.out.stats : Channel.empty()
+    onTargetStats = samtoolsStatsOnTarget.out.stats
     filteringStats  = samtoolsStatsFilter.out.stats
     versions = chVersions
 }

@@ -116,7 +116,7 @@ for sample_raw in $all_samples; do
   fi
 
   #Filtering
-  if ls preprocessing/${sample}*filtered.flagstat 1> /dev/null; then
+  if ls preprocessing/${sample}.filtered.flagstat 1> /dev/null; then
     nb_filt=$(grep "primary mapped (" preprocessing/${sample}*filtered.flagstat | awk '{print $1}')
     perc_filt=$(echo "${nb_filt} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     header+=",Number_reads_after_filt,Percent_reads_after_filt"
