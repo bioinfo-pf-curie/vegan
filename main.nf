@@ -640,7 +640,7 @@ workflow {
   */
 
   chFilteredSomaticVcf = Channel.empty()
-
+  chRawSomaticVcf = Channel.empty()
   if('mutect2' in tools){
     filterSomaticFlow(
       chRawSomaticVcf,
@@ -649,6 +649,7 @@ workflow {
       chGnomadDbIndex
     )
     chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+    chRawSomaticVcf = filterSomaticFlow.out.raw
     chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
   }
 
@@ -658,8 +659,8 @@ workflow {
   ================================================================================
   */
   
-  chVcfMetrics = filterSomaticFlow.out.vcfRaw.map{it -> [it[0],it[1][0],it[1][1]]}
-    .join(filterSomaticFlow.out.vcfFiltered.map{it -> [it[0],it[1][0],it[1][1]]})
+  chVcfMetrics = chRawSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]}
+    .join(chFilteredSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]})
   
   vcfQcFlow(
 	chVcfMetrics
