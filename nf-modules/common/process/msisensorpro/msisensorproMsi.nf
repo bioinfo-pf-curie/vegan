@@ -15,10 +15,10 @@ process msisensorproMsi {
   path(bed)
 
   output:
-  tuple val(meta), path("${meta.id}")         , emit: outputReport
-  tuple val(meta), path("${meta.id}_dis")     , emit: outputDis
-  tuple val(meta), path("${meta.id}_germline"), emit: outputGermline
-  tuple val(meta), path("${meta.id}_somatic") , emit: outputSomatic
+  tuple val(meta), path("*msi.txt") , emit: outputReport
+  tuple val(meta), path("*dis")              , emit: outputDis
+  tuple val(meta), path("*germline")         , emit: outputGermline
+  tuple val(meta), path("*somatic")          , emit: outputSomatic
   path "versions.txt"                        , emit: versions
 
   when:

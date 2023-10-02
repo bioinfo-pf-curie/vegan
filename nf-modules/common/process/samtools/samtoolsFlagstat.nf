@@ -20,8 +20,9 @@ process samtoolsFlagstat {
 
   script:
   def prefix = task.ext.prefix ?: "${bam.baseName}"  
+  def args = task.ext.args ?: ''
   """
+  samtools flagstat ${args} ${bam} > ${prefix}.flagstat
   echo \$(samtools --version | head -1) > versions.txt
-  samtools flagstat ${bam} > ${prefix}.flagstat
   """
 }

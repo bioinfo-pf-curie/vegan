@@ -117,7 +117,8 @@ workflow mappingFlow {
   chVersions = chVersions.mix(samtoolsFlagstat.out.versions)
 
   samtoolsStats(
-    samtoolsMerge.out.bam.mix(chBamMapped.single)
+    samtoolsMerge.out.bam.mix(chBamMapped.single),
+    Channel.value([])
   )
   chVersions = chVersions.mix(samtoolsStats.out.versions)
 

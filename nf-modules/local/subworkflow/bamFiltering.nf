@@ -34,13 +34,6 @@ workflow bamFiltersFlow {
     )
     chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
 
-    // Stats on target if any
-    samtoolsStatsOnTarget(
-      markDuplicates.out.bam.mix(markDuplicates.out.cram),
-      bed
-    )
-    chVersions = chVersions.mix(samtoolsStatsOnTarget.out.versions)
-
     // Filter reads with samtools
     samtoolsFilter(
       markDuplicates.out.bam.mix(markDuplicates.out.cram)
@@ -53,17 +46,23 @@ workflow bamFiltersFlow {
     )
     chVersions = chVersions.mix(samtoolsIndex.out.versions)
 
-    // Flagstat
+    // Stats after filtering
     samtoolsStatsFilter(
-      samtoolsFilter.out.bam.mix(samtoolsFilter.out.cram)
+      samtoolsFilter.out.bam
     )
     chVersions = chVersions.mix(samtoolsStatsFilter.out.versions)
 
+    // Stats on target if any
+    samtoolsStatsOnTarget(
+      samtoolsFilter.out.bam.map(it->[it[0], it[1]]),
+      bed
+    )
+    chVersions = chVersions.mix(samtoolsStatsOnTarget.out.versions)
+
     emit:
     bam = samtoolsFilter.out.bam.join(samtoolsIndex.out.bai)
-    cram = samtoolsFilter.out.cram.join(samtoolsIndex.out.crai)
     markdupStats = samtoolsStatsMarkdup.out.stats
-    onTargetStats = bed ? samtoolsStatsOnTarget.out.stats : Channel.empty()
+    onTargetStats = samtoolsStatsOnTarget.out.stats
     filteringStats  = samtoolsStatsFilter.out.stats
     versions = chVersions
 }

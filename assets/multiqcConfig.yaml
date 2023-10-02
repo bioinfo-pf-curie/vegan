@@ -16,7 +16,7 @@ custom_data:
     gstats:
         file_format: 'csv'
         section_name: 'General Metrics'
-        description: ' General metrics of sequenced data. High (low)-quality alignments show the number of aligned reads with a mapping quality higher (lower) than 20. Reads are filtered according to the specified parameters (for SNV calling by default), keeping only those overlapping the targets file (if any). The fragment length, overlapping bases and sequencing depth are calculated after reads filtering.'
+        description: ' General metrics of sequenced data. Reads are filtered according to the specified parameters (PCR duplicates, mapping quality, singleton, multi-hits). The fraction of reads on target, fragment length, overlapping bases and sequencing depth are calculated after reads filtering.'
         plot_type: 'table'
         pconfig:
             namespace: 'gstats'
@@ -54,39 +54,6 @@ custom_data:
               suffix: '%'
               format: '{:,.1f}'
               placement: 4000
-            Number_of_hq_mapped_reads:
-              title: 'High-Quality Alignment'
-              description: 'High-Quality Mapped Reads (mapQ > 20)'
-              scale: 'RdYlGn'
-              format: '{:,.0f}'
-              hidden: true
-              placement: 5000
-            Percent_of_hq_mapped_reads:
-              title: 'High-Quality Alignment (%)'
-              description: 'High-Quality Mapped Reads (mapQ > 20)'
-              min: 0
-              max: 100
-              scale: 'RdYlGn'
-              format: '{:,.1f}'
-              suffix: '%'
-              placement: 6000
-            Number_of_lq_mapped_reads:
-              title: 'Low-Quality Alignment'
-              description: 'Low-Quality Mapped Reads (mapQ < 20)'
-              scale: 'RdYlGn'
-              format: '{:,.0f}'
-              hidden: true
-              placement: 7000
-            Percent_of_lq_mapped_reads:
-              title: 'Low-Quality Alignment (%)'
-              description: 'Low-Quality Mapped Reads (mapQ < 20)'
-              min: 0
-              max: 100
-              scale: 'RdYlGn'
-              format: '{:,.1f}'
-              suffix: '%'
-              hidden: true
-              placement: 8000
             Number_of_duplicates:
               title: 'Duplicates'
               scale: 'RdYlGn'
@@ -101,20 +68,6 @@ custom_data:
               format: '{:,.1f}'
               suffix: '%'
               placement: 10000
-            Number_reads_ontarget:
-              title: 'On target'
-              scale: 'RdYlGn'
-              format: '{:,.0f}'
-              hidden: true
-              placement: 10500
-            Percent_reads_ontarget:
-              title: 'On target (%)'
-              min: 0
-              max: 100
-              scale: 'RdYlBu'
-              format: '{:,.1f}'
-              suffix: '%'
-              placement: 10600
             Number_reads_after_filt:
               title: 'After Filtering'
               scale: 'RdYlGn'
@@ -129,6 +82,20 @@ custom_data:
               format: '{:,.1f}'
               suffix: '%'
               placement: 12000
+            Number_reads_ontarget:
+              title: 'On target'
+              scale: 'RdYlGn'
+              format: '{:,.0f}'
+              hidden: true
+              placement: 12100
+            Percent_reads_ontarget:
+              title: 'On target (%)'
+              min: 0
+              max: 100
+              scale: 'RdYlBu'
+              format: '{:,.1f}'
+              suffix: '%'
+              placement: 12200
             Percent_of_overlap:
               title: 'Overlapping Bases (%)'
               description: 'In a read pair, reference bases covered by both R1 and R2'
@@ -169,30 +136,30 @@ custom_data:
               suffix: '%'
               placement: 16000
 
-    bwa_logs:
-        file_format: 'tsv'
-        section_name: 'Bwa-mem'
-        description: 'Statistics on aligned data. Number of unique and multiple mapped reads, as well unmapped reads are reported.'
-        plot_type: 'bargraph'
-        pconfig:
-            namespace: 'bwalogs'
-            title: 'Reads Alignment'
-            id: 'bwalogs'
-            scale: 'Set1'
+#    bwa_logs:
+#        file_format: 'tsv'
+#        section_name: 'Bwa-mem'
+#        description: 'Statistics on aligned data. Number of unique and multiple mapped reads, as well unmapped reads are reported.'
+#        plot_type: 'bargraph'
+#        pconfig:
+#            namespace: 'bwalogs'
+#            title: 'Reads Alignment'
+#            id: 'bwalogs'
+#            scale: 'Set1'
 
-    genes_cov:
-        file_format: 'tsv'
-        section_name: 'Genes Coverage'
-        description: 'Distribution calculed from exonic regions overlapping the capture regions (if any).'
-        plot_type: 'linegraph'
-        pconfig:
-            namescape: 'genescov'
-            title: 'Genes Coverage'
-            id: 'genescov'
-            scale: 'Set1'
-            ylab: 'Cumulative Genes Fraction (%)'
-            xlab: 'Mean coverage (X)'
-            xmax: 1000
+#    genes_cov:
+#        file_format: 'tsv'
+#        section_name: 'Genes Coverage'
+#        description: 'Distribution calculed from exonic regions overlapping the capture regions (if any).'
+#        plot_type: 'linegraph'
+#        pconfig:
+#            namescape: 'genescov'
+#            title: 'Genes Coverage'
+#            id: 'genescov'
+#            scale: 'Set1'
+#            ylab: 'Cumulative Genes Fraction (%)'
+#            xlab: 'Mean coverage (X)'
+#            xmax: 1000
 
 #    identito:
 #        file_format: 'csv'
@@ -223,7 +190,7 @@ custom_data:
     mutect2:
         file_format: 'csv'
         section_name: 'Mutect2'
-        description: ' Variant calling. Total number of variants detected by the Mutect2 workflow before and after filtering with the FilterMutectCalls function. The cross-contamination values have been calculated with the GATK CalculateContamination software.'
+        description: ' Variant calling. Total number of variants detected by the Mutect2 workflow before and after filtering on DP/VAF/MAF.'
         plot_type: 'table'
         pconfig:
             title: 'Mutect2 Variant Calling'
@@ -238,11 +205,11 @@ custom_data:
               scale: false
               format: '{:.0f}'
               placement: 1000
-            conta:
-              title: 'Cross-contamination (%)'
-              scale: false
-              format: '{:,.2f}'
-              placement: 2000
+#            conta:
+#              title: 'Cross-contamination (%)'
+#              scale: false
+#              format: '{:,.2f}'
+#              placement: 2000
             nb_var:
               title: 'Total Variants'
               scale: false
@@ -321,18 +288,14 @@ sp:
       fn: 'mqc.stats'
   bwa_logs:
       fn: '*bwa.mqc'
-  genes_cov:
-      fn: '*covdensity.mqc'
-#  identito:
-#      fn: '*_identito.csv'
+#  genes_cov:
+#      fn: '*covdensity.mqc'
   identitoPolym:
       fn: '*_polym.tsv'
-#  identitoClustering:
-#      fn: '*_mqc.png'
   mutect2:
-      fn: '*_callingMetrics.mqc'
+      fn: '*_callingMetrics.stats'
   hccaller:
-      fn: '*_HaplotypeCaller_callingMetrics.mqc'
+      fn: '*_HaplotypeCaller_callingMetrics.stats'
   transition:
       fn: '*.table.tsv'
   tmb:

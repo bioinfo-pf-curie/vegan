@@ -13,7 +13,7 @@ workflow bamQcFlow {
   take:
   bam
   bed
-  gtf
+  //gtf
   fasta
   fai
   dict
@@ -64,8 +64,8 @@ workflow bamQcFlow {
   chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
   emit:
-  fragSize = chFragSize
-  depth = chMosdepthLog
+  fragSize = collectInsertSizeMetrics.out.results //chFragSize
+  depth = mosdepth.out.regionsBed //chMosdepthLog
   //geneCovMqc = Channel.empty()//genesCoverage.out.geneCovMqc
   wgsMetrics = collectWgsMetrics.out.metrics
   versions = chVersions

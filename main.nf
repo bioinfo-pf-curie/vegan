@@ -73,7 +73,7 @@ params.chrLength = NFTools.getGenomeAttribute(params, 'chrLength')
 params.dict = NFTools.getGenomeAttribute(params, 'dict')
 params.fasta = NFTools.getGenomeAttribute(params, 'fasta')
 params.fastaFai = NFTools.getGenomeAttribute(params, 'fastaFai')
-params.gtf = NFTools.getGenomeAttribute(params, 'gtf')
+//params.gtf = NFTools.getGenomeAttribute(params, 'gtf')
 params.dbsnp = NFTools.getGenomeAttribute(params, 'dbsnp')
 params.dbsnpIndex = NFTools.getGenomeAttribute(params, 'dbsnpIndex')
 params.acLoci = NFTools.getGenomeAttribute(params, 'acLoci')
@@ -158,7 +158,7 @@ chChrLength             = params.chrLength             ? Channel.fromPath(params
 chFasta                 = params.fasta                 ? Channel.fromPath(params.fasta, checkIfExists: true).collect()                  : Channel.empty()
 chFastaFai              = params.fastaFai              ? Channel.fromPath(params.fastaFai, checkIfExists: true).collect()               : Channel.empty()
 chDict                  = params.dict                  ? Channel.fromPath(params.dict, checkIfExists: true).collect()                   : Channel.empty()
-chGtf                   = params.gtf                   ? Channel.fromPath(params.gtf, checkIfExists: true).collect()                    : Channel.value([]) //optional
+//chGtf                   = params.gtf                   ? Channel.fromPath(params.gtf, checkIfExists: true).collect()                    : Channel.value([]) //optional
 chDbsnp                 = params.dbsnp                 ? Channel.fromPath(params.dbsnp, checkIfExists: true).collect()                  : Channel.value([]) //optional
 chDbsnpIndex            = params.dbsnpIndex            ? Channel.fromPath(params.dbsnpIndex, checkIfExists: true).collect()             : Channel.value([]) //optional
 chAcLoci                = params.acLoci                ? Channel.fromPath(params.acLoci, checkIfExists: true).collect()                 : Channel.value([]) //optional
@@ -330,7 +330,7 @@ workflow {
     chFilteringStatsMqc = Channel.empty()
     chPreseqMqc = Channel.empty()
     chIdentitoMqc = Channel.empty()
-    chGeneCovMqc = Channel.empty()
+    //chGeneCovMqc = Channel.empty()
     chMosdepthMqc = Channel.empty()
     chFragSizeMqc = Channel.empty()
     chWgsMetricsMqc = Channel.empty()
@@ -442,7 +442,7 @@ workflow {
       bamQcFlow(
         chFilteredBam,
         chTargetBed,
-        chGtf,
+        //chGtf,
         chFasta,
         chFastaFai,
         chDict
@@ -831,7 +831,7 @@ workflow {
       chMarkdupStatsMqc.collect().ifEmpty([]),
       chOnTargetStatsMqc.collect().ifEmpty([]),
       chFilteringStatsMqc.collect().ifEmpty([]),
-      chGeneCovMqc.collect().ifEmpty([]),
+      //chGeneCovMqc.collect().ifEmpty([]),
       chMosdepthMqc.collect().ifEmpty([]),
       chIdentitoMqc.collect().ifEmpty([]),
       chVcfMetricsMqc.map{it -> it[1]}.collect().ifEmpty([]),
