@@ -28,7 +28,7 @@ workflow bamQcFlow {
     fasta
   )
   chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
-  chFragSize = collectInsertSizeMetrics.out.results
+  //chFragSize = collectInsertSizeMetrics.out.results
   //}else{
   //  chFragSize = Channel.empty()
   //}
@@ -40,7 +40,7 @@ workflow bamQcFlow {
     fasta
   )
   chVersions = chVersions.mix(mosdepth.out.versions)
-  chMosdepthLog = params.targetBed ? mosdepth.out.regionsTxt : mosdepth.out.globalTxt
+  //chMosdepthLog = params.targetBed ? mosdepth.out.regionsTxt : mosdepth.out.globalTxt
 
   //prepareExonInfo(
   //  gtf,
