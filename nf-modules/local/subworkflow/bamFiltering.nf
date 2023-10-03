@@ -50,7 +50,7 @@ workflow bamFiltersFlow {
 
     // Stats on target if any
     samtoolsStatsOnTarget(
-      samtoolsFilter.out.bam.map(it->[it[0], it[1]]),
+      samtoolsFilter.out.bam,
       bed
     )
     chVersions = chVersions.mix(samtoolsStatsOnTarget.out.versions)
