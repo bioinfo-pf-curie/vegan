@@ -648,7 +648,7 @@ workflow {
       chGnomadDbIndex
     )
     chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-    chRawSomaticVcf = filterSomaticFlow.out.raw
+    chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
     chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
   }
 
