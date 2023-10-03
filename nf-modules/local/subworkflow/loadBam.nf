@@ -57,7 +57,7 @@ workflow loadBamFlow {
   chVersions = chVersions.mix(samtoolsSort.out.versions)
 
   // Merge BAM files
-  chAllAligned = samtoolsSort.out.bam.mix(chBamMapped.single)
+  chAllAligned = samtoolsSort.out.bam.mix(samtoolsSort.out.cram, chBamMapped.single)
 
   samtoolsIndex(
     chAllAligned
@@ -93,6 +93,7 @@ workflow loadBamFlow {
 
   emit:
   bam = chBamBai
+  cram = chCramCrai
   flagstat = samtoolsFlagstat.out.stats.map{it-> it[1]}
   stats = samtoolsStats.out.stats.map{it-> it[1]}
   versions = chVersions
