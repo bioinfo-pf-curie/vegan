@@ -639,7 +639,7 @@ workflow {
   */
 
   chFilteredSomaticVcf = Channel.empty()
-  chRawSomaticVcf = Channel.empty()
+
   if('mutect2' in tools){
     filterSomaticFlow(
       chRawSomaticVcf,
