@@ -48,13 +48,13 @@ workflow bamFiltersFlow {
 
     // Stats after filtering
     samtoolsStatsFilter(
-      samtoolsFilter.out.bam
+      samtoolsFilter.out.bam.mix(samtoolsFilter.out.cram)
     )
     chVersions = chVersions.mix(samtoolsStatsFilter.out.versions)
 
     // Stats on target if any
     samtoolsStatsOnTarget(
-      samtoolsFilter.out.bam.map(it->[it[0], it[1]]),
+      samtoolsFilter.out.bam.mix(samtoolsFilter.out.cram),
       bed
     )
     chVersions = chVersions.mix(samtoolsStatsOnTarget.out.versions)

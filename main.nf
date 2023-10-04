@@ -484,8 +484,10 @@ workflow {
     chVersions = chVersions.mix(bqsrFlow.out.versions)
  
     if (params.step != "annotate"){
-      chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bam
+      chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bam.mix(bqsrFlow.out.cram)
     }
+
+  chProcBam.view()
 
   /*
   ================================================================================
@@ -590,7 +592,6 @@ workflow {
 
     chMutect2MetricsMqc = Channel.empty()
     chRawSomaticVcf = Channel.empty()
-
     if('mutect2' in tools){
 
       /*
@@ -640,7 +641,6 @@ workflow {
   */
 
   chFilteredSomaticVcf = Channel.empty()
-  chRawSomaticVcf = Channel.empty()
   if('mutect2' in tools){
     filterSomaticFlow(
       chRawSomaticVcf,
@@ -649,7 +649,7 @@ workflow {
       chGnomadDbIndex
     )
     chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-    chRawSomaticVcf = filterSomaticFlow.out.raw
+    chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
     chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
   }
 

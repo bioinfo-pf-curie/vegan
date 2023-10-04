@@ -12,6 +12,9 @@ process getPileupSummaries {
   tuple val(meta), path(bam), path(bai), path(intervals)
   path(pileupSum)
   path(pileupSumIndex)
+  path(fasta)
+  path(fai)
+  path(dict)
 
   output:
   tuple val(meta), path("*_pileups.table"), emit: table
@@ -29,6 +32,8 @@ process getPileupSummaries {
     --input ${bam} \\
     --variant ${pileupSum} \\
     --output ${prefix}_pileups.table \\
+    --reference ${fasta} \\
+    --sequence-dictionary ${dict} \\
     --tmp-dir . \\
     ${intervalCmd} \\
     ${args}
