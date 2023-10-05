@@ -24,9 +24,9 @@ From: 4geniac/almalinux:8.4_conda-py39_4.10.3
     dnf clean all \
     && conda env create -f /opt/samtools.yml \
     && mkdir -p /opt/etc \
-    && echo -e "#! /bin/bash\n\n# script to activate the conda environment samtools-1.15.1" > ~/.bashrc \
+    && echo -e "#! /bin/bash\n\n# script to activate the conda environment samtools-1.18" > ~/.bashrc \
     && conda init bash \
-    && echo "conda activate samtools-1.15.1" >> ~/.bashrc \
+    && echo "conda activate samtools-1.18" >> ~/.bashrc \
     && cp ~/.bashrc /opt/etc/bashrc \
     && conda clean -a 
 
