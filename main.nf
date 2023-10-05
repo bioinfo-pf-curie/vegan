@@ -723,11 +723,11 @@ workflow {
   ================================================================================
   */
 
-  if('snpeff' in tools || params.step == 'annotate'){
-    tableReportFlow(
-      annotateSomaticFlow.out.vcf
-    )
-  }
+  //if('snpeff' in tools || params.step == 'annotate'){
+  //  tableReportFlow(
+  //    annotateSomaticFlow.out.vcf
+  //  )
+  //}
 
   /*
   ================================================================================
