@@ -22,11 +22,12 @@ workflow bamQcFlow {
   chVersions = Channel.empty()
 
   // Insert size for paired-end data
-  //collectInsertSizeMetrics(
-  //  bam,
-  //  fasta
-  //)
-  //chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
+  collectInsertSizeMetrics(
+    bam,
+    fasta,
+    fai
+  )
+  chVersions = chVersions.mix(collectInsertSizeMetrics.out.versions)
 
   // Sequencing depth
   mosdepth(
@@ -59,7 +60,7 @@ workflow bamQcFlow {
   chVersions = chVersions.mix(collectWgsMetrics.out.versions)
 
   emit:
-  fragSize = Channel.empty() //collectInsertSizeMetrics.out.results //chFragSize
+  fragSize = collectInsertSizeMetrics.out.results
   depth = mosdepth.out.regionsBed //chMosdepthLog
   //geneCovMqc = Channel.empty()//genesCoverage.out.geneCovMqc
   wgsMetrics = collectWgsMetrics.out.metrics

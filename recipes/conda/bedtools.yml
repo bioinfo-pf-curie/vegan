@@ -1,4 +1,4 @@
-name: bedtools-2.29.2
+name: bedtools
 channels:
   - conda-forge
   - bioconda

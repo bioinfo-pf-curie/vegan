@@ -1,4 +1,4 @@
-name: facets-0.6.1
+name: facets
 channels:
   - conda-forge
   - bioconda

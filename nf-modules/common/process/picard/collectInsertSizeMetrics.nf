@@ -11,6 +11,7 @@ process collectInsertSizeMetrics {
   input:
   tuple val(meta), path(bam), path(bai)
   path(fasta)
+  path(fai)
 
   output:
   tuple val(meta), path("*insert_size*.{pdf,txt}"), emit: results
