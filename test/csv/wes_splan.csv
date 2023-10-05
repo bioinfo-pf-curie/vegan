@@ -1,2 +1,2 @@
-D262E01_N,D262E01_normal,test/data/exoBench/D262E01_N_22k.R1.fastq.gz,test/data/exoBench/D262E01_N_22k.R2.fastq.gz
-D262E02_T,D262E02_tumor,test/data/exoBench/D262E02_T_22k.R1.fastq.gz,test/data/exoBench/D262E02_T_22k.R2.fastq.gz
+D262E01_N,D262E01_normal,${projectDir}/test/data/exoBench/D262E01_N_22k.R1.fastq.gz,${projectDir}/test/data/exoBench/D262E01_N_22k.R2.fastq.gz
+D262E02_T,D262E02_tumor,${projectDir}/test/data/exoBench/D262E02_T_22k.R1.fastq.gz,${projectDir}/test/data/exoBench/D262E02_T_22k.R2.fastq.gz
