@@ -36,7 +36,8 @@ workflow bamFiltersFlow {
 
     // Filter reads with samtools
     samtoolsFilter(
-      markDuplicates.out.bam.mix(markDuplicates.out.cram)
+      markDuplicates.out.bam.mix(markDuplicates.out.cram),
+      Channel.value([])
     )
     chVersions = chVersions.mix(samtoolsFilter.out.versions)
 

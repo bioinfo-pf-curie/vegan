@@ -102,7 +102,8 @@ workflow mappingFlow {
     }
 
   samtoolsMerge(
-    chBamMapped.multiple
+    chBamMapped.multiple,
+    Channel.value([])
   )
   chVersions = chVersions.mix(samtoolsMerge.out.versions)
 
@@ -135,7 +136,7 @@ workflow mappingFlow {
 
   emit:
   bam = chBamBai
-  flagstat = samtoolsFlagstat.out.stats.map{it-> it[1]}
-  stats = samtoolsStats.out.stats.map{it-> it[1]}
+  flagstat = samtoolsFlagstat.out.stats
+  stats = samtoolsStats.out.stats
   versions = chVersions
 }

@@ -311,6 +311,8 @@ include { outputDocumentation } from './nf-modules/common/process/utils/outputDo
 include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq/preseq'
+include { samtoolsView as samtoolsConvert } from './nf-modules/common/process/samtools/samtoolsView'
+include { samtoolsIndex } from './nf-modules/common/process/samtools/samtoolsIndex'
 
 /*
 =====================================
@@ -389,9 +391,21 @@ workflow {
       )
       chAlignedBam = mappingFlow.out.bam
       chFilteredBam = Channel.empty()
-      chMappingStats = mappingFlow.out.stats
-      chMappingFlagstat = mappingFlow.out.flagstat
+      chMappingStats = mappingFlow.out.stats.map{it->it[1]}
+      chMappingFlagstat = mappingFlow.out.flagstat.map{it->it[1]}
       chVersions = chVersions.mix(mappingFlow.out.versions)
+
+      // Convert BAM to CRAM
+      if (params.cram){
+        samtoolsConvert(
+          chAlignedBam.map{it->[it[0], it[1]]},
+          chFasta
+        )
+        samtoolsIndex(
+          samtoolsConvert.out.cram
+        )
+        chAlignedBam = samtoolsConvert.out.cram.join(samtoolsIndex.out.crai)
+      }
 
     }else if (params.step == "filtering" || params.step == "calling"){
 
