@@ -36,7 +36,7 @@ workflow bamQcFlow {
     fasta
   )
   chVersions = chVersions.mix(mosdepth.out.versions)
-  //chMosdepthLog = params.targetBed ? mosdepth.out.regionsTxt : mosdepth.out.globalTxt
+  chMosdepthLog = params.targetBed ? mosdepth.out.regionsTxt.mix(mosdepth.out.regionsBed) : mosdepth.out.globalTxt.mix(mosdepth.out.regionsBed)
 
   //prepareExonInfo(
   //  gtf,
@@ -61,7 +61,7 @@ workflow bamQcFlow {
 
   emit:
   fragSize = collectInsertSizeMetrics.out.results
-  depth = mosdepth.out.regionsBed //chMosdepthLog
+  depth = chMosdepthLog
   //geneCovMqc = Channel.empty()//genesCoverage.out.geneCovMqc
   wgsMetrics = collectWgsMetrics.out.metrics
   versions = chVersions
