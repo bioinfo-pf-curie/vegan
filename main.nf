@@ -389,7 +389,7 @@ workflow {
         chFasta,
         chFastaFai
       )
-      chAlignedBam = mappingFlow.out.bam.mix(mappingFlow.out.cram)
+      chAlignedBam = params.cram ? mappingFlow.out.cram : mappingFlow.out.bam
       chFilteredBam = Channel.empty()
       chMappingStats = mappingFlow.out.stats.map{it->it[1]}
       chMappingFlagstat = mappingFlow.out.flagstat.map{it->it[1]}

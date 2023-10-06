@@ -148,7 +148,7 @@ workflow mappingFlow {
     samtoolsConvertIndex(
       samtoolsConvert.out.cram
     )
-    chCramCrai = samtoolsConvert.out.cram.join(samtoolsIndex.out.crai)
+    chCramCrai = samtoolsConvert.out.cram.join(samtoolsConvertIndex.out.crai)
   }                                                                                                                                                                                                            
 
 
