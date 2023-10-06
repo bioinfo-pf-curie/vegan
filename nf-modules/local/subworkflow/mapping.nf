@@ -10,7 +10,9 @@ include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsMerge } from '../../common/process/samtools/samtoolsMerge'
 include { samtoolsFlagstat } from '../../common/process/samtools/samtoolsFlagstat'
 include { samtoolsStats } from '../../common/process/samtools/samtoolsStats'
-
+include { samtoolsView as samtoolsConvert } from '../../common/process/samtools/samtoolsView'
+include { samtoolsIndex as samtoolsConvertIndex } from '../../common/process/samtools/samtoolsIndex'
+  
 include {checkAlignmentPercent} from '../../../lib/functions'
 
 // Set the meta.chunk value in case of technical replicates
@@ -30,6 +32,8 @@ workflow mappingFlow {
   take:
   reads
   index
+  fasta
+  fai
 
   main:
   chVersions = Channel.empty()
@@ -134,8 +138,23 @@ workflow mappingFlow {
       [ newMeta, bam, bai ]
     }
 
+  // Convert BAM to CRAM
+  chCramCrai = Channel.empty()
+  if (params.cram){
+    samtoolsConvert(
+      chBamBai.map{it->[it[0], it[1]]},
+      fasta
+    )
+    samtoolsConvertIndex(
+      samtoolsConvert.out.cram
+    )
+    chCramCrai = samtoolsConvert.out.cram.join(samtoolsIndex.out.crai)
+  }                                                                                                                                                                                                            
+
+
   emit:
   bam = chBamBai
+  cram = chCramCrai
   flagstat = samtoolsFlagstat.out.stats
   stats = samtoolsStats.out.stats
   versions = chVersions
