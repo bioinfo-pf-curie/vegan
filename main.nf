@@ -299,6 +299,7 @@ include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSom
 include { annotateGermlineFlow } from './nf-modules/local/subworkflow/annotateGermline'
 include { tableReportFlow } from './nf-modules/local/subworkflow/tableReport'
 include { mantaFlow } from './nf-modules/local/subworkflow/manta'
+include { mantaTumorOnly } from './nf-modules/local/process/mantaTumorOnly'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
 include { msiFlow } from './nf-modules/local/subworkflow/msi'
 include { facetsFlow } from './nf-modules/local/subworkflow/facets'
@@ -777,6 +778,15 @@ workflow {
     chVersions = chVersions.mix(mantaFlow.out.versions)
   }
 
+  if ('manta' in tools){
+    mantaTumorOnly(
+      chTumorOnlyBam,
+      chTargetBed,
+      chFasta,
+      chFastaFai
+    )
+    chVersions = chVersions.mix(mantaFlow.out.versions)
+  }
 
   /*
   ================================================================================
