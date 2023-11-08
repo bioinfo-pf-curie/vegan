@@ -77,19 +77,19 @@ INPUTS:
     --samplePlan               PATH      Path to sample plan (csv format) raw reads (if `--reads` is not secified), or intermediate files according to the `--step` parameter
     --singleEnd                          For single-end input data
     --splitFastq                         Split fastq files in chunks
-	--fastqChunksSize          INTEGER   Reads chunks size
+    --fastqChunksSize          INTEGER   Reads chunks size
 
 ALIGNMENT:
     --aligner                  STRING [bwa-mem, bwa-mem2, dragmap]   Specify tools to use for mapping
-	--mapQual                  INTEGER                               Minimum mapping quality to consider for an alignment
-	--saveAlignedIntermediates                                       Save intermediates alignment files
-	--splitFastq                                                     Split fastq files in chunks
+    --mapQual                  INTEGER                               Minimum mapping quality to consider for an alignment
+    --saveAlignedIntermediates                                       Save intermediates alignment files
+    --splitFastq                                                     Split fastq files in chunks
 
 FILTERING:
     --keepDups                Specify to keep duplicate reads when filtering the alignment
-	--keepMultiHits           Specify to keep multi hit reads when filtering the alignment
-	--keepSingleton           Specify to keep singleton reads when filtering the alignment
-	--targetBed     PATH      Target Bed file for targeted or whole exome sequencing
+    --keepMultiHits           Specify to keep multi hit reads when filtering the alignment
+    --keepSingleton           Specify to keep singleton reads when filtering the alignment
+    --targetBed     PATH      Target Bed file for targeted or whole exome sequencing
 
 VARIANT CALLING:
     --baseQual                   INTEGER   Minimum base quality used by Facets for CNV calling
