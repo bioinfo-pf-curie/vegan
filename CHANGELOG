@@ -4,7 +4,7 @@ versions-2.2.0dev
 NEW FEATURES
 
   - By default, the `work/` folder is now deleted. Use `--disableAutoClean` to turn off this function #183
-  - Add a filtering step for somatic variants based on VAF/DP/MAF (`--filterSomaticDP`, `filterSomaticVAF`, `filterSomaticMAF`)
+  - Add a filtering step for somatic variants based on VAF/DP/MAF (`--filterSomaticDP`, `--filterSomaticVAF`, `--filterSomaticMAF`)
   - New `--skipMutectOrientationModel` option to turn off the learn orientation model step
   - Add `--facetsOpts` parameter #168
   - Filter out low mapping samples and emtpy VCFs #178

@@ -24,7 +24,7 @@
       "pattern": ".*\\*.*",
       "render": "textfield",
       "arity": 0,
-      "group": "Mandatory arguments"
+      "group": "Inputs"
     },
     {
       "name": "splitFastq",
@@ -36,7 +36,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Alignment"
+      "group": "Inputs"
     },
     {
       "name": "fastqChunksSize",
@@ -48,7 +48,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Alignment"
+      "group": "Inputs"
     },
     {
       "name": "design",

@@ -1,4 +1,4 @@
-# VEGAN  
+# VEGAN
 **V**ariant calling pipeline for whole **E**xome and whole **G**enome sequencing c**AN**cer data
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A519.10.0-brightgreen.svg)](https://www.nextflow.io/)
@@ -8,7 +8,7 @@
 
 ### Introduction
 
-This pipeline was built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis.  
+This pipeline was built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis. Most of the pipeline steps can work for tumor/normal paired samples and tumor-only samples.  
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner.
 It comes with conda / singularity containers making installation easier and results highly reproducible. The current workflow was inspired from the [nf-core Sarek pipeline](https://github.com/nf-core/sarek) with several common processes, and further modifications and new analysis steps.
@@ -17,37 +17,27 @@ It comes with conda / singularity containers making installation easier and resu
 
 1. Run quality control of raw sequencing reads ([`fastqc`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
 2. Align reads on reference genome ([`bwa-mem`](http://bio-bwa.sourceforge.net/), [`bwa-mem2`](https://github.com/bwa-mem2/bwa-mem2), [`dragmap`](https://github.com/Illumina/DRAGMAP))
-3. Report mapping metrics ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
-4. Mark duplicates ([`sambamba`](https://lomereiter.github.io/sambamba/))
-5. Library complexity analysis ([`Preseq`](http://smithlabresearch.org/software/preseq/))
-6. Filtering aligned BAM files ([`SAMTools`](http://www.htslib.org/))
-7. Calculate insert size distribution ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
-8. Calculate genes and genome coverage ([`mosdepth`](https://github.com/brentp/mosdepth))
-9. Identity monitoring and samples similarity ([`bcftools`](http://samtools.github.io/bcftools/bcftools.html) / [`R`](https://www.r-project.org/))
-10. GATK preprocessing ([`GATK`](https://gatk.broadinstitute.org/hc/en-us/articles/360035890531-Base-Quality-Score-Recalibration-BQSR-))
-11. Germline Variants calling ([`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller) / [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
+3. Filtering and quality controls of aligned reads
+  - Report mapping metrics ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
+  - Mark and remove duplicates ([`sambamba`](https://lomereiter.github.io/sambamba/))
+  - Library complexity analysis ([`Preseq`](http://smithlabresearch.org/software/preseq/))
+  - Filtering aligned BAM files ([`SAMTools`](http://www.htslib.org/))
+  - Insert size distribution ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
+  -  Identity monitoring  ([`bcftools`](http://samtools.github.io/bcftools/bcftools.html) / [`R`](https://www.r-project.org/))
+4. GATK preprocessing ([`GATK`](https://gatk.broadinstitute.org/hc/en-us/articles/360035890531-Base-Quality-Score-Recalibration-BQSR-))
+5. Germline Variants calling ([`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller) / [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
   - HaplotypeCaller
-  - GenotypeGVCFs
-  - bcftools norm
-12. Somatic Variants calling ([`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) / [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
-  - Mutect2
-  - MergeMutectStats
-  - learnReadOrientationModel
-  - GetPileupSummaries
-  - GatherPileupSummaries
-  - CalculateContamination
+6. Somatic Variants calling ([`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) / [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
+  - Mutect2 (including learnReadOrientationModel, GetPileupSummaries, CalculateContamination)
   - FilterMutectCalls
-  - bcftools norm
-13. Variants annotation ([`SnpEff`](https://pcingola.github.io/SnpEff/) / [`SnpSift`](https://github.com/pcingola/SnpSift))
-14. Copy-number analysis ([`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software), [`FACETS`](https://github.com/mskcc/facets))
-15. Structural variants analysis ([`MANTA`](https://github.com/Illumina/manta))
-16. Microsatellite instability analysis ([`MSIsensor-pro`](https://github.com/xjtu-omics/msisensor-pro))
-17. Tumor Mutational Burden ([`pyTMB`](https://github.com/bioinfo-pf-curie/TMB))
-18. Present all QC results in a final report ([`MultiQC`](http://multiqc.info/))
-
-### Flowchart
-
-![vegan flowchart](docs/images/flowchart.jpg)
+7. Technical filters for somatic variants (DP, VAF, MAF) ([`SnpSift`](https://github.com/pcingola/SnpSift), [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
+8. Variants annotation ([`SnpEff`](https://pcingola.github.io/SnpEff/) / [`SnpSift`](https://github.com/pcingola/SnpSift))
+9. Copy-number analysis ([`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software), [`FACETS`](https://github.com/mskcc/facets))
+10. Structural variants analysis ([`MANTA`](https://github.com/Illumina/manta))
+11. Biomarkers analysis
+  - Microsatellite instability analysis ([`MSIsensor-pro`](https://github.com/xjtu-omics/msisensor-pro))
+  - Tumor Mutational Burden ([`pyTMB`](https://github.com/bioinfo-pf-curie/TMB))
+12. Gather all QC results in a final report ([`MultiQC`](http://multiqc.info/))
 
 ### Quick help
 
@@ -64,7 +54,7 @@ Launching `main.nf` [lethal_torricelli] - revision: 4d570988d2
    |_| \_| |_|                \_/    |_____|  \____| /_/   \_\ |_| \_|
 
 
-                   VEGAN v2.0.0dev
+                   VEGAN v2.2.0
 ------------------------------------------------------------------------
 
     Usage:
@@ -78,50 +68,63 @@ MANDATORY ARGUMENTS:
     --genome                   STRING [hg19, hg19_base, hg38, hg38_base, mm10, mm39,...]                         Name of the reference genome.
     --genomeAnnotationPath PATH                                                                                  PATH to the reference genome folder.
     --profile                  STRING [test, multiconda, singularity, cluster, docker, conda, path, multipath]   Configuration profile to use. Can use multiple (comma separated).
-    --samplePlan               PATH                                                                              Path to sample plan (csv format) raw reads (if `--reads` is not secified), or intermediate files according to the `--step` parameter
     --step                     STRING [mapping, filtering, calling, annotate]                                    Specify starting step
-
-MAIN OPTIONS:
     --outDir                   PATH                                                                              The output directory where the results will be saved
-    --reads                    PATH                                                                              Path to input data (must be surrounded with quotes)
-    --targetBed                PATH                                                                              Target Bed file for targeted or whole exome sequencing
     --tools                    STRING [haplotypecaller, mutect2, manta, snpeff, facets, ascat, tmb, msisensor]   Specify tools to use for variant calling
+
+INPUTS:
+    --reads                    PATH      Path to input data (must be surrounded with quotes)
+    --samplePlan               PATH      Path to sample plan (csv format) raw reads (if `--reads` is not secified), or intermediate files according to the `--step` parameter
+    --singleEnd                          For single-end input data
+    --splitFastq                         Split fastq files in chunks
+	--fastqChunksSize          INTEGER   Reads chunks size
 
 ALIGNMENT:
     --aligner                  STRING [bwa-mem, bwa-mem2, dragmap]   Specify tools to use for mapping
-    --mapQual                  INTEGER                               inimum mapping quality to consider for an alignment
-    --saveAlignedIntermediates                                       Save intermediates alignment files
+	--mapQual                  INTEGER                               Minimum mapping quality to consider for an alignment
+	--saveAlignedIntermediates                                       Save intermediates alignment files
+	--splitFastq                                                     Split fastq files in chunks
 
 FILTERING:
-    --keepDups                                                       Specify to keep duplicate reads when filtering the alignment
-    --keepMultiHits                                                  Specify to keep multi hit reads when filtering the alignment
-    --keepSingleton                                                  Specify to keep singleton reads when filtering the alignment
+    --keepDups                Specify to keep duplicate reads when filtering the alignment
+	--keepMultiHits           Specify to keep multi hit reads when filtering the alignment
+	--keepSingleton           Specify to keep singleton reads when filtering the alignment
+	--targetBed     PATH      Target Bed file for targeted or whole exome sequencing
 
 VARIANT CALLING:
-    --baseQual                 INTEGER                               Minimum base quality used by Facets for CNV calling
-    --orientationBiais                                               Specify to use the orientation Biais filter for Mutect2 calls (for FFPE samples)
-    --saveVcfIntermediates                                           Save intermediate vcf files
-    --saveVcfMetrics                                                 Save complementary vcf metrics files
+    --baseQual                   INTEGER   Minimum base quality used by Facets for CNV calling
+    --saveVcfIntermediates                 Save intermediate vcf files
+    --saveVcfMetrics                       Save complementary vcf metrics files
+    --skipMutectContamination              Do not apply the Contamination step for Mutect2 calls filtering
+    --skipMutectOrientationModel           Do not apply the LearnOrientationModel step for Mutect2 calls filtering
+					
+TUMOR ONLY:
+    --msiBaselineConfig PATH   PATH to Msisensor-pro baseline config file for tumor-only mode
+    --pon               PATH   PATH to panels of normals (.vcf.gz)
+    --ponIndex          PATH   PATH to panels of normals index file (.tbi)
 
+VCF FILTERS:
+    --filterSomaticDP  INTEGER   Minimum sequencing depth to consider a somatic variant
+    --filterSomaticMAF INTEGER   Maximum variant frequency in the general population to consider a somatic variant
+    --filterSomaticVAF INTEGER   Minimum variant allele frequency to consider a somatic variant
 
 ANNOTATION:
     --annotDb STRING [cosmic, icgc, cancerhotspots, gnomad, dbnsfp]   Annotation databases to use with SnpEff and SnpSift
     --ffpe                                                            Specify to use the ffpe parameters and filters for TMB computation
 
 SKIP OPTIONS:
-    --skipBQSR                                                        Disable BQSR
-    --skipFastqc                                                      Disable Fastqc
-    --skipIdentito                                                    Disable Identito
-    --skipMultiqc                                                     Disable MultiQC
-    --skipPreseq                                                      Disable Preseq
-    --skipQC                                                          Disable all QCs
+    --skipBQSR                 Disable BQSR
+    --skipBamQC                Disable QCs on BAM files
+    --skipFastqc               Disable Fastqc
+    --skipIdentito             Disable Identito
+    --skipMultiqc              Disable MultiQC
+    --skipSaturation           Disable Preseq				
 
 OTHER OPTIONS:
-    --multiqcConfig            PATH                                   Specify a custom config file for MultiQC
-    --name                     STRING                                 Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
-    --nucleotidesPerSecond     DECIMAL                                To estimate interval size
-    --sequencingCenter         STRING                                 Name of sequencing center to be displayed in BAM file
-    --singleEnd                                                       For single-end input data
+    --disableAutoClean           Disable cleaning of work directory
+    --multiqcConfig    PATH      Specify a custom config file for MultiQC
+    --name             STRING    Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
+    --sequencingCenter STRING    Name of sequencing center to be displayed in BAM file
 
 =======================================================
 Available Profiles
