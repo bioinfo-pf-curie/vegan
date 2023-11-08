@@ -221,7 +221,7 @@ Available Profiles
         } catch (Exception e) {
             log.warn "Could not read parameters settings from JSON. $e"
             paramsWithUsage = Collections.emptyMap()
-	        }
+	}
         return paramsWithUsage
     }
 

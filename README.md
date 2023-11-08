@@ -210,13 +210,13 @@ Here are a few examples of how to set the profile option. See the [full document
 A sample plan is a **csv** file (comma separated) that list all samples with their biological IDs, **with no header**.  
 The sample plan is expected to be created as below :
 
-SAMPLE_ID | SAMPLE_NAME | PATH_TO_R1_FASTQ | [PATH_TO_R2_FASTQ]
+SAMPLE_ID,SAMPLE_NAME,PATH_TO_R1_FASTQ,[PATH_TO_R2_FASTQ]
 
 #### Design
 
 A design file is a **csv** file that list all experimental samples, their IDs, the associated germinal sample, the sex of the patient and the status (tumor / normal). The design control is expected to have **the following header** :
 
-GERMLINE_ID | TUMOR_ID | PAIR_ID | SEX
+GERMLINE_ID,TUMOR_ID,PAIR_ID,SEX
 
 Both files will be checked by the pipeline and have to be rigorously defined in order to make the pipeline work.
 Note that the control is optional if not available but is highly recommanded.
@@ -234,7 +234,7 @@ If the design file is not specified, the pipeline will run until the alignment. 
 
 #### Fundings
 
-This pipeline has been written by the Institut Curie bioinformatics platform (T. Gutman, F. Allain, , P. La Rosa, P. Hupe, N. Servant). The project was funded by the European Union’s Horizon 2020 research and innovation programme and the Canadian Institutes of Health Research under the grant agreement No 825835 in the framework of the [European-Canadian Cancer Network](https://eucancan.com/), as well as the Canceropole Ile de France (GENOPROFILE - RIC2021) project.
+This pipeline has been written by the Institut Curie bioinformatics platform (PA. Nicolas, T. Gutman, F. Jarlier, F. Allain, , P. La Rosa, P. Hupe, N. Servant). The project was funded by the European Union’s Horizon 2020 research and innovation programme and the Canadian Institutes of Health Research under the grant agreement No 825835 in the framework of the [European-Canadian Cancer Network](https://eucancan.com/), as well as the Canceropole Ile de France (GENOPROFILE - RIC2021) project.
 
 #### Contacts
 
