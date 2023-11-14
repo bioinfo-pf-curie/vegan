@@ -19,7 +19,7 @@ It comes with conda / singularity containers making installation easier and resu
 2. Align reads on reference genome ([`bwa-mem`](http://bio-bwa.sourceforge.net/), [`bwa-mem2`](https://github.com/bwa-mem2/bwa-mem2), [`dragmap`](https://github.com/Illumina/DRAGMAP))
 3. Filtering and quality controls of aligned reads
   - Report mapping metrics ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
-  - Mark and remove duplicates ([`sambamba`](https://lomereiter.github.io/sambamba/))
+  - Mark and remove duplicates ([`markdup`](https://gatk.broadinstitute.org/hc/en-us/articles/360051306171-MarkDuplicates-Picard-))
   - Library complexity analysis ([`Preseq`](http://smithlabresearch.org/software/preseq/))
   - Filtering aligned BAM files ([`SAMTools`](http://www.htslib.org/))
   - Insert size distribution ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
@@ -54,7 +54,7 @@ Launching `main.nf` [lethal_torricelli] - revision: 4d570988d2
    |_| \_| |_|                \_/    |_____|  \____| /_/   \_\ |_| \_|
 
 
-                   VEGAN v2.2.0
+                   VEGAN v2.3.0
 ------------------------------------------------------------------------
 
     Usage:
@@ -81,6 +81,7 @@ INPUTS:
 
 ALIGNMENT:
     --aligner                  STRING [bwa-mem, bwa-mem2, dragmap]   Specify tools to use for mapping
+    --cram                                                           Generate CRAM alignment files
     --mapQual                  INTEGER                               Minimum mapping quality to consider for an alignment
     --saveAlignedIntermediates                                       Save intermediates alignment files
     --splitFastq                                                     Split fastq files in chunks

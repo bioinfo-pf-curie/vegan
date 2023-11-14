@@ -6,6 +6,10 @@ NEW FEATURES
   - Support BAM/CRAM files as input #171, #200
   - Generate CRAM files with option --cram
 
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Sambamba is now replaced by GATK/markDuplicates to support CRAM files #171
+
 ***********************************
 version-2.2.0
 

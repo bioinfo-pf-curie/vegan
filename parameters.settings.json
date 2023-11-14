@@ -167,6 +167,19 @@
       "group": "Alignment"
     },
     {
+      "name": "cram",
+      "label": "cram",
+      "usage": "Generate CRAM alignment files",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Alignment"
+    },
+    {
       "name": "mapQual",
       "label": "Min map qual",
       "usage": "Minimum mapping quality to consider for an alignment",
