@@ -37,6 +37,7 @@ SIGNIFICANT USER-VISIBLE CHANGES
   - Update skip options
   - Update Facets outputs #168
   - Update mosdepth report in MultiQC #161
+  - Add `-profile testwes` and `profile testwgs` profiles
 
 BUG FIXES
 
