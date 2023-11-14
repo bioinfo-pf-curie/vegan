@@ -2,7 +2,7 @@
 
 ## Tumor-only mode
 
-## CNVs with `Facets`
+### CNVs with `Facets`
 
 `Facets` requires a normal to be run. However, the normal can be unmatch.  
 In this case, the easier would be to start from bam files, with a design file specifying 
@@ -10,7 +10,7 @@ unmatch pairs, and to run VEGAN with the option `--facetsOpts '--unmatch --hetTh
 In this mode, heterogygous SNPs are called using tumor reads only and logOR calculations are different.
 That's why it is recommanded to descrease the minimal VAF value to call a SNP heterozygous (`--hetThres`)
 
-## Running `MSIsensor-pro`
+### Running `MSIsensor-pro`
 
 To run on a single tumor, MSIsensor-pro requires to build a baseline from a panel of normal samples.
 To do so, you have to specify a list of BAM files to use as baseline, by creating a configuration file as follow:
@@ -41,4 +41,9 @@ nextflow run main.nf \
 
 Of note if you are using `singularity`, do not forget to bind the specific folder containings the BAM files you want to use as baseline, 
 otherwise `MSIsensor` will not be able to read them.
+
+## Starting VEGAN from CRAM files
+
+CRAM files will be automatically detected based on their extension. However, this format is dependant on the reference genome used for the alignment.
+Thus, the `fasta` and `fastaFai` information should be carrefully checked and modified accordingly, using either command line options or a dedicated configuration file.
 

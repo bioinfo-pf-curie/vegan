@@ -8,10 +8,11 @@ B1;5202;0c# VEGAN
 
 ### Introduction
 
-This pipeline was built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis. Most of the pipeline steps can work for tumor/normal paired samples and tumor-only samples.  
+This pipeline was built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis. Most of the pipeline steps can work for tumor/normal paired samples and tumor-only samples. `VEGAN` can run from raw `fastq` files or from intermediates results such as `BAM/CRAM` aligned files or `VCF` files.  
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner.
-It comes with conda / singularity containers making installation easier and results highly reproducible. The current workflow was inspired from the [nf-core Sarek pipeline](https://github.com/nf-core/sarek) with several common processes, and further modifications and new analysis steps.
+It comes with conda / singularity containers making installation easier and results highly reproducible. 
+The first version of `VEGAN` was inspired from the [nf-core Sarek pipeline](https://github.com/nf-core/sarek) with several common processes, additional modifications and new analysis steps.
 
 ### Pipeline summary
 
@@ -164,7 +165,7 @@ nextflow run main.nf -profile singularity,cluster \
     --singularityImagePath /bioinfo/local/curie/ngs-data-analysis/centos/tools/containers/singularity/vegan-2.0.0/images/ \
     --targetBed capture.bed \
     --tools manta,mutect2,snpeff,facets,tmb,haplotypecaller,msisensor \
-    --genome hg19 --genomeAnnotationPath /data/annotations/pipelines/ \
+    --genome hg38 --genomeAnnotationPath /data/annotations/pipelines/ \
     -resume
 ```
 
@@ -178,7 +179,7 @@ nextflow run main.nf -profile multiconda,cluster \
     --step mapping \
     --targetBed capture.bed \
     --tools manta,mutect2,snpeff,facets,tmb,haplotypecaller,msisensor,ascat \
-    --genome hg19_base \
+    --genome hg38 \
     --genomeAnnotationPath /data/annotations/pipelines/ \
     --condaCacheDir /bioinfo/local/curie/ngs-data-analysis/centos/tools/containers/conda/vegan-1.2.0/ \
 
