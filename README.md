@@ -1,4 +1,4 @@
-# VEGAN
+B1;5202;0c# VEGAN
 **V**ariant calling pipeline for whole **E**xome and whole **G**enome sequencing c**AN**cer data
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A519.10.0-brightgreen.svg)](https://www.nextflow.io/)
@@ -23,7 +23,7 @@ It comes with conda / singularity containers making installation easier and resu
   - Library complexity analysis ([`Preseq`](http://smithlabresearch.org/software/preseq/))
   - Filtering aligned BAM files ([`SAMTools`](http://www.htslib.org/))
   - Insert size distribution ([`picard`](https://gatk.broadinstitute.org/hc/en-us/articles/360037055772-CollectInsertSizeMetrics-Picard-))
-  -  Identity monitoring  ([`bcftools`](http://samtools.github.io/bcftools/bcftools.html) / [`R`](https://www.r-project.org/))
+  - Identity monitoring  ([`bcftools`](http://samtools.github.io/bcftools/bcftools.html) / [`R`](https://www.r-project.org/))
 4. GATK preprocessing ([`GATK`](https://gatk.broadinstitute.org/hc/en-us/articles/360035890531-Base-Quality-Score-Recalibration-BQSR-))
 5. Germline Variants calling ([`haplotypecaller`](https://gatk.broadinstitute.org/hc/en-us/articles/360037225632-HaplotypeCaller) / [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
   - HaplotypeCaller

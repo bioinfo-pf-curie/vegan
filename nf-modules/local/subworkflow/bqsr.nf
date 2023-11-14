@@ -85,15 +85,18 @@ workflow bqsrFlow {
   chVersions = chVersions.mix(applyBQSR.out.versions)
 
   // groupKey to speed up parallel processing
-  chBQSRbam = applyBQSR.out.bam.map{ meta, bam ->
-    [ groupKey(meta, meta.numIntervals), bam ]
-    }.groupTuple()
+  chBQSRbam = applyBQSR.out.bam.mix(applyBQSR.out.cram)
+    .map{ meta, bam ->
+      [ groupKey(meta, meta.numIntervals), bam ]
+      }.groupTuple()
 
   samtoolsMerge(
-    chBQSRbam
+    chBQSRbam,
+    Channel.value([])
   )
   chVersions = chVersions.mix(samtoolsMerge.out.versions)
-  chBamBQSR = params.noIntervals || params.targetBed ? applyBQSR.out.bam : samtoolsMerge.out.bam
+  chBamBQSR = params.noIntervals || params.targetBed ? applyBQSR.out.bam.mix(applyBQSR.out.cram) : 
+    samtoolsMerge.out.bam.mix(samtoolsMerge.out.cram)
 
   samtoolsIndex(
     chBamBQSR
@@ -104,12 +107,22 @@ workflow bqsrFlow {
   chBamBai = chBamBQSR
     .join(samtoolsIndex.out.bai)
     .map{meta, bam, bai ->
-      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
+      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd, format: 'bam' ]
       [ newMeta, bam, bai ]
     }
 
+  chCramCrai = chBamBQSR
+    .join(samtoolsIndex.out.crai)
+    .map{meta, cram, crai ->
+      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd, format: 'cram' ]
+      [ newMeta, cram, crai ]
+    }
+  
+  chCramCrai.view()
+
   emit:
-  table = chRecalAllTable
   bam = chBamBai
+  cram = chCramCrai
+  table = chRecalAllTable
   versions = chVersions
 }

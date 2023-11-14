@@ -238,10 +238,10 @@ if (params.step == "mapping"){
   chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
 }else if (params.step == "filtering"){
   chRawReads = Channel.empty()
-  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam'],  params).map{it ->[it[0], it[1][0]]}
+  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam|.cram'],  params).map{it ->[it[0], it[1][0]]}
 }else if (params.step == "calling"){
   chRawReads = Channel.empty()
-  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam'],  params).map{it ->[it[0], it[1][0]]}
+  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam|.cram'],  params).map{it ->[it[0], it[1][0]]}
 }else if (params.step == "annotate"){
   chRawReads = Channel.empty()
   chAlignedBam = Channel.empty()
@@ -386,26 +386,28 @@ workflow {
     
       mappingFlow(
         chRawReads,
-        chAlignerIndex
+        chAlignerIndex,
+        chFasta,
+        chFastaFai
       )
-      chAlignedBam = mappingFlow.out.bam
+      chAlignedBam = params.cram ? mappingFlow.out.cram : mappingFlow.out.bam
       chFilteredBam = Channel.empty()
-      chMappingStats = mappingFlow.out.stats
-      chMappingFlagstat = mappingFlow.out.flagstat
+      chMappingStats = mappingFlow.out.stats.map{it->it[1]}
+      chMappingFlagstat = mappingFlow.out.flagstat.map{it->it[1]}
       chVersions = chVersions.mix(mappingFlow.out.versions)
 
     }else if (params.step == "filtering" || params.step == "calling"){
 
       loadBamFlow(
-        chInputBam
+        chInputBam,
+	chFasta
       )
-
-      if (params.step == "calling"){
-        chAlignedBam = Channel.empty()
-        chFilteredBam = loadBamFlow.out.bam
-      }else{
-        chAlignedBam = loadBamFlow.out.bam
+      if (params.step == "filtering"){
+        chAlignedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
         chFilteredBam = Channel.empty()
+      }else{
+        chAlignedBam = Channel.empty()
+        chFilteredBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
       }
       chMappingStats = loadBamFlow.out.stats
       chMappingFlagstat = loadBamFlow.out.flagstat
@@ -426,13 +428,15 @@ workflow {
 
     bamFiltersFlow(
       chAlignedBam,
-      chTargetBed
+      chTargetBed,
+      chFasta,
+      chFastaFai
     )
     chVersions = chVersions.mix(bamFiltersFlow.out.versions)
     chMarkdupStatsMqc = bamFiltersFlow.out.markdupStats.map{it->it[1]}
     chOnTargetStatsMqc = bamFiltersFlow.out.onTargetStats.map{it->it[1]}
     chFilteringStatsMqc = bamFiltersFlow.out.filteringStats.map{it->it[1]}
-    chFilteredBam = bamFiltersFlow.out.bam.mix(chFilteredBam)
+    chFilteredBam = bamFiltersFlow.out.bam.mix(bamFiltersFlow.out.cram, chFilteredBam)
 
     //*******************************************
     //SUB-WORKFLOW : bamQcFlow
@@ -483,8 +487,10 @@ workflow {
     chVersions = chVersions.mix(bqsrFlow.out.versions)
  
     if (params.step != "annotate"){
-      chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bam
+      chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bam.mix(bqsrFlow.out.cram)
     }
+
+  chProcBam.view()
 
   /*
   ================================================================================
@@ -556,7 +562,6 @@ workflow {
     chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
   }
 
-
   /*
   ================================================================================
    SNV VARIANT CALLING
@@ -590,7 +595,6 @@ workflow {
 
     chMutect2MetricsMqc = Channel.empty()
     chRawSomaticVcf = Channel.empty()
-
     if('mutect2' in tools){
 
       /*

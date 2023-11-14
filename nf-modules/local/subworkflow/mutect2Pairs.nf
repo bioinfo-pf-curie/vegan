@@ -126,7 +126,10 @@ workflow mutect2PairsFlow {
   getPileupSummariesTumor(
     chBamTumorIntervals,
     pileupSum,
-    pileupSumIndex
+    pileupSumIndex,
+    fasta,
+    fai,
+    dict
   )
   chVersions = chVersions.mix(getPileupSummariesTumor.out.versions)
 
@@ -149,7 +152,10 @@ workflow mutect2PairsFlow {
   getPileupSummariesNormal(
     chBamNormalIntervals,
     pileupSum,
-    pileupSumIndex
+    pileupSumIndex,
+    fasta,
+    fai,
+    dict
   )
   chVersions = chVersions.mix(getPileupSummariesNormal.out.versions)
 

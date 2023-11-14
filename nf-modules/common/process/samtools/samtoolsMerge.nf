@@ -1,5 +1,5 @@
 /*
- * samtools merge - Merge BAM files
+ * samtools merge - Merge BAM/CRAM files
  */
 
 process samtoolsMerge{
@@ -10,9 +10,11 @@ process samtoolsMerge{
 
   input:
   tuple val(meta), path(bams)
+  path(fasta)
 
   output:
-  tuple val(meta), path("*_merged.bam"), emit: bam
+  tuple val(meta), path("*.bam"), optional: true,  emit: bam
+  tuple val(meta), path("*.cram"), optional: true, emit: cram
   path("versions.txt"), emit: versions
 
   when:
@@ -20,9 +22,17 @@ process samtoolsMerge{
 
   script:
   def args = task.ext.args ?: ''
-  inputs = bams.collect{"${it}"}.join(' ')
+  def prefix = task.ext.prefix ?: "${meta.id}_merged"
+  def inputs = bams.collect{"${it}"}.join(' ')
+  def reference = fasta ? "--reference ${fasta}" : ""
+  def extension = bams instanceof List ? bams[0].getExtension() : bams.getExtension()
   """
-  samtools merge --threads ${task.cpus} ${args} ${meta.id}_merged.bam ${inputs}
+  samtools merge \
+    --threads ${task.cpus} \
+    ${args} \
+    ${reference} \
+    ${prefix}.${extension} \
+    ${inputs}
   echo \$(samtools --version | head -1) > versions.txt
   """
 }

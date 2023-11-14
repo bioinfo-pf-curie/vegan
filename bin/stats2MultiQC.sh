@@ -49,11 +49,11 @@ all_samples=$(awk -F, '{print $1}' $splan)
 n_header=0
 #echo -e "Number_of_reads,Fragment_length,Number_of_aligned_reads,Percent_of_aligned_reads, Percent_of_overlap,Number_of_duplicates,Percent_of_duplicates,Number_reads_ontarget,Percent_reads_ontarget,Number_reads_after_filt,Percent_reads_after_filt,Mean_depth,30X_cov,50X_cov,100X_cov" > mqc.stats
 
-for sample_raw in $all_samples; do
+for sample in $all_samples; do
   #SAMPLE NAME
-  sname_raw=$(grep "$sample_raw," $splan | awk -F, '{print $2}')
-  sname=$(echo $sname_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
-  sample=$(echo $sample_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
+  sname=$(grep "$sample," $splan | awk -F, 'NR==1{print $2}')
+  #sname=$(echo $sname_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
+  #sample=$(echo $sample_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
 
   header="Saple_ID,Sample_name"
   output="${sample},${sname}"

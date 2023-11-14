@@ -1,4 +1,4 @@
-name: manta-1.6.0
+name: manta
 channels:
   - conda-forge
   - bioconda

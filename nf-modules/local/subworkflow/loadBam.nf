@@ -1,5 +1,5 @@
 /* 
- * Load BAM files
+ * Load BAM/CRAM files
  */
 
 include { samtoolsSort } from '../../common/process/samtools/samtoolsSort'
@@ -24,6 +24,7 @@ workflow loadBamFlow {
 
   take:
   bams
+  fasta
 
   main:
   chVersions = Channel.empty()
@@ -32,7 +33,7 @@ workflow loadBamFlow {
     .flatMap { it -> setMetaChunk(it) }
     .collate(2)
 
-  // Merge BAM file with the same prefix and use a groupKey to speed up the process
+  // Merge BAM/CRAM files with the same prefix and use a groupKey to speed up the process
   chBamMapped = chBams
     .map{meta, bam ->
       def newMeta = [ id: meta.id, name: meta.name, singleEnd:meta.singleEnd, part:meta.part ] 
@@ -44,41 +45,55 @@ workflow loadBamFlow {
     }
 
   samtoolsMerge(
-    chBamMapped.multiple
+    chBamMapped.multiple,
+    fasta
   )
   chVersions = chVersions.mix(samtoolsMerge.out.versions)
 
+  // Sort file and convert CRAM to BAM format
   samtoolsSort(
-    samtoolsMerge.out.bam
+    samtoolsMerge.out.bam.mix(samtoolsMerge.out.cram)
   )
   chVersions = chVersions.mix(samtoolsSort.out.versions)
 
+  // Merge BAM files
+  chAllAligned = samtoolsSort.out.bam.mix(samtoolsSort.out.cram, chBamMapped.single)
+
   samtoolsIndex(
-    samtoolsSort.out.bam.mix(chBamMapped.single)
+    chAllAligned
   )
   chVersions = chVersions.mix(samtoolsIndex.out.versions)
 
   samtoolsFlagstat(
-    samtoolsSort.out.bam.mix(chBamMapped.single)
+    chAllAligned
   )
   chVersions = chVersions.mix(samtoolsFlagstat.out.versions)
 
   samtoolsStats(
-    samtoolsSort.out.bam.mix(chBamMapped.single)
+    chAllAligned,
+    Channel.value([])
   )
   chVersions = chVersions.mix(samtoolsStats.out.versions)
 
   // Remove groupKey object
-  chBamBai = samtoolsSort.out.bam
+  chBamBai = chAllAligned
     .mix(chBamMapped.single)
     .join(samtoolsIndex.out.bai)
     .map{meta, bam, bai -> 
-      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd ]
+      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd, format: 'bam' ]
       [ newMeta, bam, bai ] 
+    }
+
+  chCramCrai = chAllAligned
+    .join(samtoolsIndex.out.crai)
+    .map{meta, cram, crai ->
+      def newMeta = [ id: meta.id, name: meta.name, singleEnd: meta.singleEnd, format: 'cram' ]
+      [ newMeta, cram, crai ]
     }
 
   emit:
   bam = chBamBai
+  cram = chCramCrai
   flagstat = samtoolsFlagstat.out.stats.map{it-> it[1]}
   stats = samtoolsStats.out.stats.map{it-> it[1]}
   versions = chVersions

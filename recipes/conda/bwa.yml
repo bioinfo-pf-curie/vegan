@@ -1,4 +1,4 @@
-name: bwa-0.7.17
+name: bwa
 channels:
   - conda-forge
   - bioconda

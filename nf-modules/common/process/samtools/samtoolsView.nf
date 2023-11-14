@@ -10,6 +10,7 @@ process samtoolsView {
 
   input:
   tuple val(meta), path(input)
+  path(fasta)
 
   output:
   tuple val(meta), path ("*.sam"), optional:true, emit: sam
@@ -27,12 +28,13 @@ process samtoolsView {
                   args.contains("--output-fmt bam") ? "bam" :
                   args.contains("--output-fmt cram") ? "cram" :
                   input.getExtension()
-
+  def reference = fasta ? "--reference ${fasta}" : ""
   """
   samtools view \\
     ${args} \\
     -@  ${task.cpus} \\
     -o ${prefix}.${extension} \\
+    ${reference} \\
     ${input}
 
   echo \$(samtools --version | head -1 ) > versions.txt

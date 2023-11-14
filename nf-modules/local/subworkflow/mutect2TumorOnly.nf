@@ -116,7 +116,10 @@ workflow mutect2TumorOnlyFlow {
   getPileupSummaries(
     chBamIntervals,
     pileupSum,
-    pileupSumIndex
+    pileupSumIndex,
+    fasta,
+    fai,
+    dict
   )
   chVersions = chVersions.mix(getPileupSummaries.out.versions)
 

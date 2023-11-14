@@ -19,7 +19,7 @@ process samtoolsFlagstat {
   task.ext.when == null || task.ext.when
 
   script:
-  def prefix = task.ext.prefix ?: "${bam.baseName}"  
+  def prefix = task.ext.prefix ?: "${meta.id}"  
   def args = task.ext.args ?: ''
   """
   samtools flagstat ${args} ${bam} > ${prefix}.flagstat

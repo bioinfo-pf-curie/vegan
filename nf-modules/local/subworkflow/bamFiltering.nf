@@ -1,8 +1,8 @@
 /*
- * Filter BAMs file
+ * Filter BAMs/CRAMs files
  */
 
-include { sambambaMarkdup } from '../../common/process/sambamba/sambambaMarkdup'
+include { markDuplicates } from '../../common/process/gatk/markDuplicates'
 include { samtoolsView as samtoolsFilter } from '../../common/process/samtools/samtoolsView'
 include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsFlagstat as samtoolsStatsMarkdup } from '../../common/process/samtools/samtoolsFlagstat'
@@ -14,49 +14,55 @@ workflow bamFiltersFlow {
     take:
     bam // [prefix, bam, bai]
     bed
+    fasta
+    fai
 
     main:
     chVersions = Channel.empty()
 
-    // Remove duplicates
-    sambambaMarkdup(
-      bam
+    // Mark duplicates
+    markDuplicates(
+      bam,
+      fasta,
+      fai
     )
-    chVersions = chVersions.mix(sambambaMarkdup.out.versions)
+    chVersions = chVersions.mix(markDuplicates.out.versions)
 
     // Stats on duplicates
     samtoolsStatsMarkdup(
-      sambambaMarkdup.out.bam.map(it->[it[0], it[1]])
+      markDuplicates.out.bam.mix(markDuplicates.out.cram)
     )
     chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
 
     // Filter reads with samtools
     samtoolsFilter(
-      sambambaMarkdup.out.bam.map(it->[it[0], it[1]])
+      markDuplicates.out.bam.mix(markDuplicates.out.cram),
+      Channel.value([])
     )
     chVersions = chVersions.mix(samtoolsFilter.out.versions)
 
     // Index
     samtoolsIndex(
-      samtoolsFilter.out.bam
+      samtoolsFilter.out.bam.mix(samtoolsFilter.out.cram)
     )
     chVersions = chVersions.mix(samtoolsIndex.out.versions)
 
     // Stats after filtering
     samtoolsStatsFilter(
-      samtoolsFilter.out.bam
+      samtoolsFilter.out.bam.mix(samtoolsFilter.out.cram)
     )
     chVersions = chVersions.mix(samtoolsStatsFilter.out.versions)
 
     // Stats on target if any
     samtoolsStatsOnTarget(
-      samtoolsFilter.out.bam,
+      samtoolsFilter.out.bam.mix(samtoolsFilter.out.cram),
       bed
     )
     chVersions = chVersions.mix(samtoolsStatsOnTarget.out.versions)
 
     emit:
     bam = samtoolsFilter.out.bam.join(samtoolsIndex.out.bai)
+    cram = samtoolsFilter.out.cram.join(samtoolsIndex.out.crai)
     markdupStats = samtoolsStatsMarkdup.out.stats
     onTargetStats = samtoolsStatsOnTarget.out.stats
     filteringStats  = samtoolsStatsFilter.out.stats
