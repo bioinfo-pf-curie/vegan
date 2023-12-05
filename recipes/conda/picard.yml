@@ -1,4 +1,4 @@
-name: picard-2.27.4
+name: picard
 channels:
   - conda-forge
   - bioconda

@@ -1,4 +1,4 @@
-name: bcftools-1.15.1
+name: bcftools
 channels:
   - conda-forge
   - bioconda

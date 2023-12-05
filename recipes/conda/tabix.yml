@@ -1,4 +1,4 @@
-name: tabix-1.11
+name: tabix
 channels:
   - conda-forge
   - bioconda

@@ -1,4 +1,4 @@
-name: multiqc-1.9
+name: multiqc
 channels:
   - defaults
   - conda-forge
