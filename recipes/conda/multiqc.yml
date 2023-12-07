@@ -7,4 +7,7 @@ dependencies:
   - conda-forge::lzstring=1.0.4=py_1001
   - conda-forge::matplotlib-base=3.6.0=py310h8d5ebf3_0
   - conda-forge::spectra=0.0.11=py_1
+  - conda-forge::typing-extensions
   - bioconda::multiqc=1.13=pyhdfd78af_0
+ 
+
