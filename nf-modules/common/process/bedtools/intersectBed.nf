@@ -17,8 +17,9 @@ process intersectBed {
 
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
+  def args = task.ext.args ?: ''
   """
   echo \$(bedtools --version 2>&1) &> versions.txt
-  intersectBed -abam ${bam} -b ${bed} > ${prefix}.onTarget.bam
+  intersectBed -abam ${bam} -b ${bed} ${args} > ${prefix}.bam
   """
 }

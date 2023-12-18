@@ -2,8 +2,8 @@
  * Mapping Worflow
  */
 
-include { bwamem } from '../../common/process/bwa/bwamem'
-include { bwamem2 } from '../../common/process/bwamem2/bwamem2'
+include { bwaMem } from '../../common/process/bwa/bwaMem'
+include { bwaMem2 } from '../../common/process/bwaMem2/bwaMem2'
 include { dragmap } from '../../common/process/dragmap/dragmap'
 include { samtoolsSort } from '../../common/process/samtools/samtoolsSort'
 include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
@@ -63,23 +63,23 @@ workflow mappingFlow {
 
   if (params.aligner == 'bwa-mem'){
 
-    bwamem(
+    bwaMem(
       chReads,
       index.collect(),
       Channel.of(true).collect()
     )
-    chVersions = chVersions.mix(bwamem.out.versions)
-    chBams = bwamem.out.bam
+    chVersions = chVersions.mix(bwaMem.out.versions)
+    chBams = bwaMem.out.bam
 
   }else if (params.aligner == 'bwa-mem2'){
 
-    bwamem2(
+    bwaMem2(
       chReads,
       index.collect(),
       Channel.of(true).collect()
     )
-    chVersions = chVersions.mix(bwamem2.out.versions)
-    chBams = bwamem2.out.bam
+    chVersions = chVersions.mix(bwaMem2.out.versions)
+    chBams = bwaMem2.out.bam
 
   }else if (params.aligner == 'dragmap'){
 

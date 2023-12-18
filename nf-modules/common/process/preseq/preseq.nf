@@ -27,6 +27,6 @@ process preseq {
   def args = task.ext.args ?: ''
   """
   echo \$(preseq 2>&1 | awk '\$0~"Version"{print "Preseq",\$2}') > versions.txt
-  preseq lc_extrap -D -seg_len 100000000 -seed 1 -v -B ${bam} ${peOpts} ${defectMode} -o ${prefix}_extrap_ccurve.txt ${args}
+  preseq lc_extrap -seed 1 -v -B ${bam} ${peOpts} ${defectMode} -o ${prefix}_extrap_ccurve.txt ${args}
   """
 }
