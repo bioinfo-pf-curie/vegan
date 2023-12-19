@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Nicolas
+    given-names: Paul-Antoine
+  - family-names: Gutman
+    given-names: Tom
+  - family-names: Jarlier
+    given-names: Frederic
+  - family-names: Allain
+    given-names: Fabrice
+  - family-names: La Rosa
+    given-names: Philippe
+  - family-names: Hupe
+    given-names: Philippe
+  - family-names: Servant
+    given-names: Nicolas
+title: "VEGAN - Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data"
+version: 2.3.0
+date-released: 2024-01-01
