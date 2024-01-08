@@ -30,7 +30,6 @@ process snpSiftExtractFields {
     ${vcf[0]} \
     ${args2} > ${prefix}.tsv
 
-  echo "snpSift "\$(SnpSift 2>&1 | awk '\$0~"SnpSift version"{print \$3}') > versions.txt
-  echo "tot"
+  echo "SnpSift "\$(SnpSift 2>&1 | awk '\$0~"SnpSift version"{print \$3}') > versions.txt
   """
 }

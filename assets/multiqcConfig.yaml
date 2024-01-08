@@ -323,9 +323,9 @@ table_cond_formatting_rules:
           - gt: 20
     Percent_of_duplicates:
         pass:
-          - lt: 24.9
+          - lt: 25
         warn:
-          - gt: 25
+          - gt: 24.9
         fail:
           - gt: 50
     Percent_reads_ontarget:
@@ -351,7 +351,7 @@ table_cond_formatting_rules:
           - lt: 30
     Fragment_length:
         pass:
-          - gt: 150
+          - gt: 149
         warn:
           - lt: 150
 
@@ -413,18 +413,18 @@ remove_sections:
   - fastqc_per_sequence_quality_scores
   - fastqc_overrepresented_sequences
   - fastqc_status_checks
-  - mosdepth-coverage-cov
+  - mosdepth-coverage-dist-cov
   - picard-wgsmetrics-cov
   - picard-wgsmetrics-bases
   - samtools-stats
   - samtools-flagstat
 
 fn_clean_exts:
-  - '_bwa.log'
-  - '_bwa.mqc'
   - '_covdensity.mqc'
-  - '.filtered.SNV.txt'
-  - '.filtered.SNV.bam'
+  - '_callls_norm_GnomAD_filtered_snpEff_stats'
+  - '_snpEff_stats'
+  - '.mosdepth.region.dist.txt'
+  - '_extrap_ccurve.txt'
   - '.global'
 
 fn_ignore_files:

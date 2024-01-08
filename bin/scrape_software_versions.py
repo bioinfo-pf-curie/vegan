@@ -12,11 +12,12 @@ with open(args.input) as f:
         if line.strip():
             (key, val) = line.strip().split()
             if key in versions.keys():
-                if val != versions[str(key)]:
-                    versions[str(key)] = versions[str(key)] + " - " + val
+                val_list = versions[str(key)]
+                if val not in val_list:
+                    val_list.append(val)
+                    versions[str(key)] = val_list
             else:
-                versions[str(key)] = val
-
+                versions[str(key)] = [val]
 # Dump to YAML
 print ('''
 id: 'software_versions'
@@ -28,5 +29,5 @@ data: |
     <dl class="dl-horizontal">
 ''')
 for k,v in versions.items():
-    print("        <dt>{}</dt><dd><samp>{}</samp></dd>".format(k,v))
+    print("        <dt>{}</dt><dd><samp>{}</samp></dd>".format(k,','.join(v)))
 print ("    </dl>")

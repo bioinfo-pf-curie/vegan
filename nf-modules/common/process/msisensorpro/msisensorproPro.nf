@@ -6,6 +6,7 @@ process msisensorproPro {
   label 'minCpu'
   label 'lowMem'
   label 'msisensorpro'
+  tag "$meta.id"
 
   input:
   tuple val(meta), path(bam), path(bai)
