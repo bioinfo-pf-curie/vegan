@@ -34,7 +34,7 @@ process snpSiftAnnotate {
   bgzip < ${prefix}.vcf > ${prefix}.vcf.gz
   tabix ${prefix}.vcf.gz
 
-  echo "snpSift "\$(SnpSift 2>&1 | awk '\$0~"SnpSift version"{print \$3}') > versions.txt
+  echo "SnpSift "\$(SnpSift 2>&1 | awk '\$0~"SnpSift version"{print \$3}') > versions.txt
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt
   """
 }
