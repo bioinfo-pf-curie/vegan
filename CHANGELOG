@@ -5,10 +5,14 @@ NEW FEATURES
 
   - Support BAM/CRAM files as input #171, #200
   - Generate CRAM files with option --cram
+  - Add `--step markduplicates` to start the pipeline just after the mapping #207
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
   - Sambamba is now replaced by GATK/markDuplicates to support CRAM files #171
+  - Markduplicates has been removed from the filtering step #207
+  - Tumor only samples without `--msiBaselineConfig` are now ignored (warning) #204
+  - Minor fixes in MultiQC #203
 
 ***********************************
 version-2.2.0

@@ -21,7 +21,7 @@ process getSoftwareVersions{
   """
   echo "Pipeline $workflow.manifest.version" > all_versions.txt
   echo "Nextflow $workflow.nextflow.version" >> all_versions.txt
-  cat ${versions} >> all_versions.txt
+  sort ${versions} >> all_versions.txt
   scrape_software_versions.py -i all_versions.txt > software_versions_mqc.yaml
   """
 }

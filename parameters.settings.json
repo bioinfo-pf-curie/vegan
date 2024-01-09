@@ -69,7 +69,7 @@
       "usage": "Specify starting step",
       "type": "string",
       "nargs": 1,
-      "choices": ["mapping", "filtering", "calling", "annotate"],
+      "choices": ["mapping", "markduplicates", "filtering", "calling", "annotate"],
       "default_value": "mapping",
       "pattern": ".*",
       "render": "textfield",

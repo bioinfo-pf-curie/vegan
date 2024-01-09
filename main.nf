@@ -312,6 +312,9 @@ include { outputDocumentation } from './nf-modules/common/process/utils/outputDo
 include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq/preseq'
+include { markDuplicates } from './nf-modules/common/process/gatk/markDuplicates'
+include { samtoolsFlagstat as samtoolsStatsMarkdup } from './nf-modules/common/process/samtools/samtoolsFlagstat'
+include { samtoolsIndex as samtoolsIndexMarkdup } from './nf-modules/common/process/samtools/samtoolsIndex'
 
 /*
 =====================================
@@ -331,7 +334,6 @@ workflow {
     chFilteringStatsMqc = Channel.empty()
     chPreseqMqc = Channel.empty()
     chIdentitoMqc = Channel.empty()
-    //chGeneCovMqc = Channel.empty()
     chMosdepthMqc = Channel.empty()
     chFragSizeMqc = Channel.empty()
     chWgsMetricsMqc = Channel.empty()
@@ -392,21 +394,28 @@ workflow {
       )
       chAlignedBam = params.cram ? mappingFlow.out.cram : mappingFlow.out.bam
       chFilteredBam = Channel.empty()
+      chMarkedBam = Channel.empty()
       chMappingStats = mappingFlow.out.stats.map{it->it[1]}
       chMappingFlagstat = mappingFlow.out.flagstat.map{it->it[1]}
       chVersions = chVersions.mix(mappingFlow.out.versions)
 
-    }else if (params.step == "filtering" || params.step == "calling"){
+    }else if (params.step == "markduplicates" || params.step == "filtering" || params.step == "calling"){
 
       loadBamFlow(
         chInputBam,
 	chFasta
       )
-      if (params.step == "filtering"){
+      if (params.step == "markduplicates"){
         chAlignedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
+        chMarkedBam = Channel.empty()
+        chFilteredBam = Channel.empty()
+      }else if (params.step == "filtering"){
+        chAlignedBam = Channel.empty() 
+        chMarkedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
         chFilteredBam = Channel.empty()
       }else{
         chAlignedBam = Channel.empty()
+        chMarkedBam = Channel.empty()
         chFilteredBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
       }
       chMappingStats = loadBamFlow.out.stats
@@ -418,22 +427,47 @@ workflow {
     // Process : Preseq
 
     preseq(
-      chAlignedBam.mix(chFilteredBam)
+      chAlignedBam.mix(chMarkedBam, chFilteredBam)
     )
     chPreseqMqc = preseq.out.results.collect()
     chVersions = chVersions.mix(preseq.out.versions)
 
     //*******************************************
+    // Process : markduplicates
+
+    markDuplicates(
+      chAlignedBam,
+      chFasta,
+      chFastaFai
+    )
+    chMarkedBam = params.step == "mapping" || params.step == "markduplicates" ? markDuplicates.out.bam.mix(markDuplicates.out.cram) : Channel.empty()
+    chVersions = chVersions.mix(markDuplicates.out.versions)
+
+    // Stats on duplicates
+    samtoolsStatsMarkdup(
+      chMarkedBam
+    )
+    chMarkdupStatsMqc = samtoolsStatsMarkdup.out.stats.map{it->it[1]}
+    chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
+
+    // Index
+    samtoolsIndexMarkdup(
+      chMarkedBam
+    )
+    chVersions = chVersions.mix(samtoolsIndexMarkdup.out.versions)
+    chMarkedBam = chMarkedBam.join(samtoolsIndexMarkdup.out.bai)
+
+    //*******************************************
     // SUB-WORKFLOW : bamFiltering
 
     bamFiltersFlow(
-      chAlignedBam,
+      chMarkedBam,
       chTargetBed,
       chFasta,
       chFastaFai
     )
     chVersions = chVersions.mix(bamFiltersFlow.out.versions)
-    chMarkdupStatsMqc = bamFiltersFlow.out.markdupStats.map{it->it[1]}
+    //chMarkdupStatsMqc = bamFiltersFlow.out.markdupStats.map{it->it[1]}
     chOnTargetStatsMqc = bamFiltersFlow.out.onTargetStats.map{it->it[1]}
     chFilteringStatsMqc = bamFiltersFlow.out.filteringStats.map{it->it[1]}
     chFilteredBam = bamFiltersFlow.out.bam.mix(bamFiltersFlow.out.cram, chFilteredBam)
@@ -473,391 +507,386 @@ workflow {
     //*****************************
     // GATK4 - PRE-PROCESSING
 
-    bqsrFlow(
-      chFilteredBam,
-      chIntervalBeds,
-      chDbsnp,
-      chDbsnpIndex,
-      chFasta,
-      chFastaFai,
-      chKnownIndels,
-      chKnownIndelsIndex,
-      chDict
-    )
-    chVersions = chVersions.mix(bqsrFlow.out.versions)
- 
-    if (params.step != "annotate"){
-      chProcBam = (params.skipBQSR || params.step == "calling") ? chFilteredBam : bqsrFlow.out.bam.mix(bqsrFlow.out.cram)
-    }
-
-  chProcBam.view()
-
-  /*
-  ================================================================================
-   DESIGN / PAIRED ANALYSIS / TUMOR ONLY / GERMLINE ONLY
-  ================================================================================
-  */
-
-  chSingleBam = Channel.empty()
-  chPairBam = Channel.empty()
-  chTumorOnlyBam = Channel.empty()
-  chGermlineOnlyBam = Channel.empty()
-
-  if (params.design && (params.step == "mapping" || params.step == "filtering" || params.step == "calling")){
-
-    //******************
-    // PAIRED BAMS
-
-    chDesignPaired=chDesign.paired.map{it -> [[it[0], it[1]], it]}
-    chDesignTumorOnly=chDesign.tumorOnly.map{it -> [it[0], it]}
-    chDesignGermlineOnly=chDesign.germlineOnly.map{it -> [it[1], it]}
-
-    chPairBam = chProcBam
-      .combine(chProcBam)
-      .map{meta1, bam1, bai1, meta2, bam2, bai2 ->
-          [[meta1.id, meta2.id], [meta1, meta2, bam1, bai1, bam2, bai2]]}
-      .combine(chDesignPaired, by:0)
-      .map{it ->
-        def meta = [tumor_id:it[1][0].id, normal_id:it[1][1].id, pair_id:it[2][2], id:it[0][0]+"_vs_"+it[0][1], status:"pair", sex:it[2][3]]
-        [meta, it[1][2], it[1][3], it[1][4], it[1][5]]
-      }
-
-    //[meta], tumor_bam, tumor_bai
-    chTumorBam = chPairBam
-      .map{ it ->
-        def meta = [tumor_id:it[0].tumor_id,id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
-        return [meta, it[1], it[2] ]
-      }
-
-    //[meta], normal_bam, normal_bai
-    chNormalBam = chPairBam
-      .map{ it ->
-        def meta = [id:it[0].normal_id, status: "normal", sex:it[0].sex]
-        return [meta, it[3], it[4] ]
-      }
-    chSingleBam = chNormalBam.mix(chTumorBam)
-
-    //******************  
-    // TUMOR ONLY 
-
-    chTumorOnlyBam = chProcBam
-      .map{ meta, bam, bai -> [meta.id, [meta, bam, bai]]}
-      .combine(chDesignTumorOnly, by:0)
-      .map{ it ->
-        def meta = [tumor_id:it[0], id:it[0], status: "tumor", sex:it[2][3]]
-        return [meta, it[1][1], it[1][2] ]
-      }
-    chSingleBam = chSingleBam.mix(chTumorOnlyBam) 
-
-    //*******************
-    // GERMLINE ONLY
-
-    chGermlineOnlyBam = chProcBam
-      .map{ meta, bam, bai -> [meta.id, [meta, bam, bai]]}
-      .combine(chDesignGermlineOnly, by:0)
-      .map{ it ->
-        def meta = [id:it[0], status: "normal", sex:it[2][3]]
-        return [meta, it[1][1], it[1][2] ]
-      }
-    chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
-  }
-
-  /*
-  ================================================================================
-   SNV VARIANT CALLING
-  ================================================================================
-  */
-
-  if (params.step == "mapping" || params.step == "filtering" || params.step == "calling"){
-
-    //*******************************************
-    //SUB-WORKFLOW : HaplotypeCaller
-
-    chSingleBam = chSingleBam.unique()
-    chAllGermlineVcf=Channel.empty()
-
-    if('haplotypecaller' in tools){
-      haplotypeCallerFlow(
-        chSingleBam,
+    chProcBam = chFilteredBam
+    if ('haplotypecaller' in tools || 'mutect2' in tools){
+      bqsrFlow(
+        chFilteredBam,
         chIntervalBeds,
         chDbsnp,
         chDbsnpIndex,
         chFasta,
         chFastaFai,
+        chKnownIndels,
+        chKnownIndelsIndex,
         chDict
       )
-      chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-      chAllGermlineVcf = haplotypeCallerFlow.out.vcf
+      chVersions = chVersions.mix(bqsrFlow.out.versions)
+      chProcBam = params.skipBQSR ? chFilteredBam : bqsrFlow.out.bam.mix(bqsrFlow.out.cram)
     }
 
-    //*******************************************
-    //SUB-WORKFLOW : Mutect2
+    /*
+    ================================================================================
+     DESIGN / PAIRED ANALYSIS / TUMOR ONLY / GERMLINE ONLY
+    ================================================================================
+    */
 
-    chMutect2MetricsMqc = Channel.empty()
-    chRawSomaticVcf = Channel.empty()
+    chSingleBam = Channel.empty()
+    chPairBam = Channel.empty()
+    chTumorOnlyBam = Channel.empty()
+    chGermlineOnlyBam = Channel.empty()
+
+    if (params.design && (params.step == "mapping" || params.step == "filtering" || params.step == "calling")){
+
+      //******************
+      // PAIRED BAMS
+
+      chDesignPaired=chDesign.paired.map{it -> [[it[0], it[1]], it]}
+      chDesignTumorOnly=chDesign.tumorOnly.map{it -> [it[0], it]}
+      chDesignGermlineOnly=chDesign.germlineOnly.map{it -> [it[1], it]}
+
+      chPairBam = chProcBam
+        .combine(chProcBam)
+        .map{meta1, bam1, bai1, meta2, bam2, bai2 ->
+          [[meta1.id, meta2.id], [meta1, meta2, bam1, bai1, bam2, bai2]]}
+        .combine(chDesignPaired, by:0)
+        .map{it ->
+          def meta = [tumor_id:it[1][0].id, normal_id:it[1][1].id, pair_id:it[2][2], id:it[0][0]+"_vs_"+it[0][1], status:"pair", sex:it[2][3]]
+          [meta, it[1][2], it[1][3], it[1][4], it[1][5]]
+        }
+
+      //[meta], tumor_bam, tumor_bai
+      chTumorBam = chPairBam
+        .map{ it ->
+          def meta = [tumor_id:it[0].tumor_id,id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
+          return [meta, it[1], it[2] ]
+        }
+
+      //[meta], normal_bam, normal_bai
+      chNormalBam = chPairBam
+        .map{ it ->
+          def meta = [id:it[0].normal_id, status: "normal", sex:it[0].sex]
+          return [meta, it[3], it[4] ]
+        }
+      chSingleBam = chNormalBam.mix(chTumorBam)
+
+      //******************  
+      // TUMOR ONLY 
+
+      chTumorOnlyBam = chProcBam
+        .map{ meta, bam, bai -> [meta.id, [meta, bam, bai]]}
+        .combine(chDesignTumorOnly, by:0)
+        .map{ it ->
+          def meta = [tumor_id:it[0], id:it[0], status: "tumor", sex:it[2][3]]
+          return [meta, it[1][1], it[1][2] ]
+        }
+      chSingleBam = chSingleBam.mix(chTumorOnlyBam) 
+
+      //*******************
+      // GERMLINE ONLY
+
+      chGermlineOnlyBam = chProcBam
+        .map{ meta, bam, bai -> [meta.id, [meta, bam, bai]]}
+        .combine(chDesignGermlineOnly, by:0)
+        .map{ it ->
+          def meta = [id:it[0], status: "normal", sex:it[2][3]]
+          return [meta, it[1][1], it[1][2] ]
+        }
+      chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
+    }
+
+    /*
+    ================================================================================
+     SNV VARIANT CALLING
+    ================================================================================
+    */
+
+    if (params.step == "mapping" || params.step == "filtering" || params.step == "calling"){
+
+      //*******************************************
+      //SUB-WORKFLOW : HaplotypeCaller
+
+      chSingleBam = chSingleBam.unique()
+      chAllGermlineVcf=Channel.empty()
+
+      if('haplotypecaller' in tools){
+        haplotypeCallerFlow(
+          chSingleBam,
+          chIntervalBeds,
+          chDbsnp,
+          chDbsnpIndex,
+          chFasta,
+          chFastaFai,
+          chDict
+        )
+        chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
+        chAllGermlineVcf = haplotypeCallerFlow.out.vcf
+      }
+
+      //*******************************************
+      //SUB-WORKFLOW : Mutect2
+
+      chMutect2MetricsMqc = Channel.empty()
+      chRawSomaticVcf = Channel.empty()
+
+      if('mutect2' in tools){
+
+        /*
+        ================================================================================
+                                    SOMATIC SNV CALLING
+        ================================================================================
+        */
+
+        mutect2PairsFlow(
+          chPairBam,
+          chIntervalBeds,
+          chFasta,
+          chFastaFai,
+          chDict,
+          chGermlineResource,
+          chGermlineResourceIndex,
+          chPileupSum,
+          chPileupSumIndex,
+          chPon,
+          chPonIndex,
+        )
+        chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
+        chRawSomaticVcf = mutect2PairsFlow.out.vcf
+
+        mutect2TumorOnlyFlow(
+          chTumorOnlyBam,
+          chIntervalBeds,
+          chFasta,
+          chFastaFai,
+          chDict,
+          chGermlineResource,
+          chGermlineResourceIndex,
+          chPileupSum,
+          chPileupSumIndex,
+          chPon,
+          chPonIndex
+        )
+        chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
+        chRawSomaticVcf = chRawSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcf)
+      }
+    }
+
+    /*
+    ================================================================================
+                                     VCF BASIC FILTERING
+    ================================================================================
+    */
+
+    chFilteredSomaticVcf = Channel.empty()
     if('mutect2' in tools){
-
-      /*
-      ================================================================================
-                                  SOMATIC SNV CALLING
-      ================================================================================
-      */
-
-      mutect2PairsFlow(
-        chPairBam,
-        chIntervalBeds,
+      filterSomaticFlow(
+        chRawSomaticVcf,
         chFasta,
-        chFastaFai,
-        chDict,
-        chGermlineResource,
-        chGermlineResourceIndex,
-        chPileupSum,
-        chPileupSumIndex,
-        chPon,
-        chPonIndex,
+        chGnomadDb,
+        chGnomadDbIndex
       )
-      chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-      chRawSomaticVcf = mutect2PairsFlow.out.vcf
-
-      mutect2TumorOnlyFlow(
-        chTumorOnlyBam,
-        chIntervalBeds,
-        chFasta,
-        chFastaFai,
-        chDict,
-        chGermlineResource,
-        chGermlineResourceIndex,
-        chPileupSum,
-        chPileupSumIndex,
-        chPon,
-        chPonIndex
-      )
-      chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
-      chRawSomaticVcf = chRawSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcf)
+      chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+      chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
+      chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
     }
-  }
 
-  /*
-  ================================================================================
-                                   VCF BASIC FILTERING
-  ================================================================================
-  */
-
-  chFilteredSomaticVcf = Channel.empty()
-  if('mutect2' in tools){
-    filterSomaticFlow(
-      chRawSomaticVcf,
-      chFasta,
-      chGnomadDb,
-      chGnomadDbIndex
-    )
-    chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-    chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
-    chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
-  }
-
-  /*
-  ================================================================================
+    /*
+    ================================================================================
                                    VCF QC
-  ================================================================================
-  */
+    ================================================================================
+    */
   
-  chVcfMetrics = chRawSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]}
-    .join(chFilteredSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]})
+    chVcfMetrics = chRawSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]}
+      .join(chFilteredSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]})
   
-  vcfQcFlow(
-	chVcfMetrics
-  )
-  chVcfMetricsMqc = vcfQcFlow.out.stats
-  chTsTvMqc = vcfQcFlow.out.transition
-
-  // Remove samples with two few SNVs
-  chFilteredSomaticVcf = chFilteredSomaticVcf
-    .join(vcfQcFlow.out.stats)
-    .filter{ meta, vcf, stats -> checkVarNumber(meta, stats) }
-    .map{ meta, vcf, stats -> [meta, vcf[0], vcf[1]]}
-
-  /*
-  ================================================================================
-                                   VCF ANNOTATION
-  ================================================================================
-  */
-
-  // Annotation somatic vcf
-  if('snpeff' in tools || params.step == 'annotate'){
-    annotateSomaticFlow(
-      chFilteredSomaticVcf,
-      chSnpeffDb,
-      chSnpeffCache,
-      chCosmicDb,
-      chCosmicDbIndex,
-      chIcgcDb,
-      chIcgcDbIndex,
-      chCancerhotspotsDb,
-      chCancerhotspotsDbIndex,
-      chGnomadDb,
-      chGnomadDbIndex,
-      chDbnsfp,
-      chDbnsfpIndex
+    vcfQcFlow(
+      chVcfMetrics
     )
-    chSnpEffMqc = annotateSomaticFlow.out.snpEffReport
-    chVersions = chVersions.mix(annotateSomaticFlow.out.versions)
+    chVcfMetricsMqc = vcfQcFlow.out.stats
+    chTsTvMqc = vcfQcFlow.out.transition
 
-    annotateGermlineFlow(
-      chAllGermlineVcf,
-      chSnpeffDb,
-      chSnpeffCache,
-      chGnomadDb,
-      chGnomadDbIndex,
-      chDbnsfp,
-      chDbnsfpIndex
-    )
+    // Remove samples with two few SNVs
+    chFilteredSomaticVcf = chFilteredSomaticVcf
+      .join(vcfQcFlow.out.stats)
+      .filter{ meta, vcf, stats -> checkVarNumber(meta, stats) }
+      .map{ meta, vcf, stats -> [meta, vcf[0], vcf[1]]}
 
-    chSnpEffMqc = chSnpEffMqc.mix(annotateGermlineFlow.out.snpEffReport)
-    chVersions = chVersions.mix(annotateGermlineFlow.out.versions)
+    /*
+    ================================================================================
+                                     VCF ANNOTATION
+    ================================================================================
+    */
 
-  }else{
-    chTMB = Channel.empty()
-  }
+    // Annotation somatic vcf
+    if('snpeff' in tools || params.step == 'annotate'){
+      annotateSomaticFlow(
+        chFilteredSomaticVcf,
+        chSnpeffDb,
+        chSnpeffCache,
+        chCosmicDb,
+        chCosmicDbIndex,
+        chIcgcDb,
+        chIcgcDbIndex,
+        chCancerhotspotsDb,
+        chCancerhotspotsDbIndex,
+        chGnomadDb,
+        chGnomadDbIndex,
+        chDbnsfp,
+        chDbnsfpIndex
+      )
+      chSnpEffMqc = annotateSomaticFlow.out.snpEffReport
+      chVersions = chVersions.mix(annotateSomaticFlow.out.versions)
 
-  /*
-  ================================================================================
+      annotateGermlineFlow(
+        chAllGermlineVcf,
+        chSnpeffDb,
+        chSnpeffCache,
+        chGnomadDb,
+        chGnomadDbIndex,
+        chDbnsfp,
+        chDbnsfpIndex
+      )
+
+      chSnpEffMqc = chSnpEffMqc.mix(annotateGermlineFlow.out.snpEffReport)
+      chVersions = chVersions.mix(annotateGermlineFlow.out.versions)
+    }
+
+    /*
+    ================================================================================
                                    TABLE REPORT
-  ================================================================================
-  */
+    ================================================================================
+    */
 
-  if('snpeff' in tools || params.step == 'annotate'){
-    tableReportFlow(
-      annotateSomaticFlow.out.vcf
-    )
-  }
+    if('snpeff' in tools || params.step == 'annotate'){
+      tableReportFlow(
+        annotateSomaticFlow.out.vcf
+      )
+    }
 
-  /*
-  ================================================================================
+    /*
+    ================================================================================
                                          TMB
-  ================================================================================
-  */
+    ================================================================================
+    */
 
-  if('tmb' in tools){
-    tmbFlow(
-      annotateSomaticFlow.out.vcf,
-      chTargetBed,
-      chEffGenomeSize
-    )
-    chTMBMqc = tmbFlow.out.report.map{it->it[1]}
-  }
+    if('tmb' in tools){
+      tmbFlow(
+        annotateSomaticFlow.out.vcf,
+        chTargetBed,
+        chEffGenomeSize
+      )
+      chTMBMqc = tmbFlow.out.report.map{it->it[1]}
+    }
 
-  /*
-  ================================================================================
+    /*
+    ================================================================================
                                         MSI
-  ================================================================================
-  */
+    ================================================================================
+    */
 
-  if('msisensor' in tools){
-    msiFlow(
-      chPairBam,
-      chTumorOnlyBam,
-      chMsiBaselineConfig,
-      chFasta,
-      chTargetBed
-    )
-    chMSIMqc = msiFlow.out.report.map{it->it[1]}
-  }
+    if('msisensor' in tools){
+      msiFlow(
+        chPairBam,
+        chTumorOnlyBam,
+        chMsiBaselineConfig,
+        chFasta,
+        chTargetBed
+      )
+      chMSIMqc = msiFlow.out.report.map{it->it[1]}
+    }
 
-  /*
-  ================================================================================
+    /*
+    ================================================================================
                              SV VARIANT CALLING
-  ================================================================================
-  */
+    ================================================================================
+    */
 
-  // STEP MANTA
+    // STEP MANTA
+    if ('manta' in tools){
+      mantaFlow(
+        chPairBam,
+        chTargetBed,
+        chFasta,
+        chFastaFai
+      )
+      chVersions = chVersions.mix(mantaFlow.out.versions)
+    }
 
-  if ('manta' in tools){
-    mantaFlow(
-      chPairBam,
-      chTargetBed,
-      chFasta,
-      chFastaFai
-    )
-    chVersions = chVersions.mix(mantaFlow.out.versions)
-  }
+    if ('manta' in tools){
+      mantaTumorOnly(
+        chTumorOnlyBam,
+        chTargetBed,
+        chFasta,
+        chFastaFai
+      )
+      chVersions = chVersions.mix(mantaFlow.out.versions)
+    }
 
-  if ('manta' in tools){
-    mantaTumorOnly(
-      chTumorOnlyBam,
-      chTargetBed,
-      chFasta,
-      chFastaFai
-    )
-    chVersions = chVersions.mix(mantaFlow.out.versions)
-  }
-
-  /*
-  ================================================================================
+    /*
+    ================================================================================
                                         CNV calling
-  ================================================================================
-  */
+    ================================================================================
+    */
 
-  if('facets' in tools){
-    facetsFlow(
-      chPairBam,
-      chDbsnp
-    )
-  }
+    if('facets' in tools){
+      facetsFlow(
+        chPairBam,
+        chDbsnp
+      )
+    }
 
-  if('ascat' in tools){
-    ascatFlow(
-      chSingleBam,
-      chAcLoci,
-      chAcLociGC,
-      chDict,
-      chFasta,
-      chFastaFai
-    )
-  }
+    if('ascat' in tools){
+      ascatFlow(
+        chSingleBam,
+        chAcLoci,
+        chAcLociGC,
+        chDict,
+        chFasta,
+        chFastaFai
+      )
+    }
 
-
-  /*
-  ================================================================================
+    /*
+    ================================================================================
                                  MULTIQC
-  ================================================================================
-  */
+    ================================================================================
+    */
 
-  // Warnings that will be printed in the mqc report
-  chWarn = Channel.empty()
+    // Warnings that will be printed in the mqc report
+    chWarn = Channel.empty()
 
-  if (!params.skipMultiQC && params.step != 'calling' && params.step != 'annotate' ){
-    getSoftwareVersions(
-      chVersions.unique().collectFile()
-    )
-    multiqc(
-      customRunName,
-      chSplan.collect(),
-      chMetadata.ifEmpty([]),
-      chMultiqcConfig.ifEmpty([]),
-      chFastqcMqc.collect().ifEmpty([]),
-      chMappingStats.collect().ifEmpty([]),
-      chMappingFlagstat.collect().ifEmpty([]),
-      chFragSizeMqc.collect().ifEmpty([]),
-      chWgsMetricsMqc.collect().ifEmpty([]),
-      chPreseqMqc.collect().ifEmpty([]),
-      chMarkdupStatsMqc.collect().ifEmpty([]),
-      chOnTargetStatsMqc.collect().ifEmpty([]),
-      chFilteringStatsMqc.collect().ifEmpty([]),
-      //chGeneCovMqc.collect().ifEmpty([]),
-      chMosdepthMqc.collect().ifEmpty([]),
-      chIdentitoMqc.collect().ifEmpty([]),
-      chVcfMetricsMqc.map{it -> it[1]}.collect().ifEmpty([]),
-      chTsTvMqc.map{it -> it[1]}.collect().ifEmpty([]),
-      chSnpEffMqc.collect().ifEmpty([]),
-      chMSIMqc.collect().ifEmpty([]),
-      chTMBMqc.collect().ifEmpty([]),
-      getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
-      workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
-      chWarn.collect().ifEmpty([])
-    )
-     mqcReport = multiqc.out.report.toList()
-   }
+    if (!params.skipMultiQC){
+
+      getSoftwareVersions(
+        chVersions.unique().collectFile()
+      )
+
+      multiqc(
+        customRunName,
+        chSplan.collect(),
+        chMetadata.ifEmpty([]),
+        chMultiqcConfig.ifEmpty([]),
+        chFastqcMqc.collect().ifEmpty([]),
+        chMappingStats.collect().ifEmpty([]),
+        chMappingFlagstat.collect().ifEmpty([]),
+        chFragSizeMqc.collect().ifEmpty([]),
+        chWgsMetricsMqc.collect().ifEmpty([]),
+        chPreseqMqc.collect().ifEmpty([]),
+        chMarkdupStatsMqc.collect().ifEmpty([]),
+        chOnTargetStatsMqc.collect().ifEmpty([]),
+        chFilteringStatsMqc.collect().ifEmpty([]),
+        chMosdepthMqc.collect().ifEmpty([]),
+        chIdentitoMqc.collect().ifEmpty([]),
+        chVcfMetricsMqc.map{it -> it[1]}.collect().ifEmpty([]),
+        chTsTvMqc.map{it -> it[1]}.collect().ifEmpty([]),
+        chSnpEffMqc.collect().ifEmpty([]),
+        chMSIMqc.collect().ifEmpty([]),
+        chTMBMqc.collect().ifEmpty([]),
+        getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
+        workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
+        chWarn.collect().ifEmpty([])
+      )
+      mqcReport = multiqc.out.report.toList()
+    }
 }
 
 workflow.onComplete {
