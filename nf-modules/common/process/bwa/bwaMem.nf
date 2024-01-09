@@ -24,11 +24,6 @@ process bwaMem{
   def args = task.ext.args ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
   def samtoolsCmd = sortBam ? 'sort' : 'view'
-  def bwaRGL0 = '-R "@RG\\tID:'
-  def bwaRGL = "${bwaRGL0}${prefix}\\tSM:"
-  def bwaRGL2 = "${bwaRGL}${prefix}"
-  def bwaRGR = '\\tPL:illumina" '
-  def bwaRG = "${bwaRGL2}${bwaRGR}"
 
   """
   localIndex=`find -L ./ -name "*.amb" | sed 's/.amb//'`
@@ -37,7 +32,6 @@ process bwaMem{
   bwa \
     mem \
     $params.bwaOpts \
-    ${bwaRG} \
     $args \
     -t $task.cpus \
     \${localIndex} \
