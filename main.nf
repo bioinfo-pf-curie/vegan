@@ -236,10 +236,7 @@ workflowSummaryCh = NFTools.summarize(summary, workflow, params)
 // Load raw reads
 if (params.step == "mapping"){
   chRawReads = NFTools.getInputData(params.samplePlan, params.reads, params.readPaths, params.singleEnd, params)
-}else if (params.step == "filtering"){
-  chRawReads = Channel.empty()
-  chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam|.cram'],  params).map{it ->[it[0], it[1][0]]}
-}else if (params.step == "calling"){
+}else if (params.step == "filtering" || params.step == "markduplicates" || params.step == "calling" ){
   chRawReads = Channel.empty()
   chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam|.cram'],  params).map{it ->[it[0], it[1][0]]}
 }else if (params.step == "annotate"){
@@ -603,7 +600,7 @@ workflow {
     ================================================================================
     */
 
-    if (params.step == "mapping" || params.step == "filtering" || params.step == "calling"){
+    if (params.step != "annotate"){
 
       //*******************************************
       //SUB-WORKFLOW : HaplotypeCaller

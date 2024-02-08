@@ -69,7 +69,7 @@ MANDATORY ARGUMENTS:
     --genome                   STRING [hg19, hg19_base, hg38, hg38_base, mm10, mm39,...]                         Name of the reference genome.
     --genomeAnnotationPath PATH                                                                                  PATH to the reference genome folder.
     --profile                  STRING [test, multiconda, singularity, cluster, docker, conda, path, multipath]   Configuration profile to use. Can use multiple (comma separated).
-    --step                     STRING [mapping, filtering, calling, annotate]                                    Specify starting step
+    --step                     STRING [mapping, markduplicates, filtering, calling, annotate]                    Specify starting step
     --outDir                   PATH                                                                              The output directory where the results will be saved
     --tools                    STRING [haplotypecaller, mutect2, manta, snpeff, facets, ascat, tmb, msisensor]   Specify tools to use for variant calling
 
