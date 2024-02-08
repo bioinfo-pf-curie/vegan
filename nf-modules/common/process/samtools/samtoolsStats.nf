@@ -9,7 +9,7 @@ process samtoolsStats {
   label 'lowMem'
 
   input:
-  tuple val(meta), path (bam)
+  tuple val(meta), path(bam)
   path(bed)
 
   output:

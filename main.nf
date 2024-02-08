@@ -405,6 +405,7 @@ workflow {
         chInputBam,
 	chFasta
       )
+
       if (params.step == "markduplicates"){
         chAlignedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
         chMarkedBam = Channel.empty()
@@ -440,22 +441,25 @@ workflow {
       chFasta,
       chFastaFai
     )
-    chMarkedBam = params.step == "mapping" || params.step == "markduplicates" ? markDuplicates.out.bam.mix(markDuplicates.out.cram) : Channel.empty()
     chVersions = chVersions.mix(markDuplicates.out.versions)
-
-    // Stats on duplicates
-    samtoolsStatsMarkdup(
-      chMarkedBam
-    )
-    chMarkdupStatsMqc = samtoolsStatsMarkdup.out.stats.map{it->it[1]}
-    chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
 
     // Index
     samtoolsIndexMarkdup(
-      chMarkedBam
+      markDuplicates.out.bam.mix(markDuplicates.out.cram)
     )
     chVersions = chVersions.mix(samtoolsIndexMarkdup.out.versions)
-    chMarkedBam = chMarkedBam.join(samtoolsIndexMarkdup.out.bai)
+
+    if (params.step == "mapping" || params.step == "markduplicates"){
+      chMarkedBam = markDuplicates.out.bam.mix(markDuplicates.out.cram)
+        .join(samtoolsIndexMarkdup.out.bai) 
+    }
+
+    // Stats on duplicates
+    samtoolsStatsMarkdup(
+      chMarkedBam.map{it->[it[0],it[1]]}
+    )
+    chMarkdupStatsMqc = samtoolsStatsMarkdup.out.stats.map{it->it[1]}
+    chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
 
     //*******************************************
     // SUB-WORKFLOW : bamFiltering
@@ -467,7 +471,6 @@ workflow {
       chFastaFai
     )
     chVersions = chVersions.mix(bamFiltersFlow.out.versions)
-    //chMarkdupStatsMqc = bamFiltersFlow.out.markdupStats.map{it->it[1]}
     chOnTargetStatsMqc = bamFiltersFlow.out.onTargetStats.map{it->it[1]}
     chFilteringStatsMqc = bamFiltersFlow.out.filteringStats.map{it->it[1]}
     chFilteredBam = bamFiltersFlow.out.bam.mix(bamFiltersFlow.out.cram, chFilteredBam)
