@@ -199,7 +199,7 @@
       "type": "string",
       "nargs": "+",
       "choices": ["bwa-mem", "bwa-mem2", "dragmap"],
-      "default_value": "bwa-mem",
+      "default_value": "bwa-mem2",
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,

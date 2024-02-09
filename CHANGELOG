@@ -6,6 +6,7 @@ NEW FEATURES
   - Support BAM/CRAM files as input #171, #200
   - Generate CRAM files with option --cram
   - Add `--step markduplicates` to start the pipeline just after the mapping #207
+  - 'bwa-mem2' is now the default aligner
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
