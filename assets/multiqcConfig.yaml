@@ -4,6 +4,8 @@
 #################################################################
 
 skip_generalstats: true
+skip_versions_section: true
+disable_version_detection: true
 read_count_multiplier: 0.000001
 read_count_prefix: 'M'
 read_count_desc: 'millions'
@@ -414,6 +416,7 @@ remove_sections:
   - fastqc_overrepresented_sequences
   - fastqc_status_checks
   - mosdepth-coverage-dist-cov
+  - mosdepth-xy-coverage
   - picard-wgsmetrics-cov
   - picard-wgsmetrics-bases
   - samtools-stats
