@@ -47,3 +47,8 @@ otherwise `MSIsensor` will not be able to read them.
 CRAM files will be automatically detected based on their extension. However, this format is dependant on the reference genome used for the alignment.
 Thus, the `fasta` and `fastaFai` information should be carrefully checked and modified accordingly, using either command line options or a dedicated configuration file.
 
+## Alt-aware mode for the mapping
+
+The mapping now runs in alt-aware mode by default, avoiding multimapped reads in regions of the primary assembly with high similarities on their alternative contig (chr**_****_alt) that would have been filtered due to the MAPQ=20 quality threshold.
+
+It is possible to disable this mode by adding the parameter `-j` in the parameter `bwaOpts` defined in `nextflow.config`. However, it is highly recommended to keep the alt-aware mode since it allows to identify more variants. 
