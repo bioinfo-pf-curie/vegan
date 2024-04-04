@@ -51,4 +51,5 @@ Thus, the `fasta` and `fastaFai` information should be carrefully checked and mo
 
 The mapping now runs in alt-aware mode by default, avoiding multimapped reads in regions of the primary assembly with high similarities on their alternative contig (chr**_****_alt) that would have been filtered due to the MAPQ=20 quality threshold.
 
-It is possible to disable this mode by adding the parameter `-j` in the parameter `bwaOpts` defined in `nextflow.config`. However, it is highly recommended to keep the alt-aware mode since it allows to identify more variants. 
+It is possible to disable this mode by adding the parameter `-j` in the parameter `bwaOpts` defined in `nextflow.config`. However, it is highly recommended to keep the alt-aware mode since it allows to identify more variants.
+![alt text](https://gitlab.curie.fr/data-analysis/vegan/-/blob/devel/docs/images/bamAltAware.png?raw=true)
