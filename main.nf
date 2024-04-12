@@ -854,7 +854,7 @@ workflow {
     // Warnings that will be printed in the mqc report
     chWarn = Channel.empty()
 
-    if (!params.skipMultiQC){
+    if (!params.skipMultiqc){
 
       getSoftwareVersions(
         chVersions.unique().collectFile()

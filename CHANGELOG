@@ -1,4 +1,16 @@
 ***********************************
+version-2.5.0dev
+
+
+***********************************
+version-2.4.0
+
+NEW FEATURES
+
+  - By default, the bwa mapping now runs in "alt-aware" mode, avoiding multimapped reads in regions of the primary assembly with high 
+	similarities on their alternative contig. Use `-j` in `--bwaOpts` to turn off this function #216, #212
+
+***********************************
 version-2.3.0
 
 NEW FEATURES
