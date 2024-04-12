@@ -51,10 +51,10 @@ Thus, the `fasta` and `fastaFai` information should be carrefully checked and mo
 
 ## Alt-aware mode for the mapping
 
-Since VEGAN 2.4.0, the bwa-mem mapping runs in alt-aware mode by default, avoiding multimapped reads in regions of the primary assembly with high similarities on their alternative contig (chr**_****_alt).
-Before this version, reads mapped in regions annotated in both primary chromosomes and alternative contigsthat have been filtered due to the MAPQ=20 quality threshold.  
+Since VEGAN 2.4.0, the bwa-mem mapping runs in alt-aware mode by default, avoiding multimapped reads in regions of the primary assembly with high similarities on their alternative contig (chr**_****_alt).  
+Before this version, reads mapped in regions annotated in both primary chromosomes and alternative contigs have been filtered due to the MAPQ=20 quality threshold.  
 This could lead to the loss of some somatic variants on several cancer genes including HRAS, AKT3, NOTCH4, SMARCB1, etc.  
-** For this reason, it is highly recommended to use the hg38 alt-aware mode for mapping.**
+**For this reason, it is highly recommended to use the hg38 alt-aware mode for mapping.**
 
 However, for compatibility reason, it is also possible to disable this mode by adding the parameter `-j` in the bwa-mem parameters `--bwaOpts`.
 
