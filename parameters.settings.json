@@ -440,9 +440,9 @@
       "group": "Skip options"
     },
     {
-      "name": "skipFastqc",
-      "label": "Skip Fastqc",
-      "usage": "Disable Fastqc",
+      "name": "skipFastQC",
+      "label": "Skip FastQC",
+      "usage": "Disable FastQC",
       "type": "boolean",
       "nargs": 0,
       "choices": [],
@@ -479,7 +479,7 @@
       "group": "Skip options"
     },
     {
-      "name": "skipMultiqc",
+      "name": "skipMultiQC",
       "label": "Skip MultiQC",
       "usage": "Disable MultiQC",
       "type": "boolean",

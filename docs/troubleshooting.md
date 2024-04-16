@@ -42,8 +42,20 @@ nextflow run main.nf \
 Of note if you are using `singularity`, do not forget to bind the specific folder containings the BAM files you want to use as baseline, 
 otherwise `MSIsensor` will not be able to read them.
 
+
 ## Starting VEGAN from CRAM files
 
 CRAM files will be automatically detected based on their extension. However, this format is dependant on the reference genome used for the alignment.
 Thus, the `fasta` and `fastaFai` information should be carrefully checked and modified accordingly, using either command line options or a dedicated configuration file.
 
+
+## Alt-aware mode for the mapping
+
+Since VEGAN 2.4.0, the bwa-mem mapping runs in alt-aware mode by default, avoiding multimapped reads in regions of the primary assembly with high similarities on their alternative contig (chr**_****_alt).  
+Before this version, reads mapped in regions annotated in both primary chromosomes and alternative contigs have been filtered due to the MAPQ=20 quality threshold.  
+This could lead to the loss of some somatic variants on several cancer genes including HRAS, AKT3, NOTCH4, SMARCB1, etc.  
+**For this reason, it is highly recommended to use the hg38 alt-aware mode for mapping.**
+
+However, for compatibility reason, it is also possible to disable this mode by adding the parameter `-j` in the bwa-mem parameters `--bwaOpts`.
+
+![Mapping with and without alt-aware mode](images/bamAltAware.png)

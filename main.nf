@@ -508,7 +508,7 @@ workflow {
     // GATK4 - PRE-PROCESSING
 
     chProcBam = chFilteredBam
-    if ('haplotypecaller' in tools || 'mutect2' in tools){
+    //if ('haplotypecaller' in tools || 'mutect2' in tools){
       bqsrFlow(
         chFilteredBam,
         chIntervalBeds,
@@ -522,7 +522,7 @@ workflow {
       )
       chVersions = chVersions.mix(bqsrFlow.out.versions)
       chProcBam = params.skipBQSR ? chFilteredBam : bqsrFlow.out.bam.mix(bqsrFlow.out.cram)
-    }
+    //}
 
     /*
     ================================================================================
