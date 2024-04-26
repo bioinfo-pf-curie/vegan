@@ -44,8 +44,8 @@ The first version of `VEGAN` was inspired from the [nf-core Sarek pipeline](http
 
 ```bash
 nextflow run main.nf --help
-N E X T F L O W  ~  version 21.10.6
-Launching `main.nf` [lethal_torricelli] - revision: 4d570988d2
+N E X T F L O W  ~  version 23.10.1
+Launching `main.nf` [condescending_brahmagupta] DSL2 - revision: 86c6fce14e
 ------------------------------------------------------------------------
 
     _   _   _____          __     __  _____    ____      _      _   _
@@ -79,6 +79,10 @@ INPUTS:
     --singleEnd                          For single-end input data
     --splitFastq                         Split fastq files in chunks
     --fastqChunksSize          INTEGER   Reads chunks size
+
+OUTPUTS:
+    --cleanup STRING [none, auto, success]  Cleaning strategy of the work/ directory
+    --outDir  PATH                          The output directory where the results will be saved
 
 ALIGNMENT:
     --aligner                  STRING [bwa-mem, bwa-mem2, dragmap]   Specify tools to use for mapping
@@ -123,7 +127,6 @@ SKIP OPTIONS:
     --skipSaturation           Disable Preseq				
 
 OTHER OPTIONS:
-    --disableAutoClean           Disable cleaning of work directory
     --multiqcConfig    PATH      Specify a custom config file for MultiQC
     --name             STRING    Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
     --sequencingCenter STRING    Name of sequencing center to be displayed in BAM file

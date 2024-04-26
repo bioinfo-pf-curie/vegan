@@ -125,7 +125,18 @@
       "pattern": ".*",
       "render": "file",
       "arity": 0,
-      "group": "Mandatory arguments"
+      "group": "Outputs"
+    },
+    {
+      "name": "cleanup",
+      "label": "Cleaning strategy",
+      "usage": "Cleaning strategy of the work/ directory",
+      "type": "string",                                                                                                                                                                                          "nargs": 1,
+      "choices": ["none", "auto", "success"],
+      "default_value": "success",
+      "pattern": ".*",
+      "render": "textfield",
+      "group": "Outputs"
     },
     {
       "name": "reads",
@@ -503,19 +514,6 @@
       "render": "check-box",
       "arity": 0,
       "group": "Skip options"
-    },
-    {
-      "name": "disableAutoClean",
-      "label": "Disable auto cleaning",
-      "usage": "Disable cleaning of work directory",
-      "type": "boolean",
-      "nargs": 0,
-      "choices": [],
-      "default_value": false,
-      "pattern": "",
-      "render": "check-box",
-      "arity": 0,
-      "group": "Other options"
     },
     {
       "name": "sequencingCenter",
