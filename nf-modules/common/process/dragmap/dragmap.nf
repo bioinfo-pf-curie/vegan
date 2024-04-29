@@ -33,7 +33,7 @@ process dragmap{
     --num-threads $task.cpus \\
     $readsCmd \\
     2> ${prefix}.dragmap.log \\
-    | samtools ${samtoolsCmd} -bS --threads ${task.cpus} -o ${prefix}.bam -
+    | samtools ${samtoolsCmd} -O bam --threads ${task.cpus} -o ${prefix}.bam -
 
   echo "DragMap "\$(dragen-os --version 2>&1) > versions.txt
   """
