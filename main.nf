@@ -219,10 +219,11 @@ summary = [
   'Script dir': workflow.projectDir,
   'Launch Dir' : workflow.launchDir,
   'Output Dir' : params.outDir,
-  'Working Dir': workflow.workDir,
-  'Max Resources': "${params.maxMemory} memory, ${params.maxCpus} cpus, ${params.maxTime} time per job",
-  'User': workflow.userName,
-  'CommandLine': workflow.commandLine 
+  'Working Dir' : workflow.workDir,
+  'Cleanup' : params.cleanup,
+  'Max Resources' : "${params.maxMemory} memory, ${params.maxCpus} cpus, ${params.maxTime} time per job",
+  'User' : workflow.userName,
+  'CommandLine' : workflow.commandLine
 ].findAll{ it.value != null }
 
 workflowSummaryCh = NFTools.summarize(summary, workflow, params)
