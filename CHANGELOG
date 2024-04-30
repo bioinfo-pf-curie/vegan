@@ -1,6 +1,8 @@
 ***********************************
-version-2.5.0dev
+version-2.5.0
 
+  - Add Nextflow plugin nf-boost for automatic work/ cleaning (`--cleanup`). This option is experimental.
+	Using `--cleanup 'auto'` disable the `-resume` option so far #215
 
 ***********************************
 version-2.4.0
