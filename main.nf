@@ -313,6 +313,7 @@ include { preseq } from './nf-modules/common/process/preseq/preseq'
 include { markDuplicates } from './nf-modules/common/process/gatk/markDuplicates'
 include { samtoolsFlagstat as samtoolsStatsMarkdup } from './nf-modules/common/process/samtools/samtoolsFlagstat'
 include { samtoolsIndex as samtoolsIndexMarkdup } from './nf-modules/common/process/samtools/samtoolsIndex'
+include { rescueVariants } from './nf-modules/common/process/bcftools/rescueVariants'
 
 /*
 =====================================
@@ -689,6 +690,23 @@ workflow {
       chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
       chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
     }
+
+    /*
+    ================================================================================
+                                     VCF RESCUE MISSED VARIANTS
+    ================================================================================
+    */
+
+    if('mutect2' in tools && params.rescueMutectVariants){
+      rescueVariants(
+        chRawSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]},
+        chFilteredSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]}
+      )
+      
+      chFilteredSomaticVcf = rescueVariants.out.vcf
+      chFilteredSomaticVcf.view()
+    }
+
 
     /*
     ================================================================================
