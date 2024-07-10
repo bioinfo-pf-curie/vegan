@@ -537,7 +537,7 @@ workflow {
     chTumorOnlyBam = Channel.empty()
     chGermlineOnlyBam = Channel.empty()
 
-    if (params.design && (params.step == "mapping" || params.step == "filtering" || params.step == "calling")){
+    if (params.design && (params.step == "mapping" || params.step == "markduplicates" || params.step == "filtering" || params.step == "calling")){
 
       //******************
       // PAIRED BAMS
