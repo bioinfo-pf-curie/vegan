@@ -99,6 +99,9 @@ params.gnomadDbIndex = NFTools.getGenomeAttribute(params, 'gnomadDbIndex')
 params.dbnsfp = NFTools.getGenomeAttribute(params, 'dbnsfp')
 params.dbnsfpIndex = NFTools.getGenomeAttribute(params, 'dbnsfpIndex')
 params.effGenomeSize = NFTools.getGenomeAttribute(params, 'effGenomeSize')
+params.driverGenes = NFTools.getGenomeAttribute(params, 'driverGenes')
+params.canonicalGtf = NFTools.getGenomeAttribute(params, 'canonicalGtf')
+params.bedGtf = NFTools.getGenomeAttribute(params, 'bedGtf')
 
 // Stage config files
 chMultiqcConfig = Channel.fromPath(params.multiqcConfig)
@@ -292,6 +295,7 @@ include { mutect2PairsFlow } from './nf-modules/local/subworkflow/mutect2Pairs'
 include { mutect2TumorOnlyFlow } from './nf-modules/local/subworkflow/mutect2TumorOnly'
 include { filterSomaticFlow } from './nf-modules/local/subworkflow/filterSomatic'
 //include { filterGermlineFlow } from './nf-modules/local/subworkflow/filterGermline'
+include { driverSomaticFlow } from './nf-modules/local/subworkflow/driverSomatic'
 include { vcfQcFlow } from './nf-modules/local/subworkflow/vcfQc'
 include { annotateSomaticFlow } from './nf-modules/local/subworkflow/annotateSomatic'
 include { annotateGermlineFlow } from './nf-modules/local/subworkflow/annotateGermline'
@@ -729,6 +733,7 @@ workflow {
       .filter{ meta, vcf, stats -> checkVarNumber(meta, stats) }
       .map{ meta, vcf, stats -> [meta, vcf[0], vcf[1]]}
 
+
     /*
     ================================================================================
                                      VCF ANNOTATION
@@ -846,12 +851,14 @@ workflow {
     ================================================================================
     */
 
+    chFacetsSegments = Channel.empty()
     if('facets' in tools){
       facetsFlow(
         chPairBam,
         chDbsnp
       )
     }
+    chFacetsSegments = facetsFlow.out.segmentsTransformed
 
     if('ascat' in tools){
       ascatFlow(
@@ -863,6 +870,23 @@ workflow {
         chFastaFai
       )
     }
+    
+    /*
+    ================================================================================
+                                  CLINICAL FILTERING
+    ================================================================================
+    */
+
+    driverSomaticFlow(
+      annotateSomaticFlow.out.vcf,
+      chFacetsSegments,
+      chBedGtf,
+      chDriverGenes,
+      chDriverConfig,
+      chCanonicalGtf
+    )
+    chVersions = chVersions.mix(driverSomaticFlow.out.versions)
+    chDriverSomaticVcf = driverSomaticFlow.out.vcf
 
     /*
     ================================================================================

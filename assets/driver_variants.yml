@@ -1,0 +1,112 @@
+## For definition, provide the expected key:values
+## Note that several keys/values can be defined
+## 
+###############################################
+
+
+## Define here how to extract the different information from the VCF file
+
+vcf:
+  tag: 'ANN'
+  sep: '&'
+  vaf: 'AF'
+  depth: 'DP'
+  alt_depth: 'AD'
+  annot_info: 1
+  gene_id: 3
+  transcript_id : 6
+  cancer_db:
+    - 'ICGC'
+    - 'CancerHotspots'
+    - 'COSMIC'
+  polym_db:
+    gnomAD:
+      - AF
+
+cnv:
+  gene_id: 10
+  class: 8
+  start: 1
+  end: 2
+
+
+## Define the variant selection algorithm
+
+select:
+
+  ## Oncogenes
+  - var_type: 'snv'
+    gene_type: 'oncogene'
+    var_classes:
+      - missense_variant
+      - conservative_inframe_deletion
+      - conservative_inframe_insertion
+      - disruptive_inframe_deletion
+      - disruptive_inframe_insertion
+    is_hotspot: true
+
+  - var_type: 'cnv'
+    gene_type: 'oncogene'
+    var_classes:
+      - AMP
+    maxsize: 10000000
+    copy: 5
+
+  ## Tumor suppressor
+  - var_type: 'snv'
+    gene_type: 'tsg'
+    var_classes:
+      - frameshift_variant
+      - splice_donor_variant
+      - splice_acceptor_variant
+      - stop_gained
+    is_hotspot: false
+
+  - var_type: 'snv'
+    gene_type: 'tsg'
+    var_classes:
+      - missense_variant
+      - conservative_inframe_deletion
+      - conservative_inframe_insertion
+      - disruptive_inframe_deletion
+      - disruptive_inframe_insertion
+    is_hotspot: true
+
+  - var_type: 'cnv'
+    gene_type: 'tsg'
+    var_classes:
+      - deletion
+    copy: 0   
+
+  ## Both
+  - var_type: 'snv'
+    gene_type: 'both'
+    var_classes:
+      - frameshift_variant
+      - splice_donor_variant
+      - splice_acceptor_variant 
+      - stop_gained
+    is_hotspot: false
+
+  - var_type: 'snv'
+    gene_type: 'both'
+    var_classes:
+      - missense_variant
+      - conservative_inframe_deletion
+      - conservative_inframe_insertion
+      - disruptive_inframe_deletion
+      - disruptive_inframe_insertion
+    is_hotspot: true
+
+  - var_type: 'cnv'
+    gene_type: 'both'
+    var_classes:
+      - deletion
+    copy: 0
+
+  - var_type: 'cnv'
+    gene_type: 'both'
+    var_classes:
+      - AMP
+    maxsize: 10000000
+    copy: 5
