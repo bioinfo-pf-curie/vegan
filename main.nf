@@ -104,6 +104,7 @@ params.canonicalGtf = NFTools.getGenomeAttribute(params, 'canonicalGtf')
 params.bedGtf = NFTools.getGenomeAttribute(params, 'bedGtf')
 
 // Stage config files
+chDriverConfig = Channel.fromPath(params.driverConfig)
 chMultiqcConfig = Channel.fromPath(params.multiqcConfig)
 chOutputDocs = Channel.fromPath("$baseDir/docs/output.md")
 chOutputDocsImages = file("$baseDir/docs/images/", checkIfExists: true)
@@ -194,6 +195,10 @@ chBwaMem2Index          = params.bwamem2Index          ? Channel.fromPath(params
 chDragmapIndex          = params.dragmapIndex          ? Channel.fromPath(params.dragmapIndex)                                          : Channel.empty()
 chEffGenomeSize         = params.effGenomeSize         ? Channel.value(params.effGenomeSize)                                            : Channel.value([]) //optional
 chMsiBaselineConfig     = params.msiBaselineConfig     ? Channel.fromPath(params.msiBaselineConfig)                                     : Channel.empty()
+chCanonicalGtf          = params.canonicalGtf          ? Channel.fromPath(params.canonicalGtf, checkIfExists: true).collect()           : Channel.value([]) //optional
+chDriverGenes           = params.driverGenes           ? Channel.fromPath(params.driverGenes, checkIfExists: true).collect()            : Channel.value([]) //optional
+chBedGtf                = params.bedGtf                ? Channel.fromPath(params.bedGtf)                                                : Channel.empty() //optional
+
 
 /*
 ===========================
@@ -877,8 +882,9 @@ workflow {
     ================================================================================
     */
 
+
     driverSomaticFlow(
-      annotateSomaticFlow.out.vcf,
+      annotateSomaticFlow.out.vcf.map{it -> [it[0],it[1][0],it[1][1]]},
       chFacetsSegments,
       chBedGtf,
       chDriverGenes,

@@ -474,9 +474,8 @@ if __name__ == "__main__":
     if args.cnv is not None:
         with open(args.cnv, "r", encoding="utf8") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter="\t")
-            header = next(csv_reader)
-            header.append('Driver_status')
-            
+            header = ["chrom","loc.start","loc.end","ID","CNt","Geno","logratio","ploidy","call","LOH","gene","driver_status"]
+                      
             with open('output.csv', mode='w', newline='') as outfile:
                 writer = csv.writer(outfile)
 
@@ -494,11 +493,11 @@ if __name__ == "__main__":
                         
                         if gene_type is not None: 
                             is_driver_mut = is_driver_cnv(gene_type, var_class, length, select_algo[(gene_type, 'cnv' )])
-                            if is_driver_mut: 
+                            if is_driver_mut:
                                 driver_status = 'Driver'
                     row.append(driver_status)
-                    writer.writerow(row)
-
+                    if ((driver_status == 'Driver') or (driver_status == 'NotDriver' and args.debug)):
+                        writer.writerow(row)
 
     wx.close()
     vcf.close()
