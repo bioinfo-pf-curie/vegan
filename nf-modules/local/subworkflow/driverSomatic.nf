@@ -8,8 +8,7 @@ include { annotateCNV } from '../../local/process/annotateCNV'
 workflow driverSomaticFlow {
 
   take:
-  vcf // [meta, vcf, tbi]
-  cnv
+  variants // [meta, vcf, tbi, cnv]
   gtf
   drivers
   decision
@@ -19,14 +18,16 @@ workflow driverSomaticFlow {
   chVersions = Channel.empty()
 
   annotateCNV(
-    cnv,
+    variants,
     gtf
   )
   
+  chVcfCnv = variants.map{it -> [it[0],it[1],it[2]]}
+    .combine(annotateCNV.out.cnv, by:0)
+  
   // Detect driver mutations
   oncoDrivers(
-    vcf,
-    annotateCNV.out.cnv,
+    chVcfCnv,
     drivers,
     decision,
     canonicals

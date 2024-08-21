@@ -5,8 +5,7 @@ process oncoDrivers {
   tag "${meta.id}"
 
   input:
-  tuple val(meta), path(vcf), path(tbi)
-  path(cnv)
+  tuple val(meta), path(vcf), path(tbi), path(cnv)
   path(genes)
   path(config)
   path(gtf)
@@ -22,7 +21,7 @@ process oncoDrivers {
   def args = task.ext.args ?: ''
   """
   oncoDriver.py \
-    --vcf ${vcf} \
+    --vcf ${vcf} --debug --outputcnv ${prefix}_cnv.csv \
     --cnv ${cnv} \
     --config ${config} \
     --driver_genes ${genes} \

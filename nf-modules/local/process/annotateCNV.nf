@@ -6,11 +6,11 @@ process annotateCNV {
   tag "${meta.id}"
 
   input:
-  tuple val(meta), path(cnv)
+  tuple val(meta), path(vcf), path(tbi), path(cnv)
   path(bed)
 
   output:
-  path("*.annotated.txt"), emit: cnv
+  tuple val(meta), path("*.annotated.txt"), emit: cnv
   path("versions.txt"), emit: versions
 
   when:

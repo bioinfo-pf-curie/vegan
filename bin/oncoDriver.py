@@ -307,6 +307,8 @@ def args_parse():
     parser.add_argument("--verbose", help="Active verbose mode", action="store_true")
     parser.add_argument("--debug", help="Export original VCF with TMB_FILTER tag", action="store_true")
     parser.add_argument("--version", help="Version number", action='version', version="%(prog)s ("+__version__+")")
+    parser.add_argument("--outputcnv", help="CNV output file name", type=str)
+
 
     args = parser.parse_args()
     return (args)
@@ -476,7 +478,7 @@ if __name__ == "__main__":
             csv_reader = csv.reader(csvfile, delimiter="\t")
             header = ["chrom","loc.start","loc.end","ID","CNt","Geno","logratio","ploidy","call","LOH","gene","driver_status"]
                       
-            with open('output.csv', mode='w', newline='') as outfile:
+            with open(args.outputcnv, mode='w', newline='') as outfile:
                 writer = csv.writer(outfile)
 
                 # Write the new header to the output file
