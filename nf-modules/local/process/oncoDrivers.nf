@@ -21,7 +21,7 @@ process oncoDrivers {
   def args = task.ext.args ?: ''
   """
   oncoDriver.py \
-    --vcf ${vcf} 
+    --vcf ${vcf} \
     --outputcnv ${prefix}_cnv.csv \
     --cnv ${cnv} \
     --config ${config} \
