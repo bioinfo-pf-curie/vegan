@@ -56,36 +56,35 @@ select:
   - var_type: 'snv'
     gene_type: 'tsg'
     var_classes:
-      - frameshift_variant
+      - stop_gained
       - splice_donor_variant
       - splice_acceptor_variant
-      - stop_gained
-    is_hotspot: false
-
-  - var_type: 'snv'
-    gene_type: 'tsg'
-    var_classes:
-      - missense_variant
-      - conservative_inframe_deletion
-      - conservative_inframe_insertion
-      - disruptive_inframe_deletion
-      - disruptive_inframe_insertion
-    is_hotspot: true
-
-  - var_type: 'cnv'
-    gene_type: 'tsg'
-    var_classes:
-      - deletion
-    copy: 0   
-
-  ## Both
-  - var_type: 'snv'
-    gene_type: 'both'
-    var_classes:
       - frameshift_variant
-      - splice_donor_variant
-      - splice_acceptor_variant 
+    is_hotspot: false
+
+  - var_type: 'snv'
+    gene_type: 'tsg'
+    var_classes:
+      - missense_variant
+      - conservative_inframe_deletion
+      - conservative_inframe_insertion
+      - disruptive_inframe_deletion
+      - disruptive_inframe_insertion
+    is_hotspot: true
+
+  - var_type: 'cnv'
+    gene_type: 'tsg'
+    var_classes:
+      - DEL
+
+  ## Both or unknown
+  - var_type: 'snv'
+    gene_type: 'both'
+    var_classes:
       - stop_gained
+      - splice_donor_variant
+      - splice_acceptor_variant
+      - frameshift_variant
     is_hotspot: false
 
   - var_type: 'snv'
@@ -98,15 +97,35 @@ select:
       - disruptive_inframe_insertion
     is_hotspot: true
 
-  - var_type: 'cnv'
-    gene_type: 'both'
+  - var_type: 'snv'
+    gene_type: 'unknown'
     var_classes:
-      - deletion
-    copy: 0
+      - stop_gained
+      - splice_donor_variant
+      - splice_acceptor_variant
+      - frameshift_variant
+    is_hotspot: false
+
+  - var_type: 'snv'
+    gene_type: 'unknown'
+    var_classes:
+      - missense_variant
+      - conservative_inframe_deletion
+      - conservative_inframe_insertion
+      - disruptive_inframe_deletion
+      - disruptive_inframe_insertion
+    is_hotspot: true
 
   - var_type: 'cnv'
     gene_type: 'both'
     var_classes:
       - AMP
+      - DEL
     maxsize: 10000000
-    copy: 5
+ 
+  - var_type: 'cnv'
+    gene_type: 'unknown'
+    var_classes:
+      - AMP
+      - DEL
+    maxsize: 10000000

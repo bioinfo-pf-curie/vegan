@@ -70,6 +70,7 @@ def load_cancer_genes_list(infile, format="oncoKB"):
     oncogene=[]
     tsg=[]
     both=[]
+    unknown=[]
     if format == "oncoKB":
         with open(infile, "r", encoding="utf8") as stream:
             tsv_reader = csv.DictReader(stream, delimiter="\t")
@@ -81,7 +82,9 @@ def load_cancer_genes_list(infile, format="oncoKB"):
                     tsg.append(name)
                 elif genes["Is Oncogene"]=="Yes" and genes["Is Tumor Suppressor Gene"]=="Yes":
                     both.append(name)
-    return {'oncogene': oncogene, 'tsg': tsg, 'both': both}
+                elif genes["Is Oncogene"]=="No" and genes["Is Tumor Suppressor Gene"]=="No":
+                    unknown.append(name)
+    return {'oncogene': oncogene, 'tsg': tsg, 'both': both, 'unknown': unknown}
 
 
 """
@@ -104,8 +107,10 @@ def get_gene_type(gene_id, cancer_atlas):
         return "tsg"
     elif gene_id in cancer_atlas['both']:
         return "both"
+    elif gene_id in cancer_atlas['unknown']:
+        return "unknown"
     else:
-        return None
+	    return None
 
 """
 Load canonical transcripts from GTF file
@@ -171,12 +176,11 @@ CNV decision tree
 def is_driver_cnv(gene_type, var_class, length, conf_select):
 
     for r in conf_select:
-        if var_class in r['var_classes']:            
-            if r['maxsize'] is not None and length > r['maxsize']:
+        if var_class in r['var_classes']:
+            if (var_class == "AMP" and r.get('maxsize') is not None) and (length > r['maxsize']):
                 return False
             return True
         return False
-
 
 """
 Check if a variant is in a genomeDb with a MAF > val
@@ -435,10 +439,11 @@ if __name__ == "__main__":
                     gene_type = get_gene_type(gene_id, driver_genes)
                     is_driver_mut = False
                     if gene_type is not None:
-                        if (args.use_canonical and transcript_id not in can_ids[gene_id]):
-                            __DEBUGINFO__ = ",".join(x for x in [__DEBUGINFO__, "NON_CANONICAL"] if x is not None)
+                        if (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id not in can_ids[gene_id]):
+                            if transcript_id not in can_ids[gene_id]: 
+                                DEBUGINFO__ = ",".join(x for x in [__DEBUGINFO__, "NON_CANONICAL"] if x is not None)
                             continue
-                        elif not args.use_canonical or (args.use_canonical and transcript_id in can_ids[gene_id]):
+                        elif not args.use_canonical or (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id in can_ids[gene_id]):
                             is_driver_mut = is_driver(annot, db_info, select_algo[(gene_type, 'snv')], vcf_conf)
                             __DRIVERINFO__ = gene_type + "," + transcript_id + "," + annot[vcf_conf['annot_info']]
                             if not is_driver_mut:
@@ -476,8 +481,8 @@ if __name__ == "__main__":
     if args.cnv is not None:
         with open(args.cnv, "r", encoding="utf8") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter="\t")
-            header = ["chrom","loc.start","loc.end","ID","CNt","Geno","logratio","ploidy","call","LOH","gene","driver_status"]
-                      
+            header = ["chrom","loc.start","loc.end","ID","CNt","Geno","logratio","ploidy","call","LOH","gene","driver_status","gene_type"]
+
             with open(args.outputcnv, mode='w', newline='') as outfile:
                 writer = csv.writer(outfile)
 
@@ -486,20 +491,25 @@ if __name__ == "__main__":
 
                 for row in csv_reader:
                     driver_status = 'NotDriver'
-                    if "ID" not in row:
-                        
-                        gene_id = row[cnv_conf['gene_id']]
-                        gene_type = get_gene_type(gene_id, driver_genes)
-                        var_class = row[cnv_conf['class']]
-                        length = int(row[cnv_conf['end']])-int(cnv_conf['start'])
-                        
-                        if gene_type is not None: 
+                    gene_id = row[cnv_conf['gene_id']]
+                    gene_type = get_gene_type(gene_id, driver_genes)
+                    if gene_type is not None:
+                        if "chrom" not in row:
+                            var_class = row[cnv_conf['class']]
+                            length = int(row[cnv_conf['end']]) - int(row[cnv_conf['start']])
                             is_driver_mut = is_driver_cnv(gene_type, var_class, length, select_algo[(gene_type, 'cnv' )])
+
                             if is_driver_mut:
                                 driver_status = 'Driver'
-                    row.append(driver_status)
-                    if ((driver_status == 'Driver') or (driver_status == 'NotDriver' and args.debug)):
-                        writer.writerow(row)
+                        row.append(driver_status)
+                        row.append(gene_type)
+
+                ######################
+                # Export
+                ######################
+
+                        if ((driver_status == 'Driver') or (driver_status == 'NotDriver' and args.debug)) :
+                            writer.writerow(row)
 
     wx.close()
     vcf.close()

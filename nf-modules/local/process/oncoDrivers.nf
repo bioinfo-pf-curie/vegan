@@ -21,10 +21,10 @@ process oncoDrivers {
   def args = task.ext.args ?: ''
   """
   oncoDriver.py \
-    --vcf ${vcf} \
+    --vcf ${vcf} --debug \
+    --config ${config} \
     --outputcnv ${prefix}_cnv.csv \
     --cnv ${cnv} \
-    --config ${config} \
     --driver_genes ${genes} \
     --canonical_ids ${gtf} \
     --output ${prefix}_oncoDriver.vcf.gz \
