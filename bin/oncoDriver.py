@@ -373,7 +373,7 @@ if __name__ == "__main__":
         
     for variant in vcf:
         __DEBUGINFO__ = None
-        __DRIVERINFOR__ = None
+        __DRIVERINFO__ = None
         var_counter += 1
         if (var_counter % 1000 == 0 and args.verbose):
             print ("## ", var_counter)
@@ -445,7 +445,7 @@ if __name__ == "__main__":
                             continue
                         elif not args.use_canonical or (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id in can_ids[gene_id]):
                             is_driver_mut = is_driver(annot, db_info, select_algo[(gene_type, 'snv')], vcf_conf)
-                            __DRIVERINFO__ = gene_type + "," + transcript_id + "," + annot[vcf_conf['annot_info']]
+                            __DRIVERINFO__ = ",".join(x for x in [__DRIVERINFO__, gene_type, annot[vcf_conf['annot_info']] ] if x is not None)
                             if not is_driver_mut:
                                 if args.debug:
                                     __DEBUGINFO__ = ",".join(x for x in [__DEBUGINFO__, "NON_DRIVER"] if x is not None)
