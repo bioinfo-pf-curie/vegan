@@ -26,7 +26,6 @@ workflow facetsFlow {
     chVersions = chVersions.mix(facets.out.versions)
 
     emit:
-
     segmentsTransformed = facets.out.segmentsTransformed
     versions = chVersions
 }
