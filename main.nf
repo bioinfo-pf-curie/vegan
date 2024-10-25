@@ -102,6 +102,7 @@ params.effGenomeSize = NFTools.getGenomeAttribute(params, 'effGenomeSize')
 params.driverGenes = NFTools.getGenomeAttribute(params, 'driverGenes')
 params.canonicalGtf = NFTools.getGenomeAttribute(params, 'canonicalGtf')
 params.bedGtf = NFTools.getGenomeAttribute(params, 'bedGtf')
+params.sigProfilerTsb = NFTools.getGenomeAttribute(params, 'sigProfilerTsb')
 
 // Stage config files
 chDriverConfig = Channel.fromPath(params.driverConfig, checkIfExists: true).collect()
@@ -198,7 +199,7 @@ chMsiBaselineConfig     = params.msiBaselineConfig     ? Channel.fromPath(params
 chCanonicalGtf          = params.canonicalGtf          ? Channel.fromPath(params.canonicalGtf, checkIfExists: true).collect()           : Channel.value([]) //optional
 chDriverGenes           = params.driverGenes           ? Channel.fromPath(params.driverGenes, checkIfExists: true).collect()            : Channel.value([]) //optional
 chBedGtf                = params.bedGtf                ? Channel.fromPath(params.bedGtf, checkIfExists: true).collect()                 : Channel.value([]) //optional
-
+chSigProfilerTsb        = params.sigProfilerTsb        ? Channel.fromPath(params.sigProfilerTsb, checkIfExists: true).collect()         : Channel.empty()
 
 /*
 ===========================
@@ -309,6 +310,7 @@ include { mantaFlow } from './nf-modules/local/subworkflow/manta'
 include { mantaTumorOnly } from './nf-modules/local/process/mantaTumorOnly'
 include { tmbFlow } from './nf-modules/local/subworkflow/tmb'
 include { msiFlow } from './nf-modules/local/subworkflow/msi'
+include { sigprofilerFlow } from './nf-modules/local/subworkflow/sigprofiler'
 include { facetsFlow } from './nf-modules/local/subworkflow/facets'
 include { ascatFlow } from './nf-modules/local/subworkflow/ascat'
 
@@ -411,7 +413,7 @@ workflow {
 
       loadBamFlow(
         chInputBam,
-	chFasta
+	      chFasta
       )
 
       if (params.step == "markduplicates"){
@@ -862,8 +864,8 @@ workflow {
         chPairBam,
         chDbsnp
       )
+      chFacetsSegments = facetsFlow.out.segmentsTransformed
     }
-    chFacetsSegments = facetsFlow.out.segmentsTransformed
 
     if('ascat' in tools){
       ascatFlow(
@@ -882,19 +884,35 @@ workflow {
     ================================================================================
     */
 
-    chSomaticVcfCnv = annotateSomaticFlow.out.vcf
-      .map{it -> [it[0], it[1][0], it[1][1]]}
-      .combine(chFacetsSegments, by:0)
+    if('snpeff' in tools && 'facets' in tools){
+      chSomaticVcfCnv = annotateSomaticFlow.out.vcf
+        .map{it -> [it[0], it[1][0], it[1][1]]}
+        .combine(chFacetsSegments, by:0)
 
-    driverSomaticFlow(
-      chSomaticVcfCnv,
-      chBedGtf,
-      chDriverGenes,
-      chDriverConfig,
-      chCanonicalGtf
-    )
-    chVersions = chVersions.mix(driverSomaticFlow.out.versions)
-    chDriverSomaticVcf = driverSomaticFlow.out.vcf
+      driverSomaticFlow(
+        chSomaticVcfCnv,
+        chBedGtf,
+        chDriverGenes,
+        chDriverConfig,
+        chCanonicalGtf
+      )
+      chVersions = chVersions.mix(driverSomaticFlow.out.versions)
+      chDriverSomaticVcf = driverSomaticFlow.out.vcf
+    }
+
+
+    /*
+    ================================================================================
+                                    MUTATIONAL SIGNATURE
+    ================================================================================
+    */
+
+    if('sigprofiler' in tools){
+      sigprofilerFlow(
+        tableReportFlow.out.tsv,
+        chSigProfilerTsb
+      )
+    }
 
     /*
     ================================================================================
