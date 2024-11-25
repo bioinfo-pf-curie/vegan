@@ -325,6 +325,7 @@ include { markDuplicates } from './nf-modules/common/process/gatk/markDuplicates
 include { samtoolsFlagstat as samtoolsStatsMarkdup } from './nf-modules/common/process/samtools/samtoolsFlagstat'
 include { samtoolsIndex as samtoolsIndexMarkdup } from './nf-modules/common/process/samtools/samtoolsIndex'
 include { rescueVariants } from './nf-modules/common/process/bcftools/rescueVariants'
+include { vcf2maf } from './nf-modules/local/process/vcf2maf'
 
 /*
 =====================================
@@ -884,7 +885,7 @@ workflow {
     ================================================================================
     */
 
-    if('snpeff' in tools && 'facets' in tools){
+    if('mutect2' in tools && 'snpeff' in tools && 'facets' in tools){
       chSomaticVcfCnv = annotateSomaticFlow.out.vcf
         .map{it -> [it[0], it[1][0], it[1][1]]}
         .combine(chFacetsSegments, by:0)
@@ -911,6 +912,19 @@ workflow {
       sigprofilerFlow(
         tableReportFlow.out.tsv,
         chSigProfilerTsb
+      )
+    }
+
+    /*
+    ================================================================================
+                                    MAF EXPORT
+    ================================================================================
+    */
+
+    if('mutect2' in tools){
+      vcf2maf(
+        chFilteredSomaticVcf,
+        chFasta
       )
     }
 
