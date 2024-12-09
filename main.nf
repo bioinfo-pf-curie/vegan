@@ -69,11 +69,12 @@ if (params.genomes && params.genome && !params.genomes.containsKey(params.genome
 params.bwaIndex = NFTools.getGenomeAttribute(params, 'bwaIndex')
 params.bwamem2Index = NFTools.getGenomeAttribute(params, 'bwamem2Index')
 params.dragmapIndex = NFTools.getGenomeAttribute(params, 'dragmapIndex')
+params.starIndex = NFTools.getGenomeAttribute(params, 'starIndex')
 params.chrLength = NFTools.getGenomeAttribute(params, 'chrLength')
 params.dict = NFTools.getGenomeAttribute(params, 'dict')
 params.fasta = NFTools.getGenomeAttribute(params, 'fasta')
 params.fastaFai = NFTools.getGenomeAttribute(params, 'fastaFai')
-//params.gtf = NFTools.getGenomeAttribute(params, 'gtf')
+params.gtf = NFTools.getGenomeAttribute(params, 'gtf')
 params.dbsnp = NFTools.getGenomeAttribute(params, 'dbsnp')
 params.dbsnpIndex = NFTools.getGenomeAttribute(params, 'dbsnpIndex')
 params.acLoci = NFTools.getGenomeAttribute(params, 'acLoci')
@@ -163,7 +164,7 @@ chChrLength             = params.chrLength             ? Channel.fromPath(params
 chFasta                 = params.fasta                 ? Channel.fromPath(params.fasta, checkIfExists: true).collect()                  : Channel.empty()
 chFastaFai              = params.fastaFai              ? Channel.fromPath(params.fastaFai, checkIfExists: true).collect()               : Channel.empty()
 chDict                  = params.dict                  ? Channel.fromPath(params.dict, checkIfExists: true).collect()                   : Channel.empty()
-//chGtf                   = params.gtf                   ? Channel.fromPath(params.gtf, checkIfExists: true).collect()                    : Channel.value([]) //optional
+chGtf                   = params.gtf                   ? Channel.fromPath(params.gtf, checkIfExists: true).collect()                    : Channel.value([]) //optional
 chDbsnp                 = params.dbsnp                 ? Channel.fromPath(params.dbsnp, checkIfExists: true).collect()                  : Channel.value([]) //optional
 chDbsnpIndex            = params.dbsnpIndex            ? Channel.fromPath(params.dbsnpIndex, checkIfExists: true).collect()             : Channel.value([]) //optional
 chAcLoci                = params.acLoci                ? Channel.fromPath(params.acLoci, checkIfExists: true).collect()                 : Channel.value([]) //optional
@@ -194,6 +195,7 @@ chIntervals             = params.intervals             ? Channel.fromPath(params
 chBwaIndex              = params.bwaIndex              ? Channel.fromPath(params.bwaIndex)                                              : Channel.empty()
 chBwaMem2Index          = params.bwamem2Index          ? Channel.fromPath(params.bwamem2Index)                                          : Channel.empty()
 chDragmapIndex          = params.dragmapIndex          ? Channel.fromPath(params.dragmapIndex)                                          : Channel.empty()
+chStarIndex             = params.starIndex             ? Channel.fromPath(params.starIndex)                                             : Channel.empty()
 chEffGenomeSize         = params.effGenomeSize         ? Channel.value(params.effGenomeSize)                                            : Channel.value([]) //optional
 chMsiBaselineConfig     = params.msiBaselineConfig     ? Channel.fromPath(params.msiBaselineConfig)                                     : Channel.empty()
 chCanonicalGtf          = params.canonicalGtf          ? Channel.fromPath(params.canonicalGtf, checkIfExists: true).collect()           : Channel.value([]) //optional
@@ -291,6 +293,7 @@ if (params.design){
 // Workflows
 include { prepareIntervalsFlow } from './nf-modules/local/subworkflow/prepareIntervals'
 include { mappingFlow } from './nf-modules/local/subworkflow/mapping'
+include { rnaFlow } from './nf-modules/local/subworkflow/rnaFlow'
 include { loadBamFlow } from './nf-modules/local/subworkflow/loadBam'
 include { bamFiltersFlow } from './nf-modules/local/subworkflow/bamFiltering'
 include { bamQcFlow } from './nf-modules/local/subworkflow/bamQc'
@@ -390,6 +393,43 @@ workflow {
     )
     chFastqcMqc = fastqc.out.results.collect()
     chVersions = chVersions.mix(fastqc.out.versions)
+
+    //*******************************************
+    // SUB-WORFKLOW : RNA SEQ
+    
+    if (params.rna){
+    
+      chAlignerIndex = chStarIndex 
+    
+      rnaFlow(
+        chRawReads,
+        chStarIndex,
+        chGtf,
+        chFasta,
+        chFastaFai,
+        chDict,
+        chPolyms,
+        customRunName,
+        chIntervalBeds,
+        chDbsnp,
+        chDbsnpIndex,
+        chKnownIndels,
+        chKnownIndelsIndex
+      )
+
+      // chAlignedBam = mappingStarFlow.out.bam
+      // chFilteredBam = Channel.empty()
+      // chMarkedBam = Channel.empty()
+      // // chMappingStats = mappingStarFlow.out.stats.map{it->it[1]}
+      // chMappingFlagstat = mappingStarFlow.out.flagstat.map{it->it[1]}
+      // chVersions = chVersions.mix(mappingStarFlow.out.versions)
+      chRawSomaticVcf = Channel.empty()
+      chFilteredSomaticVcf = Channel.empty()
+      chAllGermlineVcf = rnaFlow.out.vcf
+      chMarkdupStatsMqc = Channel.empty()
+
+    }else{
+
 
     //*******************************************
     // SUB-WORFKLOW : MAPPING WITH BWA-MEM/BWA-MEM2/DRAGMAP
@@ -718,7 +758,7 @@ workflow {
       chFilteredSomaticVcf = rescueVariants.out.vcf
       chFilteredSomaticVcf.view()
     }
-
+  }
 
     /*
     ================================================================================
