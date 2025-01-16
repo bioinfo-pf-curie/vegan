@@ -107,7 +107,7 @@
       "usage": "Specify tools to use for variant calling",
       "type": "string",
       "nargs": "+",
-      "choices": ["haplotypecaller", "mutect2", "manta", "snpeff", "facets", "ascat",  "tmb", "msisensor","sigprofiler"],
+      "choices": ["haplotypecaller", "mutect2", "manta", "snpeff", "facets", "ascat", "tmb", "msisensor","sigprofiler"],
       "default_value": [],
       "pattern": ".*",
       "render": "textfield",
@@ -166,6 +166,21 @@
       "group": "Inputs"
     },
     {
+      "name": "rna",
+      "label": "rna",
+      "usage": "Specify that the inputs are RNA-seq",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Inputs"
+    },
+
+
+    {
       "name": "saveAlignedIntermediates",
       "label": "Save aligned intermediates",
       "usage": "Save intermediates alignment files",
@@ -218,6 +233,44 @@
       "group": "Alignment"
     },
     {
+      "name": "bwaOpts",
+      "label": "Options for BWA mapping",
+      "usage": "Options for BWA mapping",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "-k 19 -T 30 -M",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Alignment"
+    },
+    {
+      "name": "dragmapOpts",
+      "label": "Options for Dragmap mapping",
+      "usage": "Options for Dragmap mapping",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Alignment"
+    },
+    {
+      "name": "starOpts",
+      "label": "Options for STAR mapping (RNA-seq only)",
+      "usage": "Options for STAR mapping (RNA-seq only)",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--outSAMmultNmax 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --outSAMprimaryFlag OneBestScore --outMultimapperOrder Random --outSAMattributes All",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Alignment"
+    },
+
+
+    {
       "name": "targetBed",
       "label": "Target Bed file",
       "usage": "Target Bed file for targeted or whole exome sequencing",
@@ -228,7 +281,7 @@
       "pattern": ".*",
       "render": "file",
       "arity": 0,
-      "group": "Filtering"
+      "group": "Mapping Filtering"
     },
     {
       "name": "keepDups",
@@ -241,7 +294,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Filtering"
+      "group": "Mapping Filtering"
     },
     {
       "name": "keepSingleton",
@@ -254,7 +307,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Filtering"
+      "group": "Mapping Filtering"
     },
     {
       "name": "keepMultiHits",
@@ -267,12 +320,25 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Filtering"
+      "group": "Mapping Filtering"
+    },
+
+    {
+      "name": "mutect2Opts",
+      "label": "Options for Mutect2 calling",
+      "usage": "Options for Mutect2 calling",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--dont-use-soft-clipped-bases",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Somatic Variant Calling"
     },
     {
       "name": "baseQual",
       "label": "Base quality",
-      "usage": "Minimum base quality used by Facets for CNV calling",
+      "usage": "Minimum base quality for somatic variant calling",
       "type": "integer",
       "nargs": 1,
       "choices": [],
@@ -280,7 +346,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Variant calling"
+      "group": "Somatic Variant Calling"
     },
     {
       "name": "skipMutectOrientationModel",
@@ -293,7 +359,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Variant calling"
+      "group": "Somatic Variant Calling"
     },
     {
       "name": "skipMutectContamination",
@@ -306,8 +372,97 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Variant calling"
+      "group": "Somatic Variant Calling"
     },
+    {
+      "name": "pon",
+      "label": "PATH to panels of normals",
+      "usage": "PATH to panels of normals (.vcf.gz)",
+      "type": "PATH",
+      "nargs": "1",
+      "default_value": [],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Somatic Variant Calling"
+    },
+    {
+      "name": "ponIndex",
+      "label": "PATH to panels of normals index file",
+      "usage": "PATH to panels of normals index file (.tbi)",
+      "type": "path",
+      "nargs": "1",
+      "default_value": [],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Somatic Variant Calling"
+    },
+    {
+      "name": "rescueMutectVariants",
+      "label": "Rescue somatic variants filtered by Mutect2",
+      "usage": "Rescue somatic variants	filtered by Mutect2",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Somatic Variant Calling"
+    },
+    {
+      "name": "rescueVariantsType",
+      "label": "Variant type to rescue",
+      "usage": "Variant type to rescue",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "normal_artifact",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Somatic Variant Calling"
+    },
+    {
+      "name": "rescueVariantsVAF",
+      "label": "VAF threshold for variant rescue",
+      "usage": "VAF threshold for variant rescue",
+      "type": "integer",
+      "nargs": "1",
+      "default_value": 0.05,
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Somatic Variant Calling"
+    },
+
+    {
+      "name": "driverConfig"
+      "label": "Configuration file for oncoDriver algorithm",
+      "usage": "Configuration file for oncoDriver algorithm",
+      "type": "PATH",
+      "nargs": "1",
+      "default_value": [],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Driver variants"
+    },
+    {
+      "name": "skipOncodriver",
+      "label": "Skip driver variants detection",
+      "usage": "Skip driver variants detection",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Driver variants"
+    },                                                                                                                                                                                                      
+
+
     {
       "name": "saveVcfMetrics",
       "label": "Save vcf metrics",
@@ -319,7 +474,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Variant calling"
+      "group": "VCF format"
     },
     {
       "name": "saveVcfIntermediates",
@@ -332,33 +487,23 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Variant calling"
+      "group": "VCF format"
     },
 
     {
-      "name": "pon",
-      "label": "PATH to panels of normals",
-      "usage": "PATH to panels of normals (.vcf.gz)",
-      "type": "PATH",
+      "name": "facetsOpts",
+      "label": "Options for FACETS",
+      "usage": "Options for FACETS",
+      "type": "string",
       "nargs": "1",
-      "default_value": [],
+      "default_value": "--normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25",
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Tumor only"
+      "group": "Copy Number Calling"
     },
-    {
-      "name": "ponIndex",
-      "label": "PATH to panels of normals index file",
-      "usage": "PATH to panels of normals index file (.tbi)",
-      "type": "path",
-      "nargs": "1",
-      "default_value": [],
-      "pattern": ".*",
-      "render": "textfield",
-      "arity": 0,
-      "group": "Tumor only"
-    },
+
+
     {
       "name": "msiBaselineConfig",
       "label": "PATH to Msisensor-pro baseline",
@@ -369,7 +514,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Tumor only"
+      "group": "MSI calling"
     },
 
     {
@@ -383,7 +528,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "VCF filters"
+      "group": "TMB"
     },
     {
       "name": "filterSomaticVAF",
@@ -396,7 +541,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "VCF filters"
+      "group": "TMB"
     },
     {
       "name": "filterSomaticMAF",
@@ -409,7 +554,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "VCF filters"
+      "group": "TMB"
     },
 
     {
@@ -422,6 +567,19 @@
       "default_value": [],
       "pattern": "",
       "render": "check-box",
+      "arity": 0,
+      "group": "TMB"
+    },
+
+    {
+      "name": "snpeffOpts",
+      "label": "Options for snpEff annotation",
+      "usage": "Options for snpEff annotation",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "-noInteraction -noNextProt -nodownload",
+      "pattern": ".*",
+      "render": "textfield",
       "arity": 0,
       "group": "Annotation"
     },
@@ -527,7 +685,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Other options"
+      "group": "Alignment"
     },
     {
       "name": "multiqcConfig",

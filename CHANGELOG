@@ -1,4 +1,13 @@
 ***********************************
+version-2.6.0
+
+  - Generate MAF file format with '--maf' option #170
+  - New sub-workflow for RNA-seq variant calling with '--rna' #180
+  - New tool 'sigprofiler' for mutational signature detection #184
+  - Call driver genes (mutations and CNV) with oncoDriver. Update the driver algorithm json file with '--driverConfig' #220
+  - New '--rescueMutectVariants' options to rescue somatic variants filtered by Mutect. By default, the idea is to rescue variants filtered because supported by only a few reads in the normal sample, and considered as 'normal_artefact'. See '--rescueVariantsType' and '--rescueVariantsVAF' to modify the default behavior #213
+
+***********************************
 version-2.5.0
 
   - Add Nextflow plugin nf-boost for automatic work/ cleaning (`--cleanup`). This option is experimental.
