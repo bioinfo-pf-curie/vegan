@@ -32,13 +32,17 @@ The first version of `VEGAN` was inspired from the [nf-core Sarek pipeline](http
   - Mutect2 (including learnReadOrientationModel, GetPileupSummaries, CalculateContamination)
   - FilterMutectCalls
 7. Technical filters for somatic variants (DP, VAF, MAF) ([`SnpSift`](https://github.com/pcingola/SnpSift), [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
+8. Rescue variants filtered by Mutect2 (such as normal artefact from ctDNA)
 8. Variants annotation ([`SnpEff`](https://pcingola.github.io/SnpEff/) / [`SnpSift`](https://github.com/pcingola/SnpSift))
-9. Copy-number analysis ([`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software), [`FACETS`](https://github.com/mskcc/facets))
-10. Structural variants analysis ([`MANTA`](https://github.com/Illumina/manta))
-11. Biomarkers analysis
+9. Selection of driver variants using a clinical decision tree (`oncoDrivers`)
+10. Computataion of mutational signature ([`sigprofiler`](https://cancer.sanger.ac.uk/signatures/tools/))
+11. Copy-number analysis ([`ASCAT`](https://www.crick.ac.uk/research/labs/peter-van-loo/software), [`FACETS`](https://github.com/mskcc/facets))
+12. Structural variants analysis ([`MANTA`](https://github.com/Illumina/manta))
+13. Biomarkers analysis
   - Microsatellite instability analysis ([`MSIsensor-pro`](https://github.com/xjtu-omics/msisensor-pro))
   - Tumor Mutational Burden ([`pyTMB`](https://github.com/bioinfo-pf-curie/TMB))
-12. Gather all QC results in a final report ([`MultiQC`](http://multiqc.info/))
+14. Generate MAF files for CBioportal integration ([`vcf2MAF`](https://cancer.sanger.ac.uk/signatures/tools/))
+15. Gather all QC results in a final report ([`MultiQC`](http://multiqc.info/))
 
 ### Quick help
 
