@@ -43,9 +43,9 @@ The first version of `VEGAN` was inspired from the [nf-core Sarek pipeline](http
 ### Quick help
 
 ```bash
-nextflow run main.nf --help
-N E X T F L O W  ~  version 23.10.1
-Launching `main.nf` [condescending_brahmagupta] DSL2 - revision: 86c6fce14e
+N E X T F L O W   ~  version 24.04.4
+
+Launching `main.nf` [magical_lovelace] DSL2 - revision: 6d760c486c
 ------------------------------------------------------------------------
 
     _   _   _____          __     __  _____    ____      _      _   _
@@ -55,30 +55,36 @@ Launching `main.nf` [condescending_brahmagupta] DSL2 - revision: 86c6fce14e
    |_| \_| |_|                \_/    |_____|  \____| /_/   \_\ |_| \_|
 
 
-                   VEGAN v2.3.0
+                   VEGAN v2.6.0
 ------------------------------------------------------------------------
 
     Usage:
 
     The typical command for running the pipeline is as follows:
 
-    nextflow run main.nf --profile STRING --samplePlan PATH --design PATH --step STRING --genome STRING --genomeAnnotationPath PATH
+    nextflow run main.nf --profile STRING --design PATH --step STRING --genome STRING --genomeAnnotationPath PATH --tools STRING 
 
 MANDATORY ARGUMENTS:
-    --design                   PATH                                                                              Path to designf ile specifying the metadata ssociated with the samples
-    --genome                   STRING [hg19, hg19_base, hg38, hg38_base, mm10, mm39,...]                         Name of the reference genome.
-    --genomeAnnotationPath PATH                                                                                  PATH to the reference genome folder.
-    --profile                  STRING [test, multiconda, singularity, cluster, docker, conda, path, multipath]   Configuration profile to use. Can use multiple (comma separated).
-    --step                     STRING [mapping, markduplicates, filtering, calling, annotate]                    Specify starting step
-    --outDir                   PATH                                                                              The output directory where the results will be saved
-    --tools                    STRING [haplotypecaller, mutect2, manta, snpeff, facets, ascat, tmb, msisensor]   Specify tools to use for variant calling
+    --design               PATH                                                                                          Path to design file 
+                                                                                                                         specifying the metadata 
+                                                                                                                         associated with the samples
+    --genome               STRING                                                                                        Name of the reference genome.
+    --genomeAnnotationPath PATH                                                                                          PATH to the reference genome 
+                                                                                                                         folder.
+    --profile              STRING [test, multiconda, singularity, cluster, docker, conda, path, multipath]               Configuration profile to use. 
+                                                                                                                         Can use multiple (comma 
+                                                                                                                         separated).
+    --step                 STRING [mapping, markduplicates, filtering, calling, annotate]                                Specify starting step
+    --tools                STRING [haplotypecaller, mutect2, manta, snpeff, facets, ascat, tmb, msisensor, sigprofiler]  Specify tools to use for 
+                                                                                                                         variant calling
 
 INPUTS:
-    --reads                    PATH      Path to input data (must be surrounded with quotes)
-    --samplePlan               PATH      Path to sample plan (csv format) raw reads (if `--reads` is not secified), or intermediate files according to the `--step` parameter
-    --singleEnd                          For single-end input data
-    --splitFastq                         Split fastq files in chunks
-    --fastqChunksSize          INTEGER   Reads chunks size
+    --fastqChunksSize INTEGER   Reads chunks size
+    --reads           PATH      Path to input data (must be surrounded with quotes)
+    --rna                       Specify that the inputs are RNA-seq
+    --samplePlan      PATH      Path to sample plan (csv format) (if `--reads` is not specified)
+    --singleEnd                 For single-end input data
+    --splitFastq                Split fastq files in chunks
 
 OUTPUTS:
     --cleanup STRING [none, auto, success]  Cleaning strategy of the work/ directory
@@ -86,50 +92,68 @@ OUTPUTS:
 
 ALIGNMENT:
     --aligner                  STRING [bwa-mem, bwa-mem2, dragmap]   Specify tools to use for mapping
+    --bwaOpts                  STRING                                Options for BWA mapping
     --cram                                                           Generate CRAM alignment files
+    --dragmapOpts              STRING                                Options for Dragmap mapping
     --mapQual                  INTEGER                               Minimum mapping quality to consider for an alignment
     --saveAlignedIntermediates                                       Save intermediates alignment files
-    --splitFastq                                                     Split fastq files in chunks
+    --sequencingCenter         STRING                                Name of sequencing center to be displayed in BAM file
+    --starOpts                 STRING                                Options for STAR mapping (RNA-seq only)
 
-FILTERING:
+MAPPING FILTERING:
     --keepDups                Specify to keep duplicate reads when filtering the alignment
     --keepMultiHits           Specify to keep multi hit reads when filtering the alignment
     --keepSingleton           Specify to keep singleton reads when filtering the alignment
     --targetBed     PATH      Target Bed file for targeted or whole exome sequencing
 
-VARIANT CALLING:
-    --baseQual                   INTEGER   Minimum base quality used by Facets for CNV calling
-    --saveVcfIntermediates                 Save intermediate vcf files
-    --saveVcfMetrics                       Save complementary vcf metrics files
+SOMATIC VARIANT CALLING:
+    --baseQual                   INTEGER   Minimum base quality for somatic variant calling
+    --mutect2Opts                STRING    Options for Mutect2 calling
+    --pon                        PATH      PATH to panels of normals (.vcf.gz)
+    --ponIndex                   PATH      PATH to panels of normals index file (.tbi)
     --skipMutectContamination              Do not apply the Contamination step for Mutect2 calls filtering
     --skipMutectOrientationModel           Do not apply the LearnOrientationModel step for Mutect2 calls filtering
-					
-TUMOR ONLY:
-    --msiBaselineConfig PATH   PATH to Msisensor-pro baseline config file for tumor-only mode
-    --pon               PATH   PATH to panels of normals (.vcf.gz)
-    --ponIndex          PATH   PATH to panels of normals index file (.tbi)
 
-VCF FILTERS:
-    --filterSomaticDP  INTEGER   Minimum sequencing depth to consider a somatic variant
-    --filterSomaticMAF INTEGER   Maximum variant frequency in the general population to consider a somatic variant
-    --filterSomaticVAF INTEGER   Minimum variant allele frequency to consider a somatic variant
+SOMATIC VARIANT FILTERING:
+    --filterSomaticDP      INTEGER   Minimum sequencing depth to consider a somatic variant
+    --filterSomaticMAF     INTEGER   Maximum variant frequency in the general population to consider a somatic variant
+    --filterSomaticVAF     INTEGER   Minimum variant allele frequency to consider a somatic variant
+    --rescueMutectVariants           Rescue somatic variants	filtered by Mutect2
+    --rescueVariantsType   STRING    Variant type to rescue
+    --rescueVariantsVAF    INTEGER   VAF threshold for variant rescue
+
+DRIVER VARIANTS:
+    --driverConfig   PATH      Configuration file for oncoDriver algorithm
+    --skipOncodriver           Skip driver variants detection
+
+VCF FORMAT:
+    --saveVcfIntermediates           Save intermediate vcf files
+    --saveVcfMetrics                 Save complementary vcf metrics files
+
+COPY NUMBER CALLING:
+    --facetsOpts STRING   Options for FACETS
+
+MSI CALLING:
+    --msiBaselineConfig PATH   PATH to Msisensor-pro baseline config file for tumor-only mode
+
+TMB:
+    --tmbFilters STRING   Filter variants for TMB calculation
 
 ANNOTATION:
-    --annotDb STRING [cosmic, icgc, cancerhotspots, gnomad, dbnsfp]   Annotation databases to use with SnpEff and SnpSift
-    --ffpe                                                            Specify to use the ffpe parameters and filters for TMB computation
+    --annotDb    STRING [cosmic, icgc, cancerhotspots, gnomad, dbnsfp]  Annotation databases to use with SnpEff and SnpSift
+    --snpeffOpts STRING                                                 Options for snpEff annotation
 
 SKIP OPTIONS:
     --skipBQSR                 Disable BQSR
     --skipBamQC                Disable QCs on BAM files
-    --skipFastqc               Disable Fastqc
+    --skipFastQC               Disable FastQC
     --skipIdentito             Disable Identito
-    --skipMultiqc              Disable MultiQC
-    --skipSaturation           Disable Preseq				
+    --skipMultiQC              Disable MultiQC
+    --skipSaturation           Disable Preseq
 
 OTHER OPTIONS:
-    --multiqcConfig    PATH      Specify a custom config file for MultiQC
-    --name             STRING    Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
-    --sequencingCenter STRING    Name of sequencing center to be displayed in BAM file
+    --multiqcConfig PATH     Specify a custom config file for MultiQC
+    --name          STRING   Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
 
 =======================================================
 Available Profiles

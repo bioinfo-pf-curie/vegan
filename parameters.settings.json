@@ -16,7 +16,7 @@
     {
       "name": "samplePlan",
       "label": "Input files",
-      "usage": "Path to sample plan (csv format) with raw reads (if `--reads` is not specified), or intermediate files according to the `--step` parameter",
+      "usage": "Path to sample plan (csv format) (if `--reads` is not specified)",
       "type": "path",
       "choices": [],
       "nargs": "+",
@@ -409,7 +409,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Somatic Variant Calling"
+      "group": "Somatic Variant Filtering"
     },
     {
       "name": "rescueVariantsType",
@@ -421,7 +421,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Somatic Variant Calling"
+      "group": "Somatic Variant Filtering"
     },
     {
       "name": "rescueVariantsVAF",
@@ -433,11 +433,11 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Somatic Variant Calling"
+      "group": "Somatic Variant Filtering"
     },
 
     {
-      "name": "driverConfig"
+      "name": "driverConfig",
       "label": "Configuration file for oncoDriver algorithm",
       "usage": "Configuration file for oncoDriver algorithm",
       "type": "PATH",
@@ -528,7 +528,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "TMB"
+      "group": "Somatic Variant Filtering"
     },
     {
       "name": "filterSomaticVAF",
@@ -541,7 +541,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "TMB"
+      "group": "Somatic Variant Filtering"
     },
     {
       "name": "filterSomaticMAF",
@@ -554,22 +554,23 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "TMB"
+      "group": "Somatic Variant Filtering"
     },
 
+
     {
-      "name": "ffpe",
-      "label": "ffpe for TMB",
-      "usage": "Specify to use the ffpe parameters and filters for TMB computation",
-      "type": "boolean",
-      "nargs": "+",
-      "choices": [],
-      "default_value": [],
-      "pattern": "",
-      "render": "check-box",
+      "name": "tmbFilters",
+      "label": "Filters to calculate TMB",
+      "usage": "Filter variants for TMB calculation",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--vaf 0.05 --maf 0.001 --minDepth 20 --minAltDepth 2 --filterLowQual --filterNonCoding --filterSyn --filterPolym --polymDb 1k,gnomad",
+      "pattern": ".*",
+      "render": "textfield",
       "arity": 0,
       "group": "TMB"
     },
+
 
     {
       "name": "snpeffOpts",
