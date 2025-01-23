@@ -9,6 +9,6 @@ channels:
 dependencies:
   - conda-forge::python=3.9.12=h9a8a25e_1_cpython
   - bioconda::cyvcf2=0.30.15=py39h3ba1b09_1
-  - conda-forge::pyyaml=6.0=py39h8cd3c5a_1
+  - conda-forge::pyyaml=6.0.2=py39h9399b63_2
   - bioconda::mosdepth=0.3.3=hd299d5a_3
   - bioconda::pybedtools=0.9.0=py39hd65a603_2
