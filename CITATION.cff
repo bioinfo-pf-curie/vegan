@@ -16,5 +16,5 @@ authors:
   - family-names: Servant
     given-names: Nicolas
 title: "VEGAN - Variant calling pipeline for whole Exome and whole Genome sequencing cANcer data"
-version: 2.3.0
-date-released: 2024-01-01
+version: 2.6.0
+date-released: 2025-02-01

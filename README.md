@@ -8,7 +8,7 @@
 
 ### Introduction
 
-This pipeline was built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis. Most of the pipeline steps can work for tumor/normal paired samples and tumor-only samples. `VEGAN` can run from raw `fastq` files or from intermediates results such as `BAM/CRAM` aligned files or `VCF` files.  
+This pipeline was built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis. Most of the pipeline steps can work for tumor/normal paired samples and tumor-only samples. `VEGAN` can run from raw `fastq` files or from intermediates results such as `BAM/CRAM` aligned files or `VCF` files. The latest version now supports variant calling on **RNA-seq** samples.    
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner.
 It comes with conda / singularity containers making installation easier and results highly reproducible. 
