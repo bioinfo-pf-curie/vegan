@@ -2,7 +2,7 @@
  * Apply decision algorithm to select drivers mutation
  */
 
-include { oncoDrivers } from '../../local/process/oncoDrivers'
+include { oncoDriver } from '../../local/process/oncoDriver'
 include { annotateCNV } from '../../local/process/annotateCNV'
 
 workflow driverSomaticFlow {
@@ -26,15 +26,15 @@ workflow driverSomaticFlow {
     .combine(annotateCNV.out.cnv, by:0)
   
   // Detect driver mutations
-  oncoDrivers(
+  oncoDriver(
     chVcfCnv,
     drivers,
     decision,
     canonicals
   )
-  chVersions = chVersions.mix(oncoDrivers.out.versions)
+  chVersions = chVersions.mix(oncoDriver.out.versions)
 
   emit:
   versions = chVersions
-  vcf = oncoDrivers.out.vcf
+  vcf = oncoDriver.out.vcf
 }

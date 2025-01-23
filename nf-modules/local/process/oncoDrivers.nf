@@ -1,7 +1,7 @@
-process oncoDrivers {
+process oncoDriver {
   label 'minCpu'
   label 'minMem'
-  label 'oncodrivers'
+  label 'oncodriver'
   tag "${meta.id}"
 
   input:
