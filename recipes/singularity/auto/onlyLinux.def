@@ -1,9 +1,9 @@
 Bootstrap: docker
-From: 4geniac/almalinux:8.4
+From: 4geniac/almalinux:9.3
 
 %labels
-    gitUrl https://gitlab.curie.fr/data-analysis/vegan.git
-    gitCommit ce919add961df99df20760ef2004149a3a9b33b7 / devel
+    gitUrl https://gitlab-ci-token:64_H4txhYSN_Gya4RJTC_Gr@gitlab.curie.fr/data-analysis/vegan.git
+    gitCommit 9d62c26c025ae92eba1fef22186357f0203e93fb/devel
 
 %environment
     export R_LIBS_USER="-"
