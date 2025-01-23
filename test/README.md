@@ -20,9 +20,10 @@ nextflow run main.nf -profile test,multiconda \
 
 In order to make sure Vegan is operational, several tests must be performed. They are listed below:
 - Test the different steps of the pipeline with the parameter `--step mapping` or `filtering` or `calling` or `annotate`
-- test the different tools of the pipeline with the parameter `--tools mutect2,snpeff,haplotypecaller,manta,tmb,msisensor,facets,ascat`. Be aware that with small test datasets msisensor, facets and Ascat won't run. They need bigger datasets.
-- test the different genome versions available with the parameter `--genome hg19` or `hg38`
-- test the use of a Target file (.bed) with the parameter `--targetBed /PATH/TO/FILE`
-- test the different containers types with `-profile multiconda` or `singularity`
-- test Vegan with WES or WGS data
-- test vegan after deployment with geniac
+- Test the different tools of the pipeline with the parameter `--tools mutect2,snpeff,haplotypecaller,sigprofiler,manta,tmb,msisensor,facets,ascat`. Be aware that with small test datasets msisensor, facets and Ascat won't run. They need bigger datasets.
+- Test the different genome versions available with the parameter `--genome hg19` or `hg38`
+- Test the use of a Target file (.bed) with the parameter `--targetBed /PATH/TO/FILE`
+- Test the different containers types with `-profile multiconda` or `singularity`
+- Test on WES or WGS data
+- Test on RNA-seq data
+- Test vegan after deployment with geniac

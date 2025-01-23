@@ -925,7 +925,7 @@ workflow {
     ================================================================================
     */
 
-    if('mutect2' in tools && 'snpeff' in tools && 'facets' in tools){
+    if('oncodriver' in tools && 'snpeff' in tools && 'mutect2' in tools && 'facets' in tools){
       chSomaticVcfCnv = annotateSomaticFlow.out.vcf
         .map{it -> [it[0], it[1][0], it[1][1]]}
         .combine(chFacetsSegments, by:0)

@@ -69,18 +69,17 @@ Launching `main.nf` [magical_lovelace] DSL2 - revision: 6d760c486c
     nextflow run main.nf --profile STRING --design PATH --step STRING --genome STRING --genomeAnnotationPath PATH --tools STRING 
 
 MANDATORY ARGUMENTS:
-    --design               PATH                                                                                          Path to design file 
-                                                                                                                         specifying the metadata 
-                                                                                                                         associated with the samples
-    --genome               STRING                                                                                        Name of the reference genome.
-    --genomeAnnotationPath PATH                                                                                          PATH to the reference genome 
-                                                                                                                         folder.
-    --profile              STRING [test, multiconda, singularity, cluster, docker, conda, path, multipath]               Configuration profile to use. 
-                                                                                                                         Can use multiple (comma 
-                                                                                                                         separated).
-    --step                 STRING [mapping, markduplicates, filtering, calling, annotate]                                Specify starting step
-    --tools                STRING [haplotypecaller, mutect2, manta, snpeff, facets, ascat, tmb, msisensor, sigprofiler]  Specify tools to use for 
-                                                                                                                         variant calling
+    --design               PATH                                                                                                      Path to design file 
+                                                                                                                                     specifying the metadata 
+                                                                                                                                     associated with the samples
+    --genome               STRING                                                                                                    Name of the reference genome
+    --genomeAnnotationPath PATH                                                                                                      PATH to the reference genome 
+                                                                                                                                     folder
+    --profile              STRING [test, multiconda, singularity, cluster, docker, conda, path, multipath]                           Configuration profile to use 
+                                                                                                                                     Can use multiple (comma 
+                                                                                                                                     separated).
+    --step                 STRING [mapping, markduplicates, filtering, calling, annotate]                                            Specify starting step
+    --tools                STRING [haplotypecaller, mutect2, manta, snpeff, oncodriver, facets, ascat, tmb, msisensor, sigprofiler]  Specify tools to use for variant calling
 
 INPUTS:
     --fastqChunksSize INTEGER   Reads chunks size
@@ -128,7 +127,6 @@ SOMATIC VARIANT FILTERING:
 
 DRIVER VARIANTS:
     --driverConfig   PATH      Configuration file for oncoDriver algorithm
-    --skipOncodriver           Skip driver variants detection
 
 VCF FORMAT:
     --saveVcfIntermediates           Save intermediate vcf files

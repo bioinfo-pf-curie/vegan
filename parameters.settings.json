@@ -3,7 +3,7 @@
     {
       "name": "profile",
       "label": "Configuration profile(s)",
-      "usage": "Configuration profile to use. Can use multiple (comma separated).",
+      "usage": "Configuration profile to use. Can use multiple (comma separated)",
       "type": "string",
       "choices": ["test", "multiconda", "singularity", "cluster", "docker",  "conda", "path", "multipath"],
       "nargs": "+",
@@ -79,7 +79,7 @@
     {
       "name": "genome",
       "label": "Reference genome",
-      "usage": "Name of the reference genome.",
+      "usage": "Name of the reference genome",
       "type": "string",
       "nargs": "1",
       "choices": [],
@@ -92,7 +92,7 @@
     {
       "name": "genomeAnnotationPath",
       "label": "PATH to Reference",
-      "usage": "PATH to the reference genome folder.",
+      "usage": "PATH to the reference genome folder",
       "type": "path",
       "nargs": "1",
       "default_value": [],
@@ -107,7 +107,7 @@
       "usage": "Specify tools to use for variant calling",
       "type": "string",
       "nargs": "+",
-      "choices": ["haplotypecaller", "mutect2", "manta", "snpeff", "facets", "ascat", "tmb", "msisensor","sigprofiler"],
+	"choices": ["haplotypecaller", "mutect2", "manta", "snpeff", "oncodriver", "facets", "ascat", "tmb", "msisensor","sigprofiler"],
       "default_value": [],
       "pattern": ".*",
       "render": "textfield",
@@ -448,20 +448,6 @@
       "arity": 0,
       "group": "Driver variants"
     },
-    {
-      "name": "skipOncodriver",
-      "label": "Skip driver variants detection",
-      "usage": "Skip driver variants detection",
-      "type": "boolean",
-      "nargs": 0,
-      "choices": [],
-      "default_value": false,
-      "pattern": "",
-      "render": "check-box",
-      "arity": 0,
-      "group": "Driver variants"
-    },                                                                                                                                                                                                      
-
 
     {
       "name": "saveVcfMetrics",
