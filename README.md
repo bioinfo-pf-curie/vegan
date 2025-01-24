@@ -121,7 +121,7 @@ SOMATIC VARIANT FILTERING:
     --filterSomaticDP      INTEGER   Minimum sequencing depth to consider a somatic variant
     --filterSomaticMAF     INTEGER   Maximum variant frequency in the general population to consider a somatic variant
     --filterSomaticVAF     INTEGER   Minimum variant allele frequency to consider a somatic variant
-    --rescueMutectVariants           Rescue somatic variants	filtered by Mutect2
+    --rescueVariants                 Rescue somatic variants filtered by Mutect2
     --rescueVariantsType   STRING    Variant type to rescue
     --rescueVariantsVAF    INTEGER   VAF threshold for variant rescue
 

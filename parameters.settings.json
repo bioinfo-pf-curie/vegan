@@ -399,7 +399,7 @@
       "group": "Somatic Variant Calling"
     },
     {
-      "name": "rescueMutectVariants",
+      "name": "rescueVariants",
       "label": "Rescue somatic variants filtered by Mutect2",
       "usage": "Rescue somatic variants	filtered by Mutect2",
       "type": "boolean",

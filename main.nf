@@ -327,7 +327,7 @@ include { preseq } from './nf-modules/common/process/preseq/preseq'
 include { markDuplicates } from './nf-modules/common/process/gatk/markDuplicates'
 include { samtoolsFlagstat as samtoolsStatsMarkdup } from './nf-modules/common/process/samtools/samtoolsFlagstat'
 include { samtoolsIndex as samtoolsIndexMarkdup } from './nf-modules/common/process/samtools/samtoolsIndex'
-include { rescueVariants } from './nf-modules/common/process/bcftools/rescueVariants'
+//include { rescueVariants } from './nf-modules/common/process/bcftools/rescueVariants'
 include { vcf2maf } from './nf-modules/local/process/vcf2maf'
 
 /*
@@ -431,138 +431,136 @@ workflow {
     }else{
 
 
-    //*******************************************
-    // SUB-WORFKLOW : MAPPING WITH BWA-MEM/BWA-MEM2/DRAGMAP
+      //*******************************************
+      // SUB-WORFKLOW : MAPPING WITH BWA-MEM/BWA-MEM2/DRAGMAP
 
-    if (params.step == "mapping"){
-      chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex : params.aligner == 'bwa-mem2' ? chBwaMem2Index : chDragmapIndex
+      if (params.step == "mapping"){
+        chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex : params.aligner == 'bwa-mem2' ? chBwaMem2Index : chDragmapIndex
     
-      mappingFlow(
-        chRawReads,
-        chAlignerIndex,
+        mappingFlow(
+          chRawReads,
+          chAlignerIndex,
+          chFasta,
+          chFastaFai
+        )
+        chAlignedBam = params.cram ? mappingFlow.out.cram : mappingFlow.out.bam
+        chFilteredBam = Channel.empty()
+        chMarkedBam = Channel.empty()
+        chMappingStats = mappingFlow.out.stats.map{it->it[1]}
+        chMappingFlagstat = mappingFlow.out.flagstat.map{it->it[1]}
+        chVersions = chVersions.mix(mappingFlow.out.versions)
+
+      }else if (params.step == "markduplicates" || params.step == "filtering" || params.step == "calling"){
+
+        loadBamFlow(
+          chInputBam,
+          chFasta
+        )
+
+        if (params.step == "markduplicates"){
+          chAlignedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
+          chMarkedBam = Channel.empty()
+          chFilteredBam = Channel.empty()
+        }else if (params.step == "filtering"){
+          chAlignedBam = Channel.empty() 
+          chMarkedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
+          chFilteredBam = Channel.empty()
+        }else{
+          chAlignedBam = Channel.empty()
+          chMarkedBam = Channel.empty()
+          chFilteredBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
+        }
+        chMappingStats = loadBamFlow.out.stats
+        chMappingFlagstat = loadBamFlow.out.flagstat
+        chVersions = chVersions.mix(loadBamFlow.out.versions)
+      }
+
+      //*******************************************
+      // Process : Preseq
+
+      preseq(
+        chAlignedBam.mix(chMarkedBam, chFilteredBam)
+      )
+      chPreseqMqc = preseq.out.results.collect()
+      chVersions = chVersions.mix(preseq.out.versions)
+
+      //*******************************************
+      // Process : markduplicates
+
+      markDuplicates(
+        chAlignedBam,
         chFasta,
         chFastaFai
       )
-      chAlignedBam = params.cram ? mappingFlow.out.cram : mappingFlow.out.bam
-      chFilteredBam = Channel.empty()
-      chMarkedBam = Channel.empty()
-      chMappingStats = mappingFlow.out.stats.map{it->it[1]}
-      chMappingFlagstat = mappingFlow.out.flagstat.map{it->it[1]}
-      chVersions = chVersions.mix(mappingFlow.out.versions)
+      chVersions = chVersions.mix(markDuplicates.out.versions)
 
-    }else if (params.step == "markduplicates" || params.step == "filtering" || params.step == "calling"){
-
-      loadBamFlow(
-        chInputBam,
-	      chFasta
+      // Index
+      samtoolsIndexMarkdup(
+        markDuplicates.out.bam.mix(markDuplicates.out.cram)
       )
+      chVersions = chVersions.mix(samtoolsIndexMarkdup.out.versions)
 
-      if (params.step == "markduplicates"){
-        chAlignedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
-        chMarkedBam = Channel.empty()
-        chFilteredBam = Channel.empty()
-      }else if (params.step == "filtering"){
-        chAlignedBam = Channel.empty() 
-        chMarkedBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
-        chFilteredBam = Channel.empty()
-      }else{
-        chAlignedBam = Channel.empty()
-        chMarkedBam = Channel.empty()
-        chFilteredBam = loadBamFlow.out.bam.mix(loadBamFlow.out.cram)
+      if (params.step == "mapping" || params.step == "markduplicates"){
+        chMarkedBam = markDuplicates.out.bam.mix(markDuplicates.out.cram)
+          .join(samtoolsIndexMarkdup.out.bai) 
       }
-      chMappingStats = loadBamFlow.out.stats
-      chMappingFlagstat = loadBamFlow.out.flagstat
-      chVersions = chVersions.mix(loadBamFlow.out.versions)
-    }
 
-    //*******************************************
-    // Process : Preseq
+      // Stats on duplicates
+      samtoolsStatsMarkdup(
+        chMarkedBam.map{it->[it[0],it[1]]}
+      )
+      chMarkdupStatsMqc = samtoolsStatsMarkdup.out.stats.map{it->it[1]}
+      chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
 
-    preseq(
-      chAlignedBam.mix(chMarkedBam, chFilteredBam)
-    )
-    chPreseqMqc = preseq.out.results.collect()
-    chVersions = chVersions.mix(preseq.out.versions)
+      //*******************************************
+      // SUB-WORKFLOW : bamFiltering
 
-    //*******************************************
-    // Process : markduplicates
-
-    markDuplicates(
-      chAlignedBam,
-      chFasta,
-      chFastaFai
-    )
-    chVersions = chVersions.mix(markDuplicates.out.versions)
-
-    // Index
-    samtoolsIndexMarkdup(
-      markDuplicates.out.bam.mix(markDuplicates.out.cram)
-    )
-    chVersions = chVersions.mix(samtoolsIndexMarkdup.out.versions)
-
-    if (params.step == "mapping" || params.step == "markduplicates"){
-      chMarkedBam = markDuplicates.out.bam.mix(markDuplicates.out.cram)
-        .join(samtoolsIndexMarkdup.out.bai) 
-    }
-
-    // Stats on duplicates
-    samtoolsStatsMarkdup(
-      chMarkedBam.map{it->[it[0],it[1]]}
-    )
-    chMarkdupStatsMqc = samtoolsStatsMarkdup.out.stats.map{it->it[1]}
-    chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
-
-    //*******************************************
-    // SUB-WORKFLOW : bamFiltering
-
-    bamFiltersFlow(
-      chMarkedBam,
-      chTargetBed,
-      chFasta,
-      chFastaFai
-    )
-    chVersions = chVersions.mix(bamFiltersFlow.out.versions)
-    chOnTargetStatsMqc = bamFiltersFlow.out.onTargetStats.map{it->it[1]}
-    chFilteringStatsMqc = bamFiltersFlow.out.filteringStats.map{it->it[1]}
-    chFilteredBam = bamFiltersFlow.out.bam.mix(bamFiltersFlow.out.cram, chFilteredBam)
-
-    //*******************************************
-    //SUB-WORKFLOW : bamQcFlow
-
-    if (!params.skipBamQC){
-      bamQcFlow(
-        chFilteredBam,
+      bamFiltersFlow(
+        chMarkedBam,
         chTargetBed,
-        //chGtf,
         chFasta,
-        chFastaFai,
-        chDict
+        chFastaFai
       )
-      //chGeneCovMqc = bamQcFlow.out.geneCovMqc
-      chMosdepthMqc = bamQcFlow.out.depth.map{it->it[1]}
-      chFragSizeMqc = bamQcFlow.out.fragSize.map{it->it[1]}
-      chWgsMetricsMqc = bamQcFlow.out.wgsMetrics.map{it->it[1]}
-      chVersions = chVersions.mix(bamQcFlow.out.versions)
-    }
+      chVersions = chVersions.mix(bamFiltersFlow.out.versions)
+      chOnTargetStatsMqc = bamFiltersFlow.out.onTargetStats.map{it->it[1]}
+      chFilteringStatsMqc = bamFiltersFlow.out.filteringStats.map{it->it[1]}
+      chFilteredBam = bamFiltersFlow.out.bam.mix(bamFiltersFlow.out.cram, chFilteredBam)
 
-    // SUBWORKFLOW: Identito - polym and Monitoring
-    if (!params.skipIdentito){
-      identitoFlow(
-        chFilteredBam,
-        chFasta.collect(),
-        chFastaFai.collect(),
-        chPolyms.collect(),
-        customRunName
-      )
-      chIdentitoMqc = identitoFlow.out.tsv
-      chVersions = chVersions.mix(identitoFlow.out.versions)
-    }
+      //*******************************************
+      //SUB-WORKFLOW : bamQcFlow
 
-    //*****************************
-    // GATK4 - PRE-PROCESSING
+      if (!params.skipBamQC){
+        bamQcFlow(
+          chFilteredBam,
+          chTargetBed,
+          chFasta,
+          chFastaFai,
+          chDict
+        )
+        chMosdepthMqc = bamQcFlow.out.depth.map{it->it[1]}
+        chFragSizeMqc = bamQcFlow.out.fragSize.map{it->it[1]}
+        chWgsMetricsMqc = bamQcFlow.out.wgsMetrics.map{it->it[1]}
+        chVersions = chVersions.mix(bamQcFlow.out.versions)
+      }
 
-    chProcBam = chFilteredBam
-    //if ('haplotypecaller' in tools || 'mutect2' in tools){
+      // SUBWORKFLOW: Identito - polym and Monitoring
+      if (!params.skipIdentito){
+        identitoFlow(
+          chFilteredBam,
+          chFasta.collect(),
+          chFastaFai.collect(),
+          chPolyms.collect(),
+          customRunName
+        )
+        chIdentitoMqc = identitoFlow.out.tsv
+        chVersions = chVersions.mix(identitoFlow.out.versions)
+      }
+
+      //*****************************
+      // GATK4 - PRE-PROCESSING
+
+      chProcBam = chFilteredBam
+    
       bqsrFlow(
         chFilteredBam,
         chIntervalBeds,
@@ -576,189 +574,189 @@ workflow {
       )
       chVersions = chVersions.mix(bqsrFlow.out.versions)
       chProcBam = params.skipBQSR ? chFilteredBam : bqsrFlow.out.bam.mix(bqsrFlow.out.cram)
-    //}
+  
 
-    /*
-    ================================================================================
-     DESIGN / PAIRED ANALYSIS / TUMOR ONLY / GERMLINE ONLY
-    ================================================================================
-    */
+      /*
+      ================================================================================
+       DESIGN / PAIRED ANALYSIS / TUMOR ONLY / GERMLINE ONLY
+      ================================================================================
+      */
 
-    chSingleBam = Channel.empty()
-    chPairBam = Channel.empty()
-    chTumorOnlyBam = Channel.empty()
-    chGermlineOnlyBam = Channel.empty()
+      chSingleBam = Channel.empty()
+      chPairBam = Channel.empty()
+      chTumorOnlyBam = Channel.empty()
+      chGermlineOnlyBam = Channel.empty()
 
-    if (params.design && (params.step == "mapping" || params.step == "markduplicates" || params.step == "filtering" || params.step == "calling")){
+      if (params.design && (params.step == "mapping" || params.step == "markduplicates" || params.step == "filtering" || params.step == "calling")){
 
-      //******************
-      // PAIRED BAMS
+        //******************
+        // PAIRED BAMS
 
-      chDesignPaired=chDesign.paired.map{it -> [[it[0], it[1]], it]}
-      chDesignTumorOnly=chDesign.tumorOnly.map{it -> [it[0], it]}
-      chDesignGermlineOnly=chDesign.germlineOnly.map{it -> [it[1], it]}
+        chDesignPaired=chDesign.paired.map{it -> [[it[0], it[1]], it]}
+        chDesignTumorOnly=chDesign.tumorOnly.map{it -> [it[0], it]}
+        chDesignGermlineOnly=chDesign.germlineOnly.map{it -> [it[1], it]}
 
-      chPairBam = chProcBam
-        .combine(chProcBam)
-        .map{meta1, bam1, bai1, meta2, bam2, bai2 ->
-          [[meta1.id, meta2.id], [meta1, meta2, bam1, bai1, bam2, bai2]]}
-        .combine(chDesignPaired, by:0)
-        .map{it ->
-          def meta = [tumor_id:it[1][0].id, normal_id:it[1][1].id, pair_id:it[2][2], id:it[0][0]+"_vs_"+it[0][1], status:"pair", sex:it[2][3]]
-          [meta, it[1][2], it[1][3], it[1][4], it[1][5]]
-        }
+        chPairBam = chProcBam
+          .combine(chProcBam)
+          .map{meta1, bam1, bai1, meta2, bam2, bai2 ->
+            [[meta1.id, meta2.id], [meta1, meta2, bam1, bai1, bam2, bai2]]}
+          .combine(chDesignPaired, by:0)
+          .map{it ->
+            def meta = [tumor_id:it[1][0].id, normal_id:it[1][1].id, pair_id:it[2][2], id:it[0][0]+"_vs_"+it[0][1], status:"pair", sex:it[2][3]]
+            [meta, it[1][2], it[1][3], it[1][4], it[1][5]]
+          }
 
-      //[meta], tumor_bam, tumor_bai
-      chTumorBam = chPairBam
-        .map{ it ->
-          def meta = [tumor_id:it[0].tumor_id,id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
-          return [meta, it[1], it[2] ]
-        }
+        //[meta], tumor_bam, tumor_bai
+        chTumorBam = chPairBam
+          .map{ it ->
+            def meta = [tumor_id:it[0].tumor_id,id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
+            return [meta, it[1], it[2] ]
+          }
 
-      //[meta], normal_bam, normal_bai
-      chNormalBam = chPairBam
-        .map{ it ->
-          def meta = [id:it[0].normal_id, status: "normal", sex:it[0].sex]
-          return [meta, it[3], it[4] ]
-        }
-      chSingleBam = chNormalBam.mix(chTumorBam)
+        //[meta], normal_bam, normal_bai
+        chNormalBam = chPairBam
+          .map{ it ->
+            def meta = [id:it[0].normal_id, status: "normal", sex:it[0].sex]
+            return [meta, it[3], it[4] ]
+          }
+        chSingleBam = chNormalBam.mix(chTumorBam)
 
-      //******************  
-      // TUMOR ONLY 
+        //******************  
+        // TUMOR ONLY 
 
-      chTumorOnlyBam = chProcBam
-        .map{ meta, bam, bai -> [meta.id, [meta, bam, bai]]}
-        .combine(chDesignTumorOnly, by:0)
-        .map{ it ->
-          def meta = [tumor_id:it[0], id:it[0], status: "tumor", sex:it[2][3]]
-          return [meta, it[1][1], it[1][2] ]
-        }
-      chSingleBam = chSingleBam.mix(chTumorOnlyBam) 
+        chTumorOnlyBam = chProcBam
+          .map{ meta, bam, bai -> [meta.id, [meta, bam, bai]]}
+          .combine(chDesignTumorOnly, by:0)
+          .map{ it ->
+            def meta = [tumor_id:it[0], id:it[0], status: "tumor", sex:it[2][3]]
+            return [meta, it[1][1], it[1][2] ]
+          }
+        chSingleBam = chSingleBam.mix(chTumorOnlyBam) 
 
-      //*******************
-      // GERMLINE ONLY
+        //*******************
+        // GERMLINE ONLY
 
-      chGermlineOnlyBam = chProcBam
-        .map{ meta, bam, bai -> [meta.id, [meta, bam, bai]]}
-        .combine(chDesignGermlineOnly, by:0)
-        .map{ it ->
-          def meta = [id:it[0], status: "normal", sex:it[2][3]]
-          return [meta, it[1][1], it[1][2] ]
-        }
-      chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
-    }
-
-    /*
-    ================================================================================
-     SNV VARIANT CALLING
-    ================================================================================
-    */
-
-    if (params.step != "annotate"){
-
-      //*******************************************
-      //SUB-WORKFLOW : HaplotypeCaller
-
-      chSingleBam = chSingleBam.unique()
-      chAllGermlineVcf=Channel.empty()
-
-      if('haplotypecaller' in tools){
-        haplotypeCallerFlow(
-          chSingleBam,
-          chIntervalBeds,
-          chDbsnp,
-          chDbsnpIndex,
-          chFasta,
-          chFastaFai,
-          chDict
-        )
-        chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-        chAllGermlineVcf = haplotypeCallerFlow.out.vcf
+        chGermlineOnlyBam = chProcBam
+          .map{ meta, bam, bai -> [meta.id, [meta, bam, bai]]}
+          .combine(chDesignGermlineOnly, by:0)
+          .map{ it ->
+            def meta = [id:it[0], status: "normal", sex:it[2][3]]
+            return [meta, it[1][1], it[1][2] ]
+          }
+        chSingleBam = chSingleBam.mix(chGermlineOnlyBam)
       }
 
-      //*******************************************
-      //SUB-WORKFLOW : Mutect2
+      /*
+      ================================================================================
+       SNV VARIANT CALLING
+      ================================================================================
+      */
 
-      chMutect2MetricsMqc = Channel.empty()
-      chRawSomaticVcf = Channel.empty()
+      if (params.step != "annotate"){
 
-      if('mutect2' in tools){
+        //*******************************************
+        //SUB-WORKFLOW : HaplotypeCaller
 
-        /*
-        ================================================================================
+        chSingleBam = chSingleBam.unique()
+        chAllGermlineVcf=Channel.empty()
+
+        if('haplotypecaller' in tools){
+          haplotypeCallerFlow(
+            chSingleBam,
+            chIntervalBeds,
+            chDbsnp,
+            chDbsnpIndex,
+            chFasta,
+            chFastaFai,
+            chDict
+          )
+          chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
+          chAllGermlineVcf = haplotypeCallerFlow.out.vcf
+        }
+
+        //*******************************************
+        //SUB-WORKFLOW : Mutect2
+
+        chMutect2MetricsMqc = Channel.empty()
+        chRawSomaticVcf = Channel.empty()
+
+        if('mutect2' in tools){
+
+          /*
+          ================================================================================
                                     SOMATIC SNV CALLING
-        ================================================================================
-        */
+          ================================================================================
+          */
 
-        mutect2PairsFlow(
-          chPairBam,
-          chIntervalBeds,
-          chFasta,
-          chFastaFai,
-          chDict,
-          chGermlineResource,
-          chGermlineResourceIndex,
-          chPileupSum,
-          chPileupSumIndex,
-          chPon,
-          chPonIndex,
-        )
-        chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
-        chRawSomaticVcf = mutect2PairsFlow.out.vcf
+          mutect2PairsFlow(
+            chPairBam,
+            chIntervalBeds,
+            chFasta,
+            chFastaFai,
+            chDict,
+            chGermlineResource,
+            chGermlineResourceIndex,
+            chPileupSum,
+            chPileupSumIndex,
+            chPon,
+            chPonIndex,
+          )
+          chVersions = chVersions.mix(mutect2PairsFlow.out.versions)
+          chRawSomaticVcf = mutect2PairsFlow.out.vcf
 
-        mutect2TumorOnlyFlow(
-          chTumorOnlyBam,
-          chIntervalBeds,
-          chFasta,
-          chFastaFai,
-          chDict,
-          chGermlineResource,
-          chGermlineResourceIndex,
-          chPileupSum,
-          chPileupSumIndex,
-          chPon,
-          chPonIndex
-        )
-        chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
-        chRawSomaticVcf = chRawSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcf)
+          mutect2TumorOnlyFlow(
+            chTumorOnlyBam,
+            chIntervalBeds,
+            chFasta,
+            chFastaFai,
+            chDict,
+            chGermlineResource,
+            chGermlineResourceIndex,
+            chPileupSum,
+            chPileupSumIndex,
+            chPon,
+            chPonIndex
+          )
+          chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
+          chRawSomaticVcf = chRawSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcf)
+        }
       }
-    }
 
-    /*
-    ================================================================================
-                                     VCF BASIC FILTERING
-    ================================================================================
-    */
+      /*
+      ================================================================================
+                                     VCF FILTERING
+      ================================================================================
+      */
 
-    chFilteredSomaticVcf = Channel.empty()
-    if('mutect2' in tools){
-      filterSomaticFlow(
-        chRawSomaticVcf,
-        chFasta,
-        chGnomadDb,
-        chGnomadDbIndex
-      )
-      chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-      chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
-      chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
-    }
+      chFilteredSomaticVcf = Channel.empty()
+      if('mutect2' in tools){
+        filterSomaticFlow(
+          chRawSomaticVcf,
+          chFasta,
+          chGnomadDb,
+          chGnomadDbIndex
+        )
+        chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+        chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
+        chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
+      }
 
-    /*
-    ================================================================================
+      /*
+      ================================================================================
                                      VCF RESCUE MISSED VARIANTS
-    ================================================================================
-    */
+      ================================================================================
+      */
 
-    if('mutect2' in tools && params.rescueMutectVariants){
-      rescueVariants(
-        chRawSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]},
-        chFilteredSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]}
-      )
+      //if('mutect2' in tools && params.rescueMutectVariants){
+      //  rescueVariants(
+      //    chRawSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]},
+      //    chFilteredSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]}
+      //  )
       
-      chFilteredSomaticVcf = rescueVariants.out.vcf
-      chFilteredSomaticVcf.view()
+      //  chFilteredSomaticVcf = rescueVariants.out.vcf
+      //  chFilteredSomaticVcf.view()
+      //}
     }
-  }
 
     /*
     ================================================================================
