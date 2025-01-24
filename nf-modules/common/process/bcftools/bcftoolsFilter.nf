@@ -1,5 +1,5 @@
 /*
- * Filter on DP, AF and MAF
+ * Filter VCF file
  */
 
 process bcftoolsFilter {
@@ -26,7 +26,7 @@ process bcftoolsFilter {
   """
   if [ ${meta.tumor_id} == \$(zgrep "#CHROM" ${vcf[0]} | cut -f10) ] ; then id=0; else id=1; fi
   bcftools view \
-    -Oz -i '${args}' \
+    -Oz -i "${args}" \
     ${vcf[0]} \
     --threads ${task.cpus} \
     -o ${prefix}_filtered.vcf.gz
