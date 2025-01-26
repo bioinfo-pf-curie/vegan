@@ -3,11 +3,10 @@ channels:
   - bioconda
   - conda-forge
   - defaults
-  - anaconda
 dependencies:
-  - conda-forge::python=3.9.12=h9a8a25e_1_cpython
-  - bioconda::cyvcf2=0.30.15=py39h3ba1b09_1
-  - conda-forge::pyyaml=6.0.2=py39h9399b63_2
-  - bioconda::mosdepth=0.3.3=hd299d5a_3
-  - bioconda::pybedtools=0.9.0=py39hd65a603_2
+  - conda-forge::python=3.12.8=h9e4cc4f_1_cpython
+  - bioconda::cyvcf2=0.31.1=py312h68a07e8_1
+  - conda-forge::pyyaml=6.0.2=py312h178313f_2
+  - bioconda::mosdepth=0.3.10=h4e814b3_1
+  - bioconda::pybedtools=0.11.0=py312h5e9d817_0
   - conda-forge::libxcrypt=4.4.36=hd590300_1
