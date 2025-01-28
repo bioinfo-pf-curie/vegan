@@ -24,9 +24,7 @@ process sigprofilerAssignment {
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   mkdir input
-  cp ${vcf} input/
-  gunzip input/*.gz
+  gunzip -c ${vcf} > input/${prefix}.vcf
   sigProfilerAssignment.py ${args} --volume ./${tsb}
-  mv Assignment_Solution/Activities/Assignment_Solution_Activities.txt ${meta.id}_Assignment_Solution_Activities.txt
   """
 }
