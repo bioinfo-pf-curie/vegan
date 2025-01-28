@@ -46,9 +46,6 @@ workflow annotateSomaticFlow {
    * ICGC annotations
    */
 
-  // icgc.view()
-  // icgcIndex.view()
-
   snpSiftIcgc(
     chAnnotVcf,
     icgc.combine(icgcIndex).collect()

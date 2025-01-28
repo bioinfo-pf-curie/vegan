@@ -9,11 +9,11 @@ process sigprofilerAssignment {
   label 'sigprofiler'
 
   input:
-  tuple val(meta), path(table)
+  tuple val(meta), path(vcf)
   path(tsb)
 
   output:
-  tuple val(meta), path("*Assignment_Solution_Activities.txt"), emit: SBS
+  tuple val(meta), path("Assignment_Solution/"), emit: sbs
   path "versions.txt", emit: versions
 
   when:
@@ -24,7 +24,8 @@ process sigprofilerAssignment {
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   mkdir input
-  mv *vcf input
+  cp ${vcf} input/
+  gunzip input/*.gz
   sigProfilerAssignment.py ${args} --volume ./${tsb}
   mv Assignment_Solution/Activities/Assignment_Solution_Activities.txt ${meta.id}_Assignment_Solution_Activities.txt
   """

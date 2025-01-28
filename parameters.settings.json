@@ -475,6 +475,32 @@
       "arity": 0,
       "group": "VCF format"
     },
+    {
+      "name": "table",
+      "label": "table report",
+      "usage": "Export VCF in table format",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "VCF format"
+    },
+    {
+      "name": "maf",
+      "label": "maf export",
+      "usage": "Export VCF in MAF format",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "VCF format"
+    },
 
     {
       "name": "facetsOpts",

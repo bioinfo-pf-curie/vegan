@@ -19,7 +19,7 @@ process bcftoolsFilter {
   task.ext.when == null || task.ext.when
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}_filtered"
   def args = task.ext.args ?: ''
   def id = 0
   
@@ -29,8 +29,8 @@ process bcftoolsFilter {
     -Oz -i "${args}" \
     ${vcf[0]} \
     --threads ${task.cpus} \
-    -o ${prefix}_filtered.vcf.gz
-  tabix ${prefix}_filtered.vcf.gz
+    -o ${prefix}.vcf.gz
+  tabix ${prefix}.vcf.gz
 
   echo \$(bcftools --version | head -1) > versions.txt
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt

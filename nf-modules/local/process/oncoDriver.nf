@@ -23,7 +23,7 @@ process oncoDriver {
   oncoDriver.py \
     --vcf ${vcf} \
     --config ${config} \
-    --outputcnv ${prefix}_cnv.csv \
+    --outputcnv ${prefix}_cnv_oncoDriver.csv \
     --cnv ${cnv} \
     --driver_genes ${genes} \
     --canonical_ids ${gtf} \

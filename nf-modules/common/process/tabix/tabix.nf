@@ -13,7 +13,7 @@ process tabix {
   tuple val(meta), path(vcf)
 
   output:
-  tuple val(meta), path("*.vcf.gz*"), emit: vcf
+  tuple val(meta), path("*tbi"), emit: tbi
   path("versions.txt"), emit: versions
 
   when:
@@ -25,7 +25,7 @@ process tabix {
   compress = vcf.getExtension() == "vcf" ? "bgzip < ${vcf} > ${vcf}.gz" : ""
   """
   $compress
-  tabix ${vcf}.gz
+  tabix ${vcf}*
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') > versions.txt
   """
 }

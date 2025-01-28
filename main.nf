@@ -729,33 +729,15 @@ workflow {
       */
 
       chFilteredSomaticVcf = Channel.empty()
-      if('mutect2' in tools){
-        filterSomaticFlow(
-          chRawSomaticVcf,
-          chFasta,
-          chGnomadDb,
-          chGnomadDbIndex
-        )
-        chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-        chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
-        chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
-      }
-
-      /*
-      ================================================================================
-                                     VCF RESCUE MISSED VARIANTS
-      ================================================================================
-      */
-
-      //if('mutect2' in tools && params.rescueMutectVariants){
-      //  rescueVariants(
-      //    chRawSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]},
-      //    chFilteredSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]}
-      //  )
-      
-      //  chFilteredSomaticVcf = rescueVariants.out.vcf
-      //  chFilteredSomaticVcf.view()
-      //}
+      filterSomaticFlow(
+        chRawSomaticVcf,
+        chFasta,
+        chGnomadDb,
+        chGnomadDbIndex
+      )
+      chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+      chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
+      chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
     }
 
     /*
@@ -818,18 +800,6 @@ workflow {
 
       chSnpEffMqc = chSnpEffMqc.mix(annotateGermlineFlow.out.snpEffReport)
       chVersions = chVersions.mix(annotateGermlineFlow.out.versions)
-    }
-
-    /*
-    ================================================================================
-                                   TABLE REPORT
-    ================================================================================
-    */
-
-    if('snpeff' in tools || params.step == 'annotate'){
-      tableReportFlow(
-        annotateSomaticFlow.out.vcf
-      )
     }
 
     /*
@@ -923,6 +893,7 @@ workflow {
     ================================================================================
     */
 
+    chDriverSomaticVcf = Channel.empty()
     if('oncodriver' in tools && 'snpeff' in tools && 'mutect2' in tools && 'facets' in tools){
       chSomaticVcfCnv = annotateSomaticFlow.out.vcf
         .map{it -> [it[0], it[1][0], it[1][1]]}
@@ -948,20 +919,28 @@ workflow {
 
     if('sigprofiler' in tools){
       sigprofilerFlow(
-        tableReportFlow.out.tsv,
+	chFilteredSomaticVcf.map{it -> [it[0],it[1]]},
         chSigProfilerTsb
       )
     }
 
     /*
     ================================================================================
-                                    MAF EXPORT
+                                    FORMAT EXPORT
     ================================================================================
     */
 
-    if('mutect2' in tools){
+    // TABLE REPORT FORMAT
+    if('mutect2' in tools & params.table){
+      tableReportFlow(
+        annotateSomaticFlow.out.vcf.concat(chDriverSomaticVcf)
+      )
+    }
+
+    // MAF FORMAT
+    if('mutect2' in tools & params.maf){
       vcf2maf(
-        chFilteredSomaticVcf,
+        chFilteredSomaticVcf.concat(chDriverSomaticVcf),
         chFasta
       )
     }

@@ -92,7 +92,7 @@ Remove version number from a string (NM or ENSEMBL Ids)
 """
 
 def clean_version_number(s):
-    return re.sub('\..*$', '', s)
+    return re.sub('\\..*$', '', s)
 
 """
 Combined cancer gene atlas with gene id

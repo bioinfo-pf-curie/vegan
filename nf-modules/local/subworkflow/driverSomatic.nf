@@ -4,6 +4,7 @@
 
 include { oncoDriver } from '../../local/process/oncoDriver'
 include { annotateCNV } from '../../local/process/annotateCNV'
+include { tabix } from '../../common/process/tabix/tabix'
 
 workflow driverSomaticFlow {
 
@@ -34,7 +35,11 @@ workflow driverSomaticFlow {
   )
   chVersions = chVersions.mix(oncoDriver.out.versions)
 
+  tabix(
+    oncoDriver.out.vcf
+  )
+
   emit:
   versions = chVersions
-  vcf = oncoDriver.out.vcf
+  vcf = oncoDriver.out.vcf.join(tabix.out.tbi)
 }

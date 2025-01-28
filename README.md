@@ -129,8 +129,10 @@ DRIVER VARIANTS:
     --driverConfig   PATH      Configuration file for oncoDriver algorithm
 
 VCF FORMAT:
+    --maf                            Export VCF in MAF format
     --saveVcfIntermediates           Save intermediate vcf files
     --saveVcfMetrics                 Save complementary vcf metrics files
+    --table                          Export VCF in table format
 
 COPY NUMBER CALLING:
     --facetsOpts STRING   Options for FACETS

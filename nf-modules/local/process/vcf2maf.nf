@@ -9,7 +9,7 @@ process vcf2maf {
   label 'vcf2maf'
 
   input:
-  tuple val(meta), path(vcf), path(index)
+  tuple val(meta), path(vcf), path(tbi)
   path(fasta)
 
   output:
@@ -24,6 +24,6 @@ process vcf2maf {
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   gunzip -c ${vcf} > ${meta.id}.vcf
-  vcf2maf.pl --input-vcf ${meta.id}.vcf --output-maf ${meta.id}.maf --ref-fasta ${fasta} --inhibit-vep --vcf-tumor-id ${meta.tumor_id} --ncbi-build GRCh38
+  vcf2maf.pl --input-vcf ${meta.id}.vcf --output-maf ${prefix}.maf --ref-fasta ${fasta} --inhibit-vep --vcf-tumor-id ${meta.tumor_id} --ncbi-build GRCh38
   """
 }

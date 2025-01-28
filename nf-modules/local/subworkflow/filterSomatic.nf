@@ -48,7 +48,7 @@ workflow filterSomaticFlow {
 
   // Concat filtered vcf and rescue ones
   bcftoolsConcat(
-    bcftoolsNorm.out.vcf.join(rescueVariants.out.vcf).map{it->[it[0],[it[1][0],it[2][0]],[it[1][1],it[2][1]]]}
+    bcftoolsFilter.out.vcf.join(rescueVariants.out.vcf).map{it->[it[0],[it[1][0],it[2][0]],[it[1][1],it[2][1]]]}
   )
 
   vcfFiltered = params.rescueVariants ? bcftoolsConcat.out.vcf : bcftoolsFilter.out.vcf

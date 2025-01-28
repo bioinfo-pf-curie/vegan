@@ -7,7 +7,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--in_dir", help="Input directory", type=str, default='')
 parser.add_argument("-o", "--out_dir", help="Output directory", type=str, default='')
-parser.add_argument("-e", "--exome_value", help="Exome ? (True or False)", type=bool, default=True)
+parser.add_argument("-e", "--exome_value", help="Exome ? (True or False)", type=bool, default=False)
 parser.add_argument("-a", "--assembly", help="Assembly (GRCh38 or GRCh37)", type=str, default='GRCh38')
 parser.add_argument("-c", "--cosmic_version", help="Cosmic Version (3.3)", type=float, default=3.3)
 parser.add_argument("-v", "--volume", help="TSB reference files directory", type=str, default=None)

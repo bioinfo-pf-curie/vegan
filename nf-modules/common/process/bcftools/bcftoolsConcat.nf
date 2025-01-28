@@ -19,14 +19,14 @@ process bcftoolsConcat {
   task.ext.when == null || task.ext.when
 
   script:
-  def prefix = task.ext.prefix ?: "${meta.id}"
+  def prefix = task.ext.prefix ?: "${meta.id}_concat"
   def args = task.ext.args ?: ''
   
   """
   bcftools concat ${args} ${vcfs} \
     --threads ${task.cpus} \
-    -o ${prefix}_concat.vcf.gz
-  tabix ${prefix}_concat.vcf.gz
+    -o ${prefix}.vcf.gz
+  tabix ${prefix}.vcf.gz
 
   echo \$(bcftools --version | head -1) > versions.txt
   echo "tabix "\$(tabix 2>&1 | awk '\$1~"Version"{print \$2}') >> versions.txt
