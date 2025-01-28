@@ -20,20 +20,6 @@ workflow bamFiltersFlow {
     main:
     chVersions = Channel.empty()
 
-    // Mark duplicates
-    //markDuplicates(
-    //  bam,
-    //  fasta,
-    //  fai
-    //)
-    //chVersions = chVersions.mix(markDuplicates.out.versions)
-
-    // Stats on duplicates
-    //samtoolsStatsMarkdup(
-    //  markDuplicates.out.bam.mix(markDuplicates.out.cram)
-    //)
-    //chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
-
     // Filter reads with samtools
     samtoolsFilter(
       bam.map{it->[it[0], it[1]]},
@@ -63,7 +49,6 @@ workflow bamFiltersFlow {
     emit:
     bam = samtoolsFilter.out.bam.join(samtoolsIndex.out.bai)
     cram = samtoolsFilter.out.cram.join(samtoolsIndex.out.crai)
-    //markdupStats = samtoolsStatsMarkdup.out.stats
     onTargetStats = samtoolsStatsOnTarget.out.stats
     filteringStats  = samtoolsStatsFilter.out.stats
     versions = chVersions
