@@ -13,7 +13,7 @@
 #
 ##############################################################################
 
-__version__ = '1.0.1dev'
+__version__ = '1.2.0dev'
 
 """
 This script is designed to apply a decision tree on a VCF file
@@ -50,16 +50,44 @@ def load_config(infile):
             cfg['cnv'] = data['cnv']
             d={}
             for info in data['select']:
-                k=(info['gene_type'],info['var_type'])
-                if ( k in d ):
-                    d[k].append(info)
-                else:
-                    d[k]=[info]
+                if 'gene_id' in info:
+                    k=(info['gene_id'], info['var_type'])
+                    if (k in d):
+                        d[k].append(info)
+                    else:
+                        d[k]=[info]
+                elif 'gene_type' in info:
+                    for gt in info['gene_type'].split("|"):
+                        k=(gt,info['var_type'])
+                        gt_info = info.copy()
+                        gt_info['gene_type']=gt
+                        if ( k in d ):
+                            d[k].append(gt_info)
+                        else:
+                            d[k]=[gt_info]
             cfg['select'] = d
             return cfg
         except:
             raise
 
+"""
+Print the decision algorithm in a human readable manner
+"""
+def print_config(cfg):
+    for k, val in cfg.items():
+        if isinstance(val, dict):
+            print(f"## {k}->")
+            for j, val2 in val.items():
+                if isinstance(val2, list):
+                    for k in val2:
+                        print(f"## - {j} = {k}")
+                else:
+                    print(f"## - {j} = {val2}")
+                        
+        else:
+            print(f"## {k} = {val}")
+
+        
 """
 Load cancer gene list
 Supported format : oncoKB
@@ -161,7 +189,7 @@ def is_driver(variant, db_info, conf_select, conf_vcf):
     # Hotspot
     in_databases = is_hotspot(variant, infos=db_info, flags=conf_vcf['cancer_db'])
     for r in conf_select:
-        if r['is_hotspot'] and not in_databases:
+        if 'is_hotspot' in r and not in_databases:
             return [False, None]
         for v in var_info:
             if v in r['var_classes']:
@@ -308,10 +336,10 @@ def args_parse():
     
     # Others
     parser.add_argument("--output", help="Output file name", type=str)
+    parser.add_argument("--outputcnv", help="CNV output file name", type=str)
     parser.add_argument("--verbose", help="Active verbose mode", action="store_true")
     parser.add_argument("--debug", help="Export original VCF with TMB_FILTER tag", action="store_true")
     parser.add_argument("--version", help="Version number", action='version', version="%(prog)s ("+__version__+")")
-    parser.add_argument("--outputcnv", help="CNV output file name", type=str)
 
 
     args = parser.parse_args()
@@ -321,7 +349,10 @@ def args_parse():
 if __name__ == "__main__":
 
     args = args_parse()
-
+    if args.use_canonical and args.canonical_ids is None:
+        print("Erreur : please provide a list of canonical ids with '--canonical_ids'")
+        sys.exit(-1)
+    
     # Load Data
     if args.sample is not None:
         vcf = cyvcf2.VCF(args.vcf)
@@ -384,6 +415,9 @@ if __name__ == "__main__":
 
             # Get annotation INFO as a list of dict
             annot_info = get_INFO(variant.INFO.get(vcf_conf['tag']))
+            if annot_info is None:
+                print("Annotations not detected in the VCF file. Please check if the vcf is well annotated !\n")
+                sys.exit(-1)
             
             ##############################
             # FORMAT - technical filters
@@ -435,18 +469,40 @@ if __name__ == "__main__":
 
             if not tech_filtered :
                 for annot in annot_info:
+                    ## Extract info from variant
                     gene_id = annot[vcf_conf['gene_id']]
                     transcript_id=clean_version_number(annot[vcf_conf['transcript_id']])
                     gene_type = get_gene_type(gene_id, driver_genes)
                     is_driver_mut = False
-                    if gene_type is not None:
+
+                    ## Genes specified in the decision algorithm
+                    if (gene_id, 'snv') in select_algo:
+                        if (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id not in can_ids[gene_id]):
+                            if transcript_id not in can_ids[gene_id]:
+                                DEBUGINFO__ = ",".join(x for x in [__DEBUGINFO__, "NON_CANONICAL"] if x is not None)
+                            continue
+                        elif not args.use_canonical or (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id in can_ids[gene_id]):
+                             is_driver_mut, decision = is_driver(annot, db_info, select_algo[(gene_id, 'snv')], vcf_conf)
+                             __DRIVERINFO__ = ",".join(x for x in [__DRIVERINFO__, transcript_id, gene_type, decision ] if x is not None)
+                             if not is_driver_mut:
+                                if args.debug:
+                                    __DEBUGINFO__ = ",".join(x for x in [__DEBUGINFO__, "NON_DRIVER"] if x is not None)
+                                    continue
+                             else:
+                                if args.debug:
+                                    __DEBUGINFO__ = str(is_driver_mut)
+                                driver_counter += 1
+                                break
+
+                    
+                    ## Driver genes from cancer gene list
+                    elif gene_type is not None:
                         if (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id not in can_ids[gene_id]):
                             if transcript_id not in can_ids[gene_id]: 
                                 DEBUGINFO__ = ",".join(x for x in [__DEBUGINFO__, "NON_CANONICAL"] if x is not None)
                             continue
                         elif not args.use_canonical or (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id in can_ids[gene_id]):
-                            is_driver_mut = is_driver(annot, db_info, select_algo[(gene_type, 'snv')], vcf_conf)[0]
-                            decision = is_driver(annot, db_info, select_algo[(gene_type, 'snv')], vcf_conf)[1]
+                            is_driver_mut, decision = is_driver(annot, db_info, select_algo[(gene_type, 'snv')], vcf_conf)
                             __DRIVERINFO__ = ",".join(x for x in [__DRIVERINFO__, transcript_id, gene_type, decision ] if x is not None)
                             if not is_driver_mut:
                                 if args.debug:
@@ -468,11 +524,9 @@ if __name__ == "__main__":
             if args.debug:
                 if __DEBUGINFO__ is not None:
                     variant.INFO['ONCODRIVER'] = __DEBUGINFO__
-                print(variant)
                 wx.write_record(variant)
             elif is_driver_mut is True:
                 variant.INFO['ONCODRIVER'] = __DRIVERINFO__
-                print(variant)
                 wx.write_record(variant)
 
         except:
@@ -527,6 +581,8 @@ if __name__ == "__main__":
     print("## Driver genes=", args.driver_genes, file=sys.stderr)
     print("## Use canonical=", args.use_canonical, file=sys.stderr)
     print("## Canonical genes=", args.canonical_ids, file=sys.stderr)
+    print("")
+    print_config(conf)
     print("")
     print("## Total variants=", var_counter, file=sys.stderr)
     print("## Driver variants=", driver_counter, file=sys.stderr)
