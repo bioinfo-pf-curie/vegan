@@ -6,7 +6,7 @@ process annotateCNV {
   tag "${meta.id}"
 
   input:
-  tuple val(meta), path(vcf), path(tbi), path(cnv)
+  tuple val(meta), path(cnv)
   path(bed)
 
   output:

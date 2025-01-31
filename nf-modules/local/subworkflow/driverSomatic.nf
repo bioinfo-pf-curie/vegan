@@ -3,7 +3,6 @@
  */
 
 include { oncoDriver } from '../../local/process/oncoDriver'
-include { annotateCNV } from '../../local/process/annotateCNV'
 include { tabix } from '../../common/process/tabix/tabix'
 
 workflow driverSomaticFlow {
@@ -18,14 +17,6 @@ workflow driverSomaticFlow {
   main:
   chVersions = Channel.empty()
 
-  annotateCNV(
-    variants,
-    gtf
-  )
-  
-  chVcfCnv = variants.map{it -> [it[0],it[1],it[2]]}
-    .combine(annotateCNV.out.cnv, by:0)
-  
   // Detect driver mutations
   oncoDriver(
     chVcfCnv,
@@ -38,6 +29,7 @@ workflow driverSomaticFlow {
   tabix(
     oncoDriver.out.vcf
   )
+  chVersions = chVersions.mix(tabix.out.versions)
 
   emit:
   versions = chVersions

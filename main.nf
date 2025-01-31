@@ -867,13 +867,14 @@ workflow {
     ================================================================================
     */
 
-    chFacetsSegments = Channel.empty()
     if('facets' in tools){
       facetsFlow(
         chPairBam,
         chDbsnp
       )
-      chFacetsSegments = facetsFlow.out.segmentsTransformed
+      chFacetsSegments = facetsFlow.out.segmentsAnnotated
+    }else{
+      chFacetsSegments = Channel.value([])
     }
 
     if('ascat' in tools){
@@ -894,9 +895,8 @@ workflow {
     */
 
     chDriverSomaticVcf = Channel.empty()
-    if('oncodriver' in tools && 'snpeff' in tools && 'mutect2' in tools && 'facets' in tools){
+    if('oncodriver' in tools){
       chSomaticVcfCnv = annotateSomaticFlow.out.vcf
-        .map{it -> [it[0], it[1][0], it[1][1]]}
         .combine(chFacetsSegments, by:0)
 
       driverSomaticFlow(

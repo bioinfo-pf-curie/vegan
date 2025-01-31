@@ -9,16 +9,16 @@ process snpEff {
   tag "${meta.id}"
 
   input:
-  tuple val(meta), path(vcf), path(index)
+  tuple val(meta), path(vcf), path(tbi)
   val(db)
   path(cache)
 
   output:
-  tuple val(meta), path("*.ann.vcf.gz*"), emit: vcf
-  path("*.csv")                         , emit: report
-  path("*.html")                        , emit: summary_html
-  path("*.genes.txt")                   , emit: genes_txt
-  path("versions.txt")                  , emit: versions
+  tuple val(meta), path("*.ann.vcf.gz"), path("*.tbi"), emit: vcf
+  path("*.csv")                                       , emit: report
+  path("*.html")                                      , emit: summary_html
+  path("*.genes.txt")                                 , emit: genes_txt
+  path("versions.txt")                                , emit: versions
 
   when:
   task.ext.when == null || task.ext.when

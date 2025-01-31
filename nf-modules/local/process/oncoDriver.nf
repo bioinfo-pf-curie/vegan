@@ -19,15 +19,15 @@ process oncoDriver {
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
+  inputCnv = cnv ? "--cnv ${cnv} --outputcnv ${prefix}_cnv_oncoDriver.csv"
+  inputVcf = vcf ? "--vcf ${vcf} --output ${prefix}_oncodriver.vcf.gz"
   """
   oncoDriver.py \
-    --vcf ${vcf} \
+    ${inputVcf} \
+    ${inputCnv} \
     --config ${config} \
-    --outputcnv ${prefix}_cnv_oncoDriver.csv \
-    --cnv ${cnv} \
     --driver_genes ${genes} \
     --canonical_ids ${gtf} \
-    --output ${prefix}_oncoDriver.vcf.gz \
     ${args} 2> ${prefix}_oncoDriver.log
 
   oncoDriver.py --version > versions.txt

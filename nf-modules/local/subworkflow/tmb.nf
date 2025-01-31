@@ -18,7 +18,7 @@ workflow tmbFlow {
   varConfig = file("$projectDir/assets/tmb/mutect2.yml", checkIfExists: true)
 
   tmb(
-    vcf.map{ it -> [it[0], it[1][0], dbConfig, varConfig] },
+    vcf.map{ it -> [it[0], it[1], dbConfig, varConfig] },
     bed,
     effGenomeSize
   )
