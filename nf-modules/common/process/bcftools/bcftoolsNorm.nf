@@ -13,7 +13,7 @@ process bcftoolsNorm {
   path(fasta)
 
   output:
-  tuple val(meta), path("*.vcf{.gz,.gz.tbi}"), emit: vcf
+  tuple val(meta), path("*.vcf.gz"), path("*.tbi"), emit: vcf
   path("versions.txt"), emit: versions
 
   when:

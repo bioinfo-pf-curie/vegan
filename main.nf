@@ -102,7 +102,7 @@ params.dbnsfpIndex = NFTools.getGenomeAttribute(params, 'dbnsfpIndex')
 params.effGenomeSize = NFTools.getGenomeAttribute(params, 'effGenomeSize')
 params.driverGenes = NFTools.getGenomeAttribute(params, 'driverGenes')
 params.canonicalGtf = NFTools.getGenomeAttribute(params, 'canonicalGtf')
-params.bedGtf = NFTools.getGenomeAttribute(params, 'bedGtf')
+params.geneBed = NFTools.getGenomeAttribute(params, 'geneBed')
 params.sigProfilerTsb = NFTools.getGenomeAttribute(params, 'sigProfilerTsb')
 
 // Stage config files
@@ -200,7 +200,7 @@ chEffGenomeSize         = params.effGenomeSize         ? Channel.value(params.ef
 chMsiBaselineConfig     = params.msiBaselineConfig     ? Channel.fromPath(params.msiBaselineConfig)                                     : Channel.empty()
 chCanonicalGtf          = params.canonicalGtf          ? Channel.fromPath(params.canonicalGtf, checkIfExists: true).collect()           : Channel.value([]) //optional
 chDriverGenes           = params.driverGenes           ? Channel.fromPath(params.driverGenes, checkIfExists: true).collect()            : Channel.value([]) //optional
-chBedGtf                = params.bedGtf                ? Channel.fromPath(params.bedGtf, checkIfExists: true).collect()                 : Channel.value([]) //optional
+chGeneBed               = params.geneBed               ? Channel.fromPath(params.geneBed, checkIfExists: true).collect()                : Channel.value([]) //optional
 chSigProfilerTsb        = params.sigProfilerTsb        ? Channel.fromPath(params.sigProfilerTsb, checkIfExists: true).collect()         : Channel.empty()
 
 /*
@@ -870,7 +870,8 @@ workflow {
     if('facets' in tools){
       facetsFlow(
         chPairBam,
-        chDbsnp
+        chDbsnp,
+        chGeneBed
       )
       chFacetsSegments = facetsFlow.out.segmentsAnnotated
     }else{
@@ -901,7 +902,6 @@ workflow {
 
       driverSomaticFlow(
         chSomaticVcfCnv,
-        chBedGtf,
         chDriverGenes,
         chDriverConfig,
         chCanonicalGtf

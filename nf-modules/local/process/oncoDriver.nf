@@ -19,8 +19,8 @@ process oncoDriver {
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
-  inputCnv = cnv ? "--cnv ${cnv} --outputcnv ${prefix}_cnv_oncoDriver.csv"
-  inputVcf = vcf ? "--vcf ${vcf} --output ${prefix}_oncodriver.vcf.gz"
+  inputCnv = cnv ? "--cnv ${cnv} --outputcnv ${prefix}_cnv_oncoDriver.csv" : ""
+  inputVcf = vcf ? "--vcf ${vcf} --output ${prefix}_oncodriver.vcf.gz" : ""
   """
   oncoDriver.py \
     ${inputVcf} \

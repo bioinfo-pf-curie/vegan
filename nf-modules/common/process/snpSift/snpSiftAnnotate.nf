@@ -14,7 +14,7 @@ process snpSiftAnnotate {
   tuple path(db), path(index)
 
   output:
-  tuple val(meta), path("*.vcf.gz), path("*.tbi"), emit: vcf
+  tuple val(meta), path("*.vcf.gz"), path("*.tbi"), emit: vcf
   path("versions.txt"), emit: versions
 
   when:

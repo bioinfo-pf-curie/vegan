@@ -9,7 +9,6 @@ workflow driverSomaticFlow {
 
   take:
   variants // [meta, vcf, tbi, cnv]
-  gtf
   drivers
   decision
   canonicals
@@ -19,7 +18,7 @@ workflow driverSomaticFlow {
 
   // Detect driver mutations
   oncoDriver(
-    chVcfCnv,
+    variants,
     drivers,
     decision,
     canonicals
