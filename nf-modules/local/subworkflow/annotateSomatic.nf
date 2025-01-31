@@ -12,7 +12,7 @@ include { snpSiftDbnsfp } from '../../common/process/snpSift/snpSiftDbnsfp'
 workflow annotateSomaticFlow {
 
   take:
-  vcf
+  vcf // [meta, vcf, tbi]
   snpEffDb
   snpEffCache
   cosmic

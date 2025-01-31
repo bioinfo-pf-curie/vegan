@@ -746,9 +746,7 @@ workflow {
     ================================================================================
     */
   
-    chVcfMetrics = chRawSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]}
-      .join(chFilteredSomaticVcf.map{it -> [it[0],it[1][0],it[1][1]]})
-  
+    chVcfMetrics = chRawSomaticVcf.join(chFilteredSomaticVcf)
     vcfQcFlow(
       chVcfMetrics
     )
@@ -758,8 +756,8 @@ workflow {
     // Remove samples with two few SNVs
     chFilteredSomaticVcf = chFilteredSomaticVcf
       .join(vcfQcFlow.out.stats)
-      .filter{ meta, vcf, stats -> checkVarNumber(meta, stats) }
-      .map{ meta, vcf, stats -> [meta, vcf[0], vcf[1]]}
+      .filter{ meta, vcf, tbi, stats -> checkVarNumber(meta, stats) }
+      .map{ meta, vcf, tbi, stats -> [meta, vcf, tbi] }
 
 
     /*

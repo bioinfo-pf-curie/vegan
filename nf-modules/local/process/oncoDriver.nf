@@ -11,15 +11,15 @@ process oncoDriver {
   path(gtf)
 
   output:
-  tuple val(meta), path("*_oncoDriver.vcf.gz"), emit: vcf
+  tuple val(meta), path("*_oncodriver.vcf.gz"), emit: vcf
+  tuple val(meta), path("*_oncodriver.csv"), emit: cnv
   tuple val(meta), path("*.log"), emit: log
   path ("versions.txt"), emit: versions
-  tuple val(meta), path("*csv"), emit: cnv
 
   script:
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
-  inputCnv = cnv ? "--cnv ${cnv} --outputcnv ${prefix}_cnv_oncoDriver.csv" : ""
+  inputCnv = cnv ? "--cnv ${cnv} --outputcnv ${prefix}_cnv_oncodriver.csv" : ""
   inputVcf = vcf ? "--vcf ${vcf} --output ${prefix}_oncodriver.vcf.gz" : ""
   """
   oncoDriver.py \
