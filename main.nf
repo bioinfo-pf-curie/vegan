@@ -215,7 +215,6 @@ summary = [
   'Git Info': workflow.repository ?: null,
   'Git Commit': workflow.commitId ?: null,
   'DOI': workflow.manifest.doi ?: null,
-  'Run Name': customRunName,
   'Step' : params.step ?: null,
   'Profile' : workflow.profile,
   'Inputs' : params.samplePlan ?: params.reads ?: null,
@@ -416,13 +415,6 @@ workflow {
         chKnownIndels,
         chKnownIndelsIndex
       )
-
-      // chAlignedBam = mappingStarFlow.out.bam
-      // chFilteredBam = Channel.empty()
-      // chMarkedBam = Channel.empty()
-      // // chMappingStats = mappingStarFlow.out.stats.map{it->it[1]}
-      // chMappingFlagstat = mappingStarFlow.out.flagstat.map{it->it[1]}
-      // chVersions = chVersions.mix(mappingStarFlow.out.versions)
       chRawSomaticVcf = Channel.empty()
       chFilteredSomaticVcf = Channel.empty()
       chAllGermlineVcf = rnaFlow.out.vcf
@@ -549,8 +541,7 @@ workflow {
           chFilteredBam,
           chFasta.collect(),
           chFastaFai.collect(),
-          chPolyms.collect(),
-          customRunName
+          chPolyms.collect()
         )
         chIdentitoMqc = identitoFlow.out.tsv
         chVersions = chVersions.mix(identitoFlow.out.versions)
@@ -961,7 +952,6 @@ workflow {
       )
 
       multiqc(
-        customRunName,
         chSplan.collect(),
         chMetadata.ifEmpty([]),
         chMultiqcConfig.ifEmpty([]),
@@ -982,7 +972,7 @@ workflow {
         chMSIMqc.collect().ifEmpty([]),
         chTMBMqc.collect().ifEmpty([]),
         getSoftwareVersions.out.versionsYaml.collect().ifEmpty([]),
-        workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml"),
+        workflowSummaryCh.collectFile(name: "workflow_summary_mqc.yaml", cache: true),
         chWarn.collect().ifEmpty([])
       )
       mqcReport = multiqc.out.report.toList()

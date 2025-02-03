@@ -9,7 +9,6 @@ process identitoClustering {
 
   input:
   path(matrix)
-  val(customRunName)
 
   output:
   path("*.{tsv,csv,png}"), optional: true, emit: results

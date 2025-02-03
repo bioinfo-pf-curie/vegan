@@ -10,7 +10,6 @@ process multiqc {
   label 'lowMem'
 
   input:
-  val customRunName
   path splan
   path metadata
   path multiqcConfig

@@ -24,7 +24,6 @@ workflow rnaFlow {
     fai
     dict
     polymBed
-    runName
     intervals
     dbsnp
     dbsnpIndex
@@ -93,8 +92,7 @@ workflow rnaFlow {
         chFilteredBam,
         fasta,
         fai,
-        polymBed,
-        runName
+        polymBed
       )
       chIdentitoMqc = identitoFlow.out.tsv
       chVersions = chVersions.mix(identitoFlow.out.versions)
