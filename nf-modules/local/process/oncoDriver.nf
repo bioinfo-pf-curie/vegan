@@ -11,8 +11,8 @@ process oncoDriver {
   path(gtf)
 
   output:
-  tuple val(meta), path("*_oncodriver.vcf.gz"), emit: vcf
-  tuple val(meta), path("*_oncodriver.csv"), emit: cnv
+  tuple val(meta), path("*_snv_oncodriver.vcf.gz"), emit: vcf, optional: true
+  tuple val(meta), path("*_cnv_oncodriver.csv"), emit: cnv, optional: true
   tuple val(meta), path("*.log"), emit: log
   path ("versions.txt"), emit: versions
 
@@ -20,14 +20,15 @@ process oncoDriver {
   def prefix = task.ext.prefix ?: "${meta.id}"
   def args = task.ext.args ?: ''
   inputCnv = cnv ? "--cnv ${cnv} --outputcnv ${prefix}_cnv_oncodriver.csv" : ""
-  inputVcf = vcf ? "--vcf ${vcf} --output ${prefix}_oncodriver.vcf.gz" : ""
+  inputVcf = vcf ? "--vcf ${vcf} --output ${prefix}_snv_oncodriver.vcf.gz" : ""
+  inputGtf = gtf ?  "--canonical_ids ${gtf}" : ""
   """
   oncoDriver.py \
     ${inputVcf} \
     ${inputCnv} \
+    ${inputGtf} \
     --config ${config} \
     --driver_genes ${genes} \
-    --canonical_ids ${gtf} \
     ${args} 2> ${prefix}_oncoDriver.log
 
   oncoDriver.py --version > versions.txt

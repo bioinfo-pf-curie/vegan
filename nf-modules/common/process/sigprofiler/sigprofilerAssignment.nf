@@ -9,7 +9,7 @@ process sigprofilerAssignment {
   label 'sigprofiler'
 
   input:
-  tuple val(meta), path(vcf)
+  tuple val(meta), path(vcfs)
   path(tsb)
 
   output:
@@ -24,7 +24,13 @@ process sigprofilerAssignment {
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   mkdir input
-  gunzip -c ${vcf} > input/${prefix}.vcf
-  sigProfilerAssignment.py ${args} --volume ./${tsb}
+  for f in *vcf.gz; do
+    pfix=\$(basename \${f} .gz)
+    gunzip -c \${f} > input/\${pfix}
+  done
+
+  sigProfilerAssignment.py \
+    ${args} \
+    --volume ./${tsb}
   """
 }

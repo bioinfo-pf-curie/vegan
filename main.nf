@@ -871,9 +871,6 @@ workflow {
         chDbsnp,
         chGeneBed
       )
-      chFacetsSegments = facetsFlow.out.segmentsAnnotated
-    }else{
-      chFacetsSegments = Channel.value([])
     }
 
     if('ascat' in tools){
@@ -895,8 +892,13 @@ workflow {
 
     chDriverSomaticVcf = Channel.empty()
     if('oncodriver' in tools){
-      chSomaticVcfCnv = annotateSomaticFlow.out.vcf
-        .combine(chFacetsSegments, by:0)
+      if('facets' in tools){
+        chSomaticVcfCnv = annotateSomaticFlow.out.vcf
+          .combine(facetsFlow.out.segmentsAnnotated, by:0)
+      }else{
+        chSomaticVcfCnv = annotateSomaticFlow.out.vcf
+          .map{meta, vcf, tbi -> [meta, vcf, tbi, []]}
+      }
 
       driverSomaticFlow(
         chSomaticVcfCnv,
@@ -917,7 +919,7 @@ workflow {
 
     if('sigprofiler' in tools){
       sigprofilerFlow(
-	chFilteredSomaticVcf.map{it -> [it[0],it[1]]},
+	chFilteredSomaticVcf,
         chSigProfilerTsb
       )
     }

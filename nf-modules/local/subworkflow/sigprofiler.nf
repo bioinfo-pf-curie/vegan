@@ -2,7 +2,6 @@
  * Worflow for mutational analysis
  */
 
-//include { preprocessTsv } from '../../local/process/preprocessTsv'
 include { sigprofilerAssignment } from '../../common/process/sigprofiler/sigprofilerAssignment'
 
 workflow sigprofilerFlow {
@@ -14,12 +13,16 @@ workflow sigprofilerFlow {
   main:
   chVersions = Channel.empty()
 
-  //preprocessTsv(
-  //  tsv
-  //)
+  chAllVcf = vcf
+  .map{ meta, vcf, tbi -> vcf }
+  .collect()
+  .map{vcf -> 
+    def meta = [ id: "sigprofiler" ]
+    [meta, vcf]
+  }.view()
 
   sigprofilerAssignment(
-    vcf,
+    chAllVcf,
     tsb
   )
 
