@@ -19,7 +19,7 @@ workflow sigprofilerFlow {
   .map{vcf -> 
     def meta = [ id: "sigprofiler" ]
     [meta, vcf]
-  }.view()
+  }
 
   sigprofilerAssignment(
     chAllVcf,

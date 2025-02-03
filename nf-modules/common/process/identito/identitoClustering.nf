@@ -19,9 +19,9 @@ process identitoClustering {
   task.ext.when == null || task.ext.when
 
   script:
-  def outprefix = customRunName ? "--prefix " + customRunName + "_" : ""
+  def prefix = task.ext.prefix ? "--prefix ${task.ext.prefix}" : ""
   """
   echo \$(R --version | awk 'NR==1{print \$1,\$3}') > versions.txt
-  computeClust.R --input ${matrix} --dist ejaccard ${outprefix}
+  computeClust.R --input ${matrix} --dist ejaccard ${prefix}
   """
 }

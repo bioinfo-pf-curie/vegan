@@ -27,7 +27,6 @@ workflow identitoFlow {
 
     identitoCombine(
       identitoPolym.out.tsv.collect(),
-      runName
     )
     chVersions = chVersions.mix(identitoCombine.out.versions)
 
