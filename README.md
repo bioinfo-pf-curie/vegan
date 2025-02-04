@@ -32,7 +32,7 @@ The first version of `VEGAN` was inspired from the [nf-core Sarek pipeline](http
   - Mutect2 (including learnReadOrientationModel, GetPileupSummaries, CalculateContamination)
   - FilterMutectCalls
 7. Technical filters for somatic variants (DP, VAF, MAF) ([`SnpSift`](https://github.com/pcingola/SnpSift), [`bcftools`](http://samtools.github.io/bcftools/bcftools.html))
-8. Rescue variants filtered by Mutect2 (such as normal artefact from ctDNA)
+8. Rescue variants filtered by Mutect2 (such as normal artefact from ctDNA)[`bcftools`](http://samtools.github.io/bcftools/bcftools.html)
 8. Variants annotation ([`SnpEff`](https://pcingola.github.io/SnpEff/) / [`SnpSift`](https://github.com/pcingola/SnpSift))
 9. Selection of driver variants using a clinical decision tree (`oncoDrivers`)
 10. Computataion of mutational signature ([`sigprofiler`](https://cancer.sanger.ac.uk/signatures/tools/))

@@ -19,6 +19,8 @@
   * [Inputs](#inputs)
     * [`--reads`](#--reads)
     * [`--singleEnd`](#--singleend)
+	* [`--splitFastq`](#--splitFastq)
+	* [`--rna`](#--rna)
   * [Alignment](#alignment)
     * [`--aligner`](#--aligner)
     * [`--mapQual`](#--mapQual)
@@ -40,6 +42,9 @@
   * [Reference genomes](#reference-genomes)
     * [`--genome`](#--genome)
     * [`--genomeAnnotationPath`](#--genomeAnnotationPath)
+  * [ Working directory](#work)
+    * [`-w`](#-w)
+	* [`--cleanup`](#--cleanup)
   * [Other command line parameters](#other-command-line-parameters)
     * [`--skip*`](#--skip*)
     * [`-w`](#-w)
@@ -68,11 +73,14 @@ NXF_OPTS='-Xms1g -Xmx4g'
 
 ### Whole genome sequencing analysis
 
+Whole-genome sequencing usually represent large data file. Thus, `VEGAN` allows to split the data per chromosome and to run the analysis in parallel on a computational cluster.  
+In addition, the user can also split the input data in chunks to speed up the processing. To do so, look at the `--splitFastq` command.
 Here is a typical command line to analyse whole-genome analysis data.
 
 ```bash
 nextflow run main.nf -profile cluster,multiconda \
   --samplePlan splan.csv \
+  --splitFastq --fastqChunksSize 50000000 \
   --design design.csv \
   --step mapping \
   --tools ascat,manta,mutect2,snpeff \
@@ -82,7 +90,6 @@ nextflow run main.nf -profile cluster,multiconda \
   --outDir /PATH/TO/RESULTS \
   -w /PATH/TO/WORK \
   -resume
-
 ```
 
 ### Whole exome sequencing analysis
@@ -262,6 +269,22 @@ By default, the pipeline expects paired-end data. If you have single-end data, y
 
 It is not possible to run a mixture of single-end and paired-end files in one run.
 
+#### `--splitFastq`
+
+For large data file, it is possible to split the input data into chunks to speed up the processing. The `--fastqChunksSize` allows to control the number of reads to put into a single chunk (default: 20000000). For instance:
+
+```
+--splitFastq --fastqChunksSize 50000000
+```
+
+#### `--rna`
+
+Specify that the data are from RNA sequencing. In this case, `VEGAN` wll run the RNA-seq sub-workflow.
+
+```
+--rna
+```
+
 ### `Alignment`
 
 #### `--aligner`
@@ -437,6 +460,28 @@ This parameter points to the folder containing all the annotations.
 ```bash
 --genomeAnnotationPath /PATH/TO/ANNOTATIONS
 ```
+
+### Working directory
+
+#### `-w`
+
+Specify the working directory which will contain all intermediate results. Of note, this folder **can take a lot of disk space !**. be sure to have enough disk before running the pipeline.
+
+#### `--cleanup`
+
+The `work` folder is mandatory to be able to `-resume` the pipeline. However, because of disk space usage, several options can be specified.
+
+- `--cleanup success`
+
+The `work` folder will be deleted at the end of the pipeline, and only of all steps have been run successfully. This is the default behavior.
+
+- `--cleanup auto`
+
+In this case, the `work` will be clean up on the fly. As soon as a file is no longer useful, it is deleted. In practice, it means that the `work` folder size should never be larger than two times the size of BAM files. **However, in the current version, the `--resume` option is no longer available !**
+
+- `--cleanup none`
+
+The `work` folder is never removed. This mode has to be used in development mode, to get access to the command lines and intermediate results. Be sure to manually clean the `work` if you activate this option.
 
 ### Other command line parameters
 
