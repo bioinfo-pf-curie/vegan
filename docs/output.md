@@ -67,8 +67,6 @@ The percentage of reads on targets are presented in the `General Metrics` table.
 
 **Output directory: `preprocessing/bams/onTarget`**
 
-* `[SAMPLE].onTarget.bam`
-  * Aligned reads restricted to the genomic targets.
 * `stats/[SAMPLE].onTarget.flagstat`
   * Number of alignments for each FLAG type
 
@@ -361,16 +359,16 @@ Tumor Mutational Burden is assesed with [`pyTMB`](https://github.com/bioinfo-pf-
   * `[SAMPLE]_tmb.txt`
     * results file
 
-### Export
+## Export
 
-#### Tabular mutation data
+### Tabular mutation data
 
 This step transforms the fully annotated vcf into a tabulated file to ease the analysis of the results.
 
 **Output directory: `tableReport/[SAMPLE]`**
   * `[SAMPLE].tsv`
 
-#### MAF mutation data
+### MAF mutation data
 
 This step transforms the fully annotated vcf into a tabulated file to ease the analysis of the results.
 

@@ -6,9 +6,10 @@
 [![Singularity Container available](https://img.shields.io/badge/singularity-available-7E4C74.svg)](https://singularity.lbl.gov/)
 [![Docker Container available](https://img.shields.io/badge/docker-available-003399.svg)](https://www.docker.com/)
 
-### Introduction
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.12167637.svg)](https://doi.org/10.5281/zenodo.12167637)
 
-This pipeline was built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis. Most of the pipeline steps can work for tumor/normal paired samples and tumor-only samples. `VEGAN` can run from raw `fastq` files or from intermediates results such as `BAM/CRAM` aligned files or `VCF` files. The latest version now supports variant calling on **RNA-seq** samples.    
+
+This pipeline is built for **Whole Exome Sequencing** and **Whole Genome Sequencing** analysis. It provides a detailed quality controls of both frozen and FFPE samples as well as a first downstream analysis including mutation calling, structural variants and copy number analysis. Most of the pipeline steps can work for tumor/normal paired samples and tumor-only samples. `VEGAN` can run from raw `fastq` files or from intermediates results such as `BAM/CRAM` aligned files or `VCF` files. The last version now supports variant calling on **RNA-seq** samples.  
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner.
 It comes with conda / singularity containers making installation easier and results highly reproducible. 
@@ -182,8 +183,8 @@ It can be launched with the following command.
 ```
 nextflow run main.nf -profile test,multiconda \
    --step mapping \ # or filtering, calling, annotate
-   --condaCacheDir /bioinfo/local/curie/ngs-data-analysis/centos/tools/containers/conda/vegan-2.0.0/ \
-   --genomeAnnotationPath /data/annotations/pipelines/
+   --condaCacheDir /path/to/conda/cache/
+   --genomeAnnotationPath /path/to/annotations/
 ```
 
 #### Run the pipeline for WES analysis from a sample plan with specified tools and genome on the cluster, using singularity containers
@@ -193,7 +194,7 @@ nextflow run main.nf -profile singularity,cluster \
     --samplePlan samples-WES.csv \
     --design samples.design.csv \
     --step mapping \
-    --singularityImagePath /bioinfo/local/curie/ngs-data-analysis/centos/tools/containers/singularity/vegan-2.0.0/images/ \
+    --singularityImagePath /path/to/singularity/images/ \
     --targetBed capture.bed \
     --tools manta,mutect2,snpeff,facets,tmb,haplotypecaller,msisensor \
     --genome hg38 --genomeAnnotationPath /data/annotations/pipelines/ \
@@ -209,16 +210,17 @@ nextflow run main.nf -profile multiconda,cluster \
     --design samples.design.csv \
     --step mapping \
     --targetBed capture.bed \
-    --tools manta,mutect2,snpeff,facets,tmb,haplotypecaller,msisensor,ascat \
+    --tools manta,mutect2,snpeff,facets,tmb,haplotypecaller,msisensor,ascat,sigprofiler \
     --genome hg38 \
-    --genomeAnnotationPath /data/annotations/pipelines/ \
-    --condaCacheDir /bioinfo/local/curie/ngs-data-analysis/centos/tools/containers/conda/vegan-1.2.0/ \
+    --genomeAnnotationPath /path/to/annotations/
+    --condaCacheDir /path/to/conda/cache/
 
 ```
 
 To build new conda environments, point to an empty folder for `--condaCacheDir` parameter
 
 #### Defining the '-profile'
+
 By default (whithout any profile), Nextflow will excute the pipeline locally, expecting that all tools are available from your `PATH` variable.
 In addition, we set up a few profiles that should allow you
 - 1) to use containers instead of local installation,
