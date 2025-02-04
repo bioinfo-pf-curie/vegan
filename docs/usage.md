@@ -73,7 +73,7 @@
 * [Automatic resubmission](#automatic-resubmission)
 
 
-## General inforomation
+## General information
 
 Nextflow handles job submissions on SLURM or other environments, and supervises running the jobs. Thus the Nextflow process must run until the pipeline is finished. We recommend that you put the process running in the background through `screen` / `tmux` or similar tool. Alternatively you can run nextflow within a cluster job submitted to your job scheduler.
 
@@ -97,7 +97,7 @@ nextflow run main.nf -profile cluster,multiconda \
   --splitFastq --fastqChunksSize 50000000 \
   --design design.csv \
   --step mapping \
-  --tools ascat,manta,mutect2,snpeff \
+  --tools ascat,manta,mutect2,snpeff,tmb \
   --genome h38 \
   --genomeAnnotationPath /PATH/TO/ANNOTATIONS \
   --condaCacheDir /PATH/TO/CONDA \
@@ -116,7 +116,9 @@ nextflow run main.nf -profile cluster,multiconda \
   --design design.csv \
   --targetBed target.bed \
   --step mapping \
-  --tools facets,mutect2,snpeff \
+  --tools facets,mutect2,snpeff,oncodriver,sigprofiler \
+  --maf \
+  --table \
   --genome h38 \
   --genomeAnnotationPath /PATH/TO/ANNOTATIONS \
   --condaCacheDir /PATH/TO/CONDA \
