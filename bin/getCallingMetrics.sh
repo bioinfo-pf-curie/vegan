@@ -43,7 +43,7 @@ nbVar=$(zcat ${vcf} | grep -v "^#" | wc -l)
 
 ## Mutect2
 if [ ! -z ${fvcf} ]; then
-    nbFilt=$(zcat ${fvcf} | grep -v "^#" | grep PASS | wc -l)
+    nbFilt=$(zcat ${fvcf} | grep -v "^#" | wc -l)
     if [[ $nbFilt -gt 0 ]]; then
 	pFilt=$(echo "${nbVar} ${nbFilt}" | awk ' { printf "%.*f",2,($1-$2)/$1*100 } ')
     else

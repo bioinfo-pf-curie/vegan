@@ -14,7 +14,6 @@ process vcf2maf {
 
   output:
   tuple val(meta), path("*.maf"), emit: maf
-//   path("versions.txt"), emit: versions
 
   when:
   task.ext.when == null || task.ext.when
@@ -24,6 +23,10 @@ process vcf2maf {
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   gunzip -c ${vcf} > ${meta.id}.vcf
-  vcf2maf.pl --input-vcf ${meta.id}.vcf --output-maf ${prefix}.maf --ref-fasta ${fasta} --inhibit-vep --vcf-tumor-id ${meta.tumor_id} --ncbi-build GRCh38
+  vcf2maf.pl \
+    --input-vcf ${meta.id}.vcf \
+    --output-maf ${prefix}.maf \
+    --ref-fasta ${fasta} \
+    ${args}
   """
 }
