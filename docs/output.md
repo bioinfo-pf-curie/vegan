@@ -334,7 +334,7 @@ For Tumor/Normal pair :
 
 SNVs and CNVs results can be further filtered for clinical interest using `--tools oncodriver`.  
 
-**Output directory: `drivers/[SAMPLE]`**
+**Output directory: `oncodriver/[SAMPLE]`**
 
   * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_*_cnv_oncodriver.csv`
     * CNVs file with selected copy number alterations
