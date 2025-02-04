@@ -188,10 +188,9 @@ def is_driver(variant, db_info, conf_select, conf_vcf):
 
     # Hotspot
     in_databases = is_hotspot(variant, infos=db_info, flags=conf_vcf['cancer_db'])
-    
     for r in conf_select:
-        if 'is_hotspot' in r and not in_databases:
-            return [False, None]
+        if 'is_hotspot' in r and r['is_hotspot'] is True and not in_databases:
+            continue
         for v in var_info:
             if v in r['var_classes']:
                 return [True, v]
@@ -500,8 +499,6 @@ if __name__ == "__main__":
                     elif gene_type is not None:
 
                         if (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id not in can_ids[gene_id]):
-                            print(annot)
-                            print(can_ids.get(gene_id))
                             if transcript_id not in can_ids[gene_id]: 
                                 __DEBUGINFO__ = ",".join(x for x in [__DEBUGINFO__, "NON_CANONICAL"] if x is not None)
                             continue
