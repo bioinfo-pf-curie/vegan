@@ -188,6 +188,7 @@ def is_driver(variant, db_info, conf_select, conf_vcf):
 
     # Hotspot
     in_databases = is_hotspot(variant, infos=db_info, flags=conf_vcf['cancer_db'])
+    
     for r in conf_select:
         if 'is_hotspot' in r and not in_databases:
             return [False, None]
@@ -338,7 +339,7 @@ def args_parse():
     parser.add_argument("--output", help="Output file name", type=str)
     parser.add_argument("--outputcnv", help="CNV output file name", type=str)
     parser.add_argument("--verbose", help="Active verbose mode", action="store_true")
-    parser.add_argument("--debug", help="Export original VCF with TMB_FILTER tag", action="store_true")
+    parser.add_argument("--debug", help="Export original VCF with ONCODRIVER tag", action="store_true")
     parser.add_argument("--version", help="Version number", action='version', version="%(prog)s ("+__version__+")")
 
 
@@ -497,9 +498,12 @@ if __name__ == "__main__":
                     
                     ## Driver genes from cancer gene list
                     elif gene_type is not None:
+
                         if (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id not in can_ids[gene_id]):
+                            print(annot)
+                            print(can_ids.get(gene_id))
                             if transcript_id not in can_ids[gene_id]: 
-                                DEBUGINFO__ = ",".join(x for x in [__DEBUGINFO__, "NON_CANONICAL"] if x is not None)
+                                __DEBUGINFO__ = ",".join(x for x in [__DEBUGINFO__, "NON_CANONICAL"] if x is not None)
                             continue
                         elif not args.use_canonical or (args.use_canonical and (can_ids.get(gene_id) is not None) and transcript_id in can_ids[gene_id]):
                             is_driver_mut, decision = is_driver(annot, db_info, select_algo[(gene_type, 'snv')], vcf_conf)
