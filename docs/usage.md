@@ -53,6 +53,8 @@
   * [Export](#export)
     * [`--maf`](#--maf)
 	* [`--table`](#--table)
+  * [Copy Number](#copy_number)
+    * [`--facetsOpts`](#--facetsOpts)
   * [Reference genomes](#reference-genomes)
     * [`--genome`](#--genome)
     * [`--genomeAnnotationPath`](#--genomeAnnotationPath)
@@ -527,6 +529,16 @@ Export VCF in tabular format
 
 ```bash
 --table
+```
+
+### Copy Number
+
+#### `--facetsOpts`
+
+Modify the default options to run`facets` for copy number analysis.
+
+```
+--facetsOpts "--normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25"
 ```
 
 ### Reference genomes
