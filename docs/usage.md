@@ -34,15 +34,29 @@
   * [Variant calling](#variant_calling)
     * [`--baseQual`](#--baseQual)
     * [`--orientationBiais`](#--orientationBiais)
+	* [`--pon`](#--pon)
     * [`--saveVcfIntermediates`](#--saveVcfIntermediates)
     * [`--saveVcfMetrics`](#--saveVcfMetrics)
-  * [Annotation](#Annotation)
+  * [Variant filtering](#variant_filtering)
+    * [`--filterSomaticDP`](#--filterSomaticsDP)
+	* [`--filterSomaticMAF`](#--filterSomaticsMAF)
+	* [`--filterSomaticVAF`](#--filterSomaticsVAF)
+	* [`--rescueVariants`](#--rescueVariants)
+	* [`--rescueVariantsType`](#--rescueVariantsType)
+	* [`--rescueVariantsVAF`](#--rescueVariantsVAF)
+	* [`--driverConfig`](#--driverConfig)
+  * [Variant annotation](#variant_annotation) 
     * [`--annotDb`](#--annotDb)
-    * [`--ffpe`](#--ffpe)
+  * [Biomarkers](#biomarkers)
+    * [`--tmbFilters`](#--tmbFilters)
+	* [`--msiBaselineConfig`](#--msiBaselineConfig)
+  * [Export](#export)
+    * [`--maf`](#--maf)
+	* [`--table`](#--table)
   * [Reference genomes](#reference-genomes)
     * [`--genome`](#--genome)
     * [`--genomeAnnotationPath`](#--genomeAnnotationPath)
-  * [ Working directory](#work)
+  * [Working directory](#work)
     * [`-w`](#-w)
 	* [`--cleanup`](#--cleanup)
   * [Other command line parameters](#other-command-line-parameters)
@@ -235,7 +249,7 @@ This parameter specify the starting step of the pipeline. Several entry point ar
 
 Specify the tools to use for variant calling and downstream steps.
 
-**Available:** facets, ascat, haplotypecaller, mutect2, manta, snpeff, msisensor, tmb
+**Available:** facets, ascat, haplotypecaller, mutect2, manta, snpeff, msisensor, tmb, oncodriver, sigprofiler
 
 #### `--outDir`
 
@@ -373,6 +387,14 @@ Specify to use the orientation biais filter for Mutect2 calls in order to reduce
 --orientationBiais
 ```
 
+#### `--pon`
+
+Path to vcf file with a **panel of normal** samples. Those variants will be considered as normal ones and filtered by Mutect2.
+
+```bash
+--pon path/to/pon --ponIndex path/to/pon.index 
+```
+
 #### `--saveVcfIntermediates`
 
 Save intermediate vcf files for Manta, Mutect2 and HaplotypeCaller.
@@ -381,9 +403,83 @@ Save intermediate vcf files for Manta, Mutect2 and HaplotypeCaller.
 
 Save complementary vcf metrics files for HaplotypeCaller and Mutect2.
 
-### Annotation
+### Variant Filtering
 
-#### `--annotDb`
+#### `--filterSomaticDP`
+
+Specify the minimum Sequencing Depth to use to filter the variants.  
+Of note, this filter has no direct impact on TMB calculation (see `--tmbFilters`).
+
+**Default: 20**
+
+```bash
+--filterSomaticDP 20
+```
+
+#### `--filterSomaticMAF`
+
+Specify the Minimum Allele Frequency to consider (and filter) a variant as a polymorphism.  
+Of note, this filter has no direct impact on TMB calculation (see `--tmbFilters`). 
+
+**Default: 0.001**
+
+```bash
+--filterSomaticMAF 0.001
+```
+
+#### `--filterSomaticVAF`
+
+Specify the minimum Variant Allele Frequency to consider a variant.  
+Of note, this filter has no direct impact on TMB calculation (see `--tmbFilters`). 
+
+**Default: 0.01**
+
+```bash
+--filterSomaticVAF 0.01
+```
+
+#### `--rescueVariants`
+
+For some specific cases, it could be useful to rescue some variants which have been filtered by Mutect2.  
+One typical application would be to rescue variants supported by only a few reads in the normal samples which could be due to circular tumoral DNA contamination.  
+
+This option will rescue the variants defined through `--rescueVariantsType`, and merge them with the list of filtered variants.
+
+```bash
+--rescueVariants
+```
+
+#### `--rescueVariantsType`
+
+Regular expression defining the variants to rescue (ie. FILTER column in the VCF file).  
+By default, only `FILTER=='normal_artifact'` are rescued.
+
+```bash
+--rescueVariantsType "ILTER=='normal_artifact' | FILTER=='germline'"
+```
+
+#### `--rescueVariantsVAF`
+
+The **maximum** VAF to rescue a variant.
+
+**Default: 0.05**
+
+```bash
+--rescueVariantsVAF 0.05
+```
+
+#### `--driverConfig`
+
+Define the clinical algorithm uses to select the variants of clinical interest (both SNVs and CVNs).  
+
+
+```bash
+--driverConfig path/to/config
+```
+
+### Variant Annotation
+
+### `--annotDb`
 
 Specify the database to use for the annotation with SnpsSift.
 
@@ -391,13 +487,45 @@ Specify the database to use for the annotation with SnpsSift.
 
 **Default:** all
 
-#### `ffpe`
+### Biomarkers
 
-Specify to use the ffpe parameters and filters for TMB computation. This means a Variant Allele Frequency (VAF) of 10%.
+#### `--tmbFilters`
 
-Here the TMB is computed for WES samples (min coverage of 20X) and not for panels.
+The options to calculate the Tumor Mutational Burden (TMB) can be modified.  
+By default, these options are defined for frozen samples as follow:
 
-For more information about TMB compution: [documentation](https://github.com/bioinfo-pf-curie/TMB)
+```bash
+tmbFilters "--vaf 0.05 --maf 0.001 --minDepth 20 --minAltDepth 2 --filterLowQual --filterNonCoding --filterSyn --filterPolym --polymDb 1k,gnomad"
+```
+
+For FFPE samples, the following parameters are recommanded:
+
+```bash
+tmbFilters "--vaf 0.1 --maf 0.001 --minDepth 20 --minAltDepth 2 --filterLowQual --filterNonCoding --filterSyn --filterPolym --polymDb 1k,gnomad"
+```
+
+#### `--msiBaselineConfig`
+
+Configuration file for MSIsensor-pro to define a list of normal samples in tumour-only mode.
+
+
+### Export
+
+#### `--maf`
+
+Export VCF files in MAF format.
+
+```bash
+--maf
+```
+
+### `--table`
+
+Export VCF in tabular format
+
+```bash
+--table
+```
 
 ### Reference genomes
 
