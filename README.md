@@ -15,6 +15,10 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool
 It comes with conda / singularity containers making installation easier and results highly reproducible. 
 The first version of `VEGAN` was inspired from the [nf-core Sarek pipeline](https://github.com/nf-core/sarek) with several common processes, additional modifications and new analysis steps.
 
+
+![image](assets/vegan_wflow.png)
+
+
 ### Pipeline summary
 
 1. Run quality control of raw sequencing reads ([`fastqc`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
