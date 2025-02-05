@@ -16,7 +16,7 @@ It comes with conda / singularity containers making installation easier and resu
 The first version of `VEGAN` was inspired from the [nf-core Sarek pipeline](https://github.com/nf-core/sarek) with several common processes, additional modifications and new analysis steps.
 
 
-![image](assets/vegan_wflow.png)
+![image](./assets/vegan_wkflow.png)
 
 
 ### Pipeline summary
