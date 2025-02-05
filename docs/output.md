@@ -259,6 +259,10 @@ ASCAT and Facets are two software for performing allele-specific copy number ana
   * CNVs plot
 * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_cnv_ploidy_cellularity.txt`
   * table with cellularity and ploidy for this sample.
+* `TUMORSAMPLE]_vs_[NORMALSAMPLE]_cnv_segments.transformed.txt`
+  * table with copy number segments
+* `TUMORSAMPLE]_vs_[NORMALSAMPLE]_cnv_segments.transformed.annotated.txt`
+  * table with annotated copy number segments
 
 **Output directory: `ASCAT`**
 
