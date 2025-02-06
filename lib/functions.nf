@@ -71,7 +71,7 @@ def checkVarNumber(prefix, stats) {
   nvar=0
   stats.eachLine { line ->
     if (nline == 1){
-      nvar = line.split(',')[3]
+      nvar = line.split(',')[2]
     }
     nline += 1 
   }

@@ -20,7 +20,7 @@ process annotateCNV {
   def prefix = task.ext.prefix ?: "${meta.id}"
   """
   grep -v "chrom" ${cnv} | awk -F'\t' '{print "chr"\$2, \$3, \$4, \$1, \$5, \$6, \$7, \$8, \$9, \$10}' OFS='\t' > intermediate.txt
-  intersectBed -a intermediate.txt -b ${bed} -wao | cut -f1-10,14 > ${prefix}_cnv.transformed.annotated.txt
+  intersectBed -a intermediate.txt -b ${bed} -wao | cut -f1-10,14 > ${prefix}.transformed.annotated.txt
   echo \$(bedtools --version 2>&1) &> versions.txt
   """
 }

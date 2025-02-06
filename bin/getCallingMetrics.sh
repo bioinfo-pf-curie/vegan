@@ -10,7 +10,6 @@ do
     case $OPT in
         i) vcf=$OPTARG;;
         f) fvcf=$OPTARG;;
-        c) conta=$OPTARG;;
         n) sname=$OPTARG;;
         h) help ;;
         \?)
@@ -40,6 +39,8 @@ fi
 
 ## All variant callers
 nbVar=$(zcat ${vcf} | grep -v "^#" | wc -l)
+header="sample_ID,nb_var"
+output="$sname,$nbVar"
 
 ## Mutect2
 if [ ! -z ${fvcf} ]; then
@@ -49,16 +50,14 @@ if [ ! -z ${fvcf} ]; then
     else
 	pFilt=0
     fi
-else
-    nbFilt='NA'
-    pFilt='NA'
+     nvar01=$(bcftools view -Oz -i 'FORMAT/AF[1:0]>=0.01' --threads 1 ${fvcf} | gunzip -c | grep -v "^#" | wc -l)
+     nvar05=$(bcftools view -Oz -i 'FORMAT/AF[1:0]>=0.05' --threads 1 ${fvcf} | gunzip -c | grep -v "^#" | wc -l)
+     nvar1=$(bcftools view -Oz -i 'FORMAT/AF[1:0]>=0.1' --threads 1 ${fvcf} | gunzip -c | grep -v "^#" | wc -l)
+     
+     header+=",nb_var_filt,perc_var_filt,nb_var_01,nb_var_05,nb_var_1"
+     output+=",$nbFilt,$pFilt,$nvar01,$nvar05,$nvar1"
 fi
 
-if [ ! -z ${conta} ]; then
-    conta=$(awk 'NR==2{printf "%.*f",2,$2*100}' $conta)
-else
-    conta='NA'
-fi
+echo -e $header
+echo -e $output
 
-echo "sample_ID,conta,nb_var,nb_var_filt,perc_var_filt"
-echo $sname,$conta,$nbVar,$nbFilt,$pFilt

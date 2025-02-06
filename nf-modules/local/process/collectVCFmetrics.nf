@@ -1,7 +1,7 @@
 process collectVCFmetrics {
   label 'minCpu'
   label 'minMem'
-  label 'unix'
+  label 'bcftools'
   tag "${meta.id}"
 
   input:

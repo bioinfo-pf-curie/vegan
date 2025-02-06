@@ -207,11 +207,6 @@ custom_data:
               scale: false
               format: '{:.0f}'
               placement: 1000
-#            conta:
-#              title: 'Cross-contamination (%)'
-#              scale: false
-#              format: '{:,.2f}'
-#              placement: 2000
             nb_var:
               title: 'Total Variants'
               scale: false
@@ -227,6 +222,21 @@ custom_data:
               scale: false
               format: '{:,.2f}'
               placement: 5000
+            nb_var_01:
+              title: 'SNVs > 0.01'
+              scale: false
+              format: '{:,.0f}'
+              placement: 6000
+            nb_var_05:
+              title: 'SNVs > 0.05'
+              scale: false
+              format: '{:,.0f}'
+              placement: 7000
+            nb_var_1:
+              title: 'SNVs > 0.05'
+              scale: false
+              format: '{:,.0f}'
+              placement: 8000                                                                                                                                                                                                                                                                                                                                                              
 
     hccaller:
         file_format: 'csv'
