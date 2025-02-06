@@ -450,19 +450,6 @@
     },
 
     {
-      "name": "saveVcfMetrics",
-      "label": "Save vcf metrics",
-      "usage": "Save complementary vcf metrics files",
-      "type": "boolean",
-      "nargs": 0,
-      "choices": [],
-      "default_value": false,
-      "pattern": "",
-      "render": "check-box",
-      "arity": 0,
-      "group": "VCF format"
-    },
-    {
       "name": "saveVcfIntermediates",
       "label": "Save intermediate vcf files",
       "usage": "Save intermediate vcf files",

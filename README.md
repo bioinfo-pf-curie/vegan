@@ -136,7 +136,6 @@ DRIVER VARIANTS:
 VCF FORMAT:
     --maf                            Export VCF in MAF format
     --saveVcfIntermediates           Save intermediate vcf files
-    --saveVcfMetrics                 Save complementary vcf metrics files
     --table                          Export VCF in table format
 
 COPY NUMBER CALLING:
