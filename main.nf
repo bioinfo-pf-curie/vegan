@@ -786,7 +786,6 @@ workflow {
         chDbnsfp,
         chDbnsfpIndex
       )
-
       chSnpEffMqc = chSnpEffMqc.mix(annotateGermlineFlow.out.snpEffReport)
       chVersions = chVersions.mix(annotateGermlineFlow.out.versions)
     }
@@ -922,16 +921,16 @@ workflow {
     */
 
     // TABLE REPORT FORMAT
-    if('mutect2' in tools & params.table){
+    if(params.table){
       tableReportFlow(
-        annotateSomaticFlow.out.vcf.concat(chDriverSomaticVcf)
+        annotateSomaticFlow.out.vcf.mix(annotateGermlineFlow.out.vcf).concat(chDriverSomaticVcf)
       )
     }
 
     // MAF FORMAT
-    if('mutect2' in tools & params.maf){
+    if(params.maf){
       vcf2maf(
-        chFilteredSomaticVcf.concat(chDriverSomaticVcf),
+        chFilteredSomaticVcf.mix(annotateGermlineFlow.out.vcf).concat(chDriverSomaticVcf),
         chFasta
       )
     }
