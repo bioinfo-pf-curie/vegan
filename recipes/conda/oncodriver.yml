@@ -10,5 +10,6 @@ dependencies:
   - bioconda::mosdepth=0.3.10=h4e814b3_1
   - bioconda::pybedtools=0.11.0=py312h5e9d817_0
   - conda-forge::libxcrypt=4.4.36=hd590300_1
-  - conda-forge::pysam-0.23.0=py312h47d5410_0
-  
+  - conda-forge::pip=25.0.1=pyh8b19718_0
+  - pip:
+    - pysam==0.23.0
