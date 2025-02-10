@@ -923,14 +923,14 @@ workflow {
     // TABLE REPORT FORMAT
     if(params.table){
       tableReportFlow(
-        annotateSomaticFlow.out.vcf.mix(annotateGermlineFlow.out.vcf).concat(chDriverSomaticVcf)
+        annotateSomaticFlow.out.vcf.concat(chDriverSomaticVcf)
       )
     }
 
     // MAF FORMAT
     if(params.maf){
       vcf2maf(
-        chFilteredSomaticVcf.mix(annotateGermlineFlow.out.vcf).concat(chDriverSomaticVcf),
+        chFilteredSomaticVcf.concat(chDriverSomaticVcf),
         chFasta
       )
     }
