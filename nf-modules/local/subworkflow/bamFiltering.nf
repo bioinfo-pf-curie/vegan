@@ -2,10 +2,8 @@
  * Filter BAMs/CRAMs files
  */
 
-//include { markDuplicates } from '../../common/process/gatk/markDuplicates'
 include { samtoolsView as samtoolsFilter } from '../../common/process/samtools/samtoolsView'
-include { samtoolsIndex } from '../../common/process/samtools/samtoolsIndex'
-//include { samtoolsFlagstat as samtoolsStatsMarkdup } from '../../common/process/samtools/samtoolsFlagstat'
+include { samtoolsIndex as samtoolsIndexFilter } from '../../common/process/samtools/samtoolsIndex'
 include { samtoolsFlagstat as samtoolsStatsFilter  } from '../../common/process/samtools/samtoolsFlagstat'
 include { samtoolsStats as samtoolsStatsOnTarget } from '../../common/process/samtools/samtoolsStats'
 
@@ -20,20 +18,6 @@ workflow bamFiltersFlow {
     main:
     chVersions = Channel.empty()
 
-    // Mark duplicates
-    //markDuplicates(
-    //  bam,
-    //  fasta,
-    //  fai
-    //)
-    //chVersions = chVersions.mix(markDuplicates.out.versions)
-
-    // Stats on duplicates
-    //samtoolsStatsMarkdup(
-    //  markDuplicates.out.bam.mix(markDuplicates.out.cram)
-    //)
-    //chVersions = chVersions.mix(samtoolsStatsMarkdup.out.versions)
-
     // Filter reads with samtools
     samtoolsFilter(
       bam.map{it->[it[0], it[1]]},
@@ -42,10 +26,10 @@ workflow bamFiltersFlow {
     chVersions = chVersions.mix(samtoolsFilter.out.versions)
 
     // Index
-    samtoolsIndex(
+    samtoolsIndexFilter(
       samtoolsFilter.out.bam.mix(samtoolsFilter.out.cram)
     )
-    chVersions = chVersions.mix(samtoolsIndex.out.versions)
+    chVersions = chVersions.mix(samtoolsIndexFilter.out.versions)
 
     // Stats after filtering
     samtoolsStatsFilter(
@@ -61,9 +45,8 @@ workflow bamFiltersFlow {
     chVersions = chVersions.mix(samtoolsStatsOnTarget.out.versions)
 
     emit:
-    bam = samtoolsFilter.out.bam.join(samtoolsIndex.out.bai)
-    cram = samtoolsFilter.out.cram.join(samtoolsIndex.out.crai)
-    //markdupStats = samtoolsStatsMarkdup.out.stats
+    bam = samtoolsFilter.out.bam.join(samtoolsIndexFilter.out.bai)
+    cram = samtoolsFilter.out.cram.join(samtoolsIndexFilter.out.crai)
     onTargetStats = samtoolsStatsOnTarget.out.stats
     filteringStats  = samtoolsStatsFilter.out.stats
     versions = chVersions

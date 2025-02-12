@@ -10,7 +10,7 @@ process snpSiftExtractFields {
   tag "${meta.id}"
 
   input:
-  tuple val(meta), path(vcf)
+  tuple val(meta), path(vcf), path(tbi)
 
   output:
   tuple val(meta), path("*.tsv"), emit: tsv

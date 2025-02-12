@@ -1,9 +1,9 @@
 Bootstrap: docker
-From: 4geniac/almalinux:8.4_conda-py39_4.10.3
+From: 4geniac/almalinux:9.3_conda-py311_23.10.0-1
 
 %labels
-    gitUrl https://gitlab.curie.fr/data-analysis/vegan.git
-    gitCommit ce919add961df99df20760ef2004149a3a9b33b7 / devel
+    gitUrl https://gitlab-ci-token:64_H4txhYSN_Gya4RJTC_Gr@gitlab.curie.fr/data-analysis/vegan.git
+    gitCommit 9d62c26c025ae92eba1fef22186357f0203e93fb/devel
 
 %environment
     export R_LIBS_USER="-"
@@ -22,11 +22,13 @@ From: 4geniac/almalinux:8.4_conda-py39_4.10.3
 
 %post
     dnf clean all \
-    && conda env create -f /opt/preseq.yml \
+    && CONDA_ROOT=$(conda info --system | grep CONDA_ROOT | awk '{print $2}') \
+    && micromamba env create --root-prefix ${CONDA_ROOT} -f /opt/preseq.yml \
     && mkdir -p /opt/etc \
-    && echo -e "#! /bin/bash\n\n# script to activate the conda environment preseq-3.2.0" > ~/.bashrc \
+    && echo -e "#! /bin/bash\n\n# script to activate the conda environment preseq" > ~/.bashrc \
     && conda init bash \
-    && echo "conda activate preseq-3.2.0" >> ~/.bashrc \
+    && echo "conda activate preseq" >> ~/.bashrc \
     && cp ~/.bashrc /opt/etc/bashrc \
-    && conda clean -a 
+    && conda clean -y -a \
+    && micromamba clean -y -a 
 

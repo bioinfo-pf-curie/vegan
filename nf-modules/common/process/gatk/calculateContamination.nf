@@ -17,10 +17,11 @@ process calculateContamination {
 
   script:
   def args = task.ext.args ?: ''
+  def args2 = task.ext.args2 ?: ''
   def prefix = task.ext.prefix ?: "${meta.id}"
   def matchedCmd = matched ? "--matched-normal $matched" : ''
   """
-  gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+  gatk --java-options "-Xmx${task.memory.toGiga()}g ${args2}" \
     CalculateContamination \
     --input ${pileup} \
     --output ${prefix}_contamination.table.tsv \

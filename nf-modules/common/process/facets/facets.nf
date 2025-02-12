@@ -14,6 +14,7 @@ process facets{
   output:
   path("*.{txt,pdf}"), emit: results
   path("versions.txt"), emit: versions
+  tuple val(meta), path("*.transformed.txt"), emit: segmentsTransformed
 
   when:
   task.ext.when == null || task.ext.when

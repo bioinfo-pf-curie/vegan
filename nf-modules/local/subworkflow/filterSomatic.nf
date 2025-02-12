@@ -5,6 +5,8 @@
 include { bcftoolsNorm } from '../../common/process/bcftools/bcftoolsNorm'
 include { snpSiftAnnotate as snpSiftGnomAD } from '../../common/process/snpSift/snpSiftAnnotate'
 include { bcftoolsFilter } from '../../common/process/bcftools/bcftoolsFilter'
+include { bcftoolsFilter as rescueVariants } from '../../common/process/bcftools/bcftoolsFilter'
+include { bcftoolsConcat } from '../../common/process/bcftools/bcftoolsConcat'
 
 workflow filterSomaticFlow {
 
@@ -39,8 +41,20 @@ workflow filterSomaticFlow {
   )
   chVersions = chVersions.mix(bcftoolsFilter.out.versions)
 
+  // Rescue non-PASS variants of interest
+  rescueVariants(
+    chVcf2Filter
+  )
+
+  // Concat filtered vcf and rescue ones
+  bcftoolsConcat(
+    bcftoolsFilter.out.vcf.join(rescueVariants.out.vcf).map{it->[it[0],[it[1],it[3]],[it[2],it[4]]]}
+  )
+
+  vcfFiltered = params.rescueVariants ? bcftoolsConcat.out.vcf : bcftoolsFilter.out.vcf
+
   emit:
   versions = chVersions
   vcfRaw = bcftoolsNorm.out.vcf
-  vcfFiltered = bcftoolsFilter.out.vcf
+  vcfFiltered = vcfFiltered
 }

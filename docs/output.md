@@ -27,7 +27,6 @@ For details about reads trimming, see the `raw_qc` pipeline.
 * `zips/[SAMPLE]_fastqc.zip`
   * zip file containing the FastQC report, tab-delimited data file and plot images
 
-
 ## Preprocessing
 
 ### Alignment
@@ -68,8 +67,6 @@ The percentage of reads on targets are presented in the `General Metrics` table.
 
 **Output directory: `preprocessing/bams/onTarget`**
 
-* `[SAMPLE].onTarget.bam`
-  * Aligned reads restricted to the genomic targets.
 * `stats/[SAMPLE].onTarget.flagstat`
   * Number of alignments for each FLAG type
 
@@ -188,13 +185,17 @@ The number of detected variants are presented as a table in the MultiQC report.
 ### Somatic mutations
 
 The somatic mutations calling requires pairs of normal/tumor samples defined in the `design` file.  
-The [`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) tool is used to call somatic variants following the GATK good practices (Mutect2, MergeMutectStats, GetPileupSummaries, GatherPileupSummaries, CalculateContamination, LearnReadOrientationModel, FilterMutectCall).
+The [`mutect2`](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) tool is used to call somatic variants following the GATK good practices (Mutect2, MergeMutectStats, GetPileupSummaries, GatherPileupSummaries, CalculateContamination, LearnReadOrientationModel, FilterMutectCall).  
+VCF files are then filtered based on the sequencing depth (`--filterSomaticDP 20`), minimum allele frequency in the normal population  (`--filterSomaticMAF 0.001`) and minimum variant allele frequency ( `--filterSomaticVAF 0.05`).  
+Of note, some variants can also be rescued using the `--rescueVariants` option. In this case, they will be included in the list of variants after filtering.
 
 **Output directory: `Mutect2`**
 
 * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_unfiltered.vcf.gz` and `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_unfiltered.vcf.gz.tbi`
-  * Mutect2 somatic variants before filtering with Tabix index
-* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered.vcf.gz` and `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered.vcf.gz.tbi`
+  * Raw Mutect2 somatic variants before any filtering with tabix index. Only available if `--saveVcfIntermediates` is used.
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_calls.vcf.gz` and `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_calls.vcf.gz.tbi`
+  * Mutect2 somatic variants after Mutect2 filtering with tabix index.
+* `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_calls_norm_GnomAD_filtered.vcf.gz` and `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_calls_norm_GnomAD_filtered.vcf.gz.tbi`
   * Mutect2 somatic variants after filtering with Tabix index
 * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered_pass_norm.vcf.gz` and `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_Mutect2_filtered_pass_norm.vcf.gz.tbi`
   * Mutect2 somatic variants after filtering for PASS variants only and normalization with `bcftools norm` and with Tabix index
@@ -213,7 +214,6 @@ The results are available as table and presented in MultiQC.
 
 * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_filtered.vcf.Mutect2.table.tsv`
   * Number of bases substitution and indels for each type
-
 
   ![MultiQC - Transition/Transversion/Indels](images/transition.png)
 
@@ -259,6 +259,10 @@ ASCAT and Facets are two software for performing allele-specific copy number ana
   * CNVs plot
 * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_cnv_ploidy_cellularity.txt`
   * table with cellularity and ploidy for this sample.
+* `TUMORSAMPLE]_vs_[NORMALSAMPLE]_cnv_segments.transformed.txt`
+  * table with copy number segments
+* `TUMORSAMPLE]_vs_[NORMALSAMPLE]_cnv_segments.transformed.annotated.txt`
+  * table with annotated copy number segments
 
 **Output directory: `ASCAT`**
 
@@ -328,6 +332,18 @@ For Tumor/Normal pair :
   * `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].somaticSV.vcf.gz` and `Manta_[TUMORSAMPLE]_vs_[NORMALSAMPLE].somaticSV.vcf.gz.tbi`
     * `VCF` with Tabix index
 
+## Clinical driver filtering
+
+SNVs and CNVs results can be further filtered for clinical interest using `--tools oncodriver`.  
+
+**Output directory: `oncodriver/[SAMPLE]`**
+
+  * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_*_cnv_oncodriver.csv`
+    * CNVs file with selected copy number alterations
+  * `[TUMORSAMPLE]_vs_[NORMALSAMPLE]_*_snv_oncodriver.csv`
+    * SNVs file with driver mutations
+
+
 ## Complementary analysis:
 ### Microsatellite instability
 
@@ -347,13 +363,21 @@ Tumor Mutational Burden is assesed with [`pyTMB`](https://github.com/bioinfo-pf-
   * `[SAMPLE]_tmb.txt`
     * results file
 
-### Table Report
+## Export
 
-This final step transforms the fully annotated vcf into a tabulated file to ease the analysis of the results.
+### Tabular mutation data
+
+This step transforms the fully annotated vcf into a tabulated file to ease the analysis of the results.
 
 **Output directory: `tableReport/[SAMPLE]`**
   * `[SAMPLE].tsv`
-    * results file
+
+### MAF mutation data
+
+This step transforms the fully annotated vcf into a tabulated file to ease the analysis of the results.
+
+**Output directory: `tableReport/[SAMPLE]`**
+  * `[SAMPLE].maf`
 
 ## MultiQC
 

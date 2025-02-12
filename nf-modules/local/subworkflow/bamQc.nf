@@ -4,8 +4,6 @@
 
 include { collectInsertSizeMetrics } from '../../common/process/picard/collectInsertSizeMetrics'
 include { mosdepth } from '../../common/process/mosdepth/mosdepth'
-//include { prepareExonInfo } from '../../local/process/prepareExonInfo'
-//include { genesCoverage } from '../../local/process/genesCoverage'
 include { collectWgsMetrics } from '../../common/process/gatk/collectWgsMetrics'
 
 workflow bamQcFlow {
@@ -13,7 +11,6 @@ workflow bamQcFlow {
   take:
   bam
   bed
-  //gtf
   fasta
   fai
   dict
@@ -38,17 +35,6 @@ workflow bamQcFlow {
   chVersions = chVersions.mix(mosdepth.out.versions)
   chMosdepthLog = params.targetBed ? mosdepth.out.regionsTxt.mix(mosdepth.out.regionsBed) : mosdepth.out.globalTxt.mix(mosdepth.out.regionsBed)
 
-  //prepareExonInfo(
-  //  gtf,
-  //  bed
-  //)
-
-  //genesCoverage(
-  //  bam,
-  //  prepareExonInfo.out.exonBed.collect(),
-  //  fasta
-  //)
-
   // WGS metrics
   collectWgsMetrics(
     bam,
@@ -62,7 +48,6 @@ workflow bamQcFlow {
   emit:
   fragSize = collectInsertSizeMetrics.out.results
   depth = chMosdepthLog
-  //geneCovMqc = Channel.empty()//genesCoverage.out.geneCovMqc
   wgsMetrics = collectWgsMetrics.out.metrics
   versions = chVersions
 }

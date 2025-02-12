@@ -116,8 +116,8 @@ for sample in $all_samples; do
   fi
 
   #Filtering
-  if ls preprocessing/${sample}.filtered.flagstat 1> /dev/null; then
-    nb_filt=$(grep "primary mapped (" preprocessing/${sample}*filtered.flagstat | awk '{print $1}')
+  if [[ -e preprocessing/${sample}.filtered.flagstat ]]; then
+    nb_filt=$(grep "primary mapped (" preprocessing/${sample}.filtered.flagstat | awk '{print $1}')
     perc_filt=$(echo "${nb_filt} ${nb_reads}" | awk ' { printf "%.*f",2,$1*100/$2 } ')
     header+=",Number_reads_after_filt,Percent_reads_after_filt"
     output+=",${nb_filt},${perc_filt}"
@@ -125,10 +125,10 @@ for sample in $all_samples; do
 
   ## Coverage
   if [[ -e coverage/${sample}.regions.bed.gz ]]; then
-    mean_depth=$(zcat coverage/${sample}.regions.bed.gz | awk '{ w=($3-$2); cov+=w*$4; tot+=w}END{print cov/tot}')
-    cov30=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $4>=30{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
-    cov50=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $4>=50{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
-    cov100=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $4>=100{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
+    mean_depth=$(zcat coverage/${sample}.regions.bed.gz | awk '{ w=($3-$2); cov+=w*$NF; tot+=w}END{print cov/tot}')
+    cov30=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $NF>=30{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
+    cov50=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $NF>=50{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
+    cov100=$(zcat coverage/${sample}.regions.bed.gz | awk '{ tot+=($3-$2) } $NF>=100{ z+=($3-$2)} END{printf "%.*f",2,z/tot*100 }')
     header+=",Mean_depth,30X_cov,50X_cov,100X_cov"
     output+=",${mean_depth},${cov30},${cov50},${cov100}"
   elif [[ -e coverage/${sample}.mosdepth.global.dist.txt && -e coverage/${sample}.mosdepth.summary.txt ]]; then

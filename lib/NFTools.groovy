@@ -529,7 +529,7 @@ Available Profiles
     public static void autoCleanOnComplete(workflow, params){
       def colors = generateLogColors(params.get("monochromeLogs", false) as Boolean)
 
-      if (!params.disableAutoClean && workflow.success){
+      if (params.cleanup == 'success' && workflow.success){
         def wdir = workflow.workDir
         log.info "[$workflow.manifest.name]${colors.green} Automatic cleaning of work directory [${wdir.toString()}] ... ${colors.reset}"
         def delRet = wdir.deleteDir()

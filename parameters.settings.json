@@ -3,7 +3,7 @@
     {
       "name": "profile",
       "label": "Configuration profile(s)",
-      "usage": "Configuration profile to use. Can use multiple (comma separated).",
+      "usage": "Configuration profile to use. Can use multiple (comma separated)",
       "type": "string",
       "choices": ["test", "multiconda", "singularity", "cluster", "docker",  "conda", "path", "multipath"],
       "nargs": "+",
@@ -16,7 +16,7 @@
     {
       "name": "samplePlan",
       "label": "Input files",
-      "usage": "Path to sample plan (csv format) with raw reads (if `--reads` is not specified), or intermediate files according to the `--step` parameter",
+      "usage": "Path to sample plan (csv format) (if `--reads` is not specified)",
       "type": "path",
       "choices": [],
       "nargs": "+",
@@ -79,7 +79,7 @@
     {
       "name": "genome",
       "label": "Reference genome",
-      "usage": "Name of the reference genome.",
+      "usage": "Name of the reference genome",
       "type": "string",
       "nargs": "1",
       "choices": [],
@@ -92,7 +92,7 @@
     {
       "name": "genomeAnnotationPath",
       "label": "PATH to Reference",
-      "usage": "PATH to the reference genome folder.",
+      "usage": "PATH to the reference genome folder",
       "type": "path",
       "nargs": "1",
       "default_value": [],
@@ -107,7 +107,7 @@
       "usage": "Specify tools to use for variant calling",
       "type": "string",
       "nargs": "+",
-      "choices": ["haplotypecaller", "mutect2", "manta", "snpeff", "facets", "ascat",  "tmb", "msisensor"],
+	"choices": ["haplotypecaller", "mutect2", "manta", "snpeff", "oncodriver", "facets", "ascat", "tmb", "msisensor","sigprofiler"],
       "default_value": [],
       "pattern": ".*",
       "render": "textfield",
@@ -125,7 +125,19 @@
       "pattern": ".*",
       "render": "file",
       "arity": 0,
-      "group": "Mandatory arguments"
+      "group": "Outputs"
+    },
+    {
+      "name": "cleanup",
+      "label": "Cleaning strategy",
+      "usage": "Cleaning strategy of the work/ directory",
+      "type": "string", 
+      "nargs": 1,
+      "choices": ["none", "auto", "success"],
+      "default_value": "success",
+      "pattern": ".*",
+      "render": "textfield",
+      "group": "Outputs"
     },
     {
       "name": "reads",
@@ -153,6 +165,21 @@
       "arity": 0,
       "group": "Inputs"
     },
+    {
+      "name": "rna",
+      "label": "rna",
+      "usage": "Specify that the inputs are RNA-seq",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Inputs"
+    },
+
+
     {
       "name": "saveAlignedIntermediates",
       "label": "Save aligned intermediates",
@@ -206,6 +233,44 @@
       "group": "Alignment"
     },
     {
+      "name": "bwaOpts",
+      "label": "Options for BWA mapping",
+      "usage": "Options for BWA mapping",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "-k 19 -T 30 -M",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Alignment"
+    },
+    {
+      "name": "dragmapOpts",
+      "label": "Options for Dragmap mapping",
+      "usage": "Options for Dragmap mapping",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Alignment"
+    },
+    {
+      "name": "starOpts",
+      "label": "Options for STAR mapping (RNA-seq only)",
+      "usage": "Options for STAR mapping (RNA-seq only)",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--outSAMmultNmax 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --outSAMprimaryFlag OneBestScore --outMultimapperOrder Random --outSAMattributes All",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Alignment"
+    },
+
+
+    {
       "name": "targetBed",
       "label": "Target Bed file",
       "usage": "Target Bed file for targeted or whole exome sequencing",
@@ -216,7 +281,7 @@
       "pattern": ".*",
       "render": "file",
       "arity": 0,
-      "group": "Filtering"
+      "group": "Mapping Filtering"
     },
     {
       "name": "keepDups",
@@ -229,7 +294,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Filtering"
+      "group": "Mapping Filtering"
     },
     {
       "name": "keepSingleton",
@@ -242,7 +307,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Filtering"
+      "group": "Mapping Filtering"
     },
     {
       "name": "keepMultiHits",
@@ -255,12 +320,25 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Filtering"
+      "group": "Mapping Filtering"
+    },
+
+    {
+      "name": "mutect2Opts",
+      "label": "Options for Mutect2 calling",
+      "usage": "Options for Mutect2 calling",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--dont-use-soft-clipped-bases",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Somatic Variant Calling"
     },
     {
       "name": "baseQual",
       "label": "Base quality",
-      "usage": "Minimum base quality used by Facets for CNV calling",
+      "usage": "Minimum base quality for somatic variant calling",
       "type": "integer",
       "nargs": 1,
       "choices": [],
@@ -268,7 +346,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Variant calling"
+      "group": "Somatic Variant Calling"
     },
     {
       "name": "skipMutectOrientationModel",
@@ -281,7 +359,7 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Variant calling"
+      "group": "Somatic Variant Calling"
     },
     {
       "name": "skipMutectContamination",
@@ -294,35 +372,8 @@
       "pattern": "",
       "render": "check-box",
       "arity": 0,
-      "group": "Variant calling"
+      "group": "Somatic Variant Calling"
     },
-    {
-      "name": "saveVcfMetrics",
-      "label": "Save vcf metrics",
-      "usage": "Save complementary vcf metrics files",
-      "type": "boolean",
-      "nargs": 0,
-      "choices": [],
-      "default_value": false,
-      "pattern": "",
-      "render": "check-box",
-      "arity": 0,
-      "group": "Variant calling"
-    },
-    {
-      "name": "saveVcfIntermediates",
-      "label": "Save intermediate vcf files",
-      "usage": "Save intermediate vcf files",
-      "type": "boolean",
-      "nargs": 0,
-      "choices": [],
-      "default_value": false,
-      "pattern": "",
-      "render": "check-box",
-      "arity": 0,
-      "group": "Variant calling"
-    },
-
     {
       "name": "pon",
       "label": "PATH to panels of normals",
@@ -333,7 +384,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Tumor only"
+      "group": "Somatic Variant Calling"
     },
     {
       "name": "ponIndex",
@@ -345,8 +396,113 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Tumor only"
+      "group": "Somatic Variant Calling"
     },
+    {
+      "name": "rescueVariants",
+      "label": "Rescue somatic variants filtered by Mutect2",
+      "usage": "Rescue somatic variants	filtered by Mutect2",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Somatic Variant Filtering"
+    },
+    {
+      "name": "rescueVariantsType",
+      "label": "Variant type to rescue",
+      "usage": "Variant type to rescue",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "normal_artifact",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Somatic Variant Filtering"
+    },
+    {
+      "name": "rescueVariantsVAF",
+      "label": "VAF threshold for variant rescue",
+      "usage": "VAF threshold for variant rescue",
+      "type": "integer",
+      "nargs": "1",
+      "default_value": 0.05,
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Somatic Variant Filtering"
+    },
+
+    {
+      "name": "driverConfig",
+      "label": "Configuration file for oncoDriver algorithm",
+      "usage": "Configuration file for oncoDriver algorithm",
+      "type": "PATH",
+      "nargs": "1",
+      "default_value": [],
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Driver variants"
+    },
+
+    {
+      "name": "saveVcfIntermediates",
+      "label": "Save intermediate vcf files",
+      "usage": "Save intermediate vcf files",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "VCF format"
+    },
+    {
+      "name": "table",
+      "label": "table report",
+      "usage": "Export VCF in table format",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "VCF format"
+    },
+    {
+      "name": "maf",
+      "label": "maf export",
+      "usage": "Export VCF in MAF format",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "VCF format"
+    },
+
+    {
+      "name": "facetsOpts",
+      "label": "Options for FACETS",
+      "usage": "Options for FACETS",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Copy Number Calling"
+    },
+
+
     {
       "name": "msiBaselineConfig",
       "label": "PATH to Msisensor-pro baseline",
@@ -357,7 +513,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Tumor only"
+      "group": "MSI calling"
     },
 
     {
@@ -371,7 +527,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "VCF filters"
+      "group": "Somatic Variant Filtering"
     },
     {
       "name": "filterSomaticVAF",
@@ -384,7 +540,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "VCF filters"
+      "group": "Somatic Variant Filtering"
     },
     {
       "name": "filterSomaticMAF",
@@ -397,19 +553,33 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "VCF filters"
+      "group": "Somatic Variant Filtering"
     },
 
+
     {
-      "name": "ffpe",
-      "label": "ffpe for TMB",
-      "usage": "Specify to use the ffpe parameters and filters for TMB computation",
-      "type": "boolean",
-      "nargs": "+",
-      "choices": [],
-      "default_value": [],
-      "pattern": "",
-      "render": "check-box",
+      "name": "tmbFilters",
+      "label": "Filters to calculate TMB",
+      "usage": "Filter variants for TMB calculation",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--vaf 0.05 --maf 0.001 --minDepth 20 --minAltDepth 2 --filterLowQual --filterNonCoding --filterSyn --filterPolym --polymDb 1k,gnomad",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "TMB"
+    },
+
+
+    {
+      "name": "snpeffOpts",
+      "label": "Options for snpEff annotation",
+      "usage": "Options for snpEff annotation",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "-noInteraction -noNextProt -nodownload",
+      "pattern": ".*",
+      "render": "textfield",
       "arity": 0,
       "group": "Annotation"
     },
@@ -440,9 +610,9 @@
       "group": "Skip options"
     },
     {
-      "name": "skipFastqc",
-      "label": "Skip Fastqc",
-      "usage": "Disable Fastqc",
+      "name": "skipFastQC",
+      "label": "Skip FastQC",
+      "usage": "Disable FastQC",
       "type": "boolean",
       "nargs": 0,
       "choices": [],
@@ -479,7 +649,7 @@
       "group": "Skip options"
     },
     {
-      "name": "skipMultiqc",
+      "name": "skipMultiQC",
       "label": "Skip MultiQC",
       "usage": "Disable MultiQC",
       "type": "boolean",
@@ -505,19 +675,6 @@
       "group": "Skip options"
     },
     {
-      "name": "disableAutoClean",
-      "label": "Disable auto cleaning",
-      "usage": "Disable cleaning of work directory",
-      "type": "boolean",
-      "nargs": 0,
-      "choices": [],
-      "default_value": false,
-      "pattern": "",
-      "render": "check-box",
-      "arity": 0,
-      "group": "Other options"
-    },
-    {
       "name": "sequencingCenter",
       "label": "Sequencing center name",
       "usage": "Name of sequencing center to be displayed in BAM file",
@@ -528,7 +685,7 @@
       "pattern": ".*",
       "render": "textfield",
       "arity": 0,
-      "group": "Other options"
+      "group": "Alignment"
     },
     {
       "name": "multiqcConfig",

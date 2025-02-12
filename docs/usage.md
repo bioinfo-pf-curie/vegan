@@ -19,6 +19,8 @@
   * [Inputs](#inputs)
     * [`--reads`](#--reads)
     * [`--singleEnd`](#--singleend)
+	* [`--splitFastq`](#--splitFastq)
+	* [`--rna`](#--rna)
   * [Alignment](#alignment)
     * [`--aligner`](#--aligner)
     * [`--mapQual`](#--mapQual)
@@ -32,14 +34,33 @@
   * [Variant calling](#variant_calling)
     * [`--baseQual`](#--baseQual)
     * [`--orientationBiais`](#--orientationBiais)
+	* [`--pon`](#--pon)
     * [`--saveVcfIntermediates`](#--saveVcfIntermediates)
     * [`--saveVcfMetrics`](#--saveVcfMetrics)
-  * [Annotation](#Annotation)
+  * [Variant filtering](#variant_filtering)
+    * [`--filterSomaticDP`](#--filterSomaticsDP)
+	* [`--filterSomaticMAF`](#--filterSomaticsMAF)
+	* [`--filterSomaticVAF`](#--filterSomaticsVAF)
+	* [`--rescueVariants`](#--rescueVariants)
+	* [`--rescueVariantsType`](#--rescueVariantsType)
+	* [`--rescueVariantsVAF`](#--rescueVariantsVAF)
+	* [`--driverConfig`](#--driverConfig)
+  * [Variant annotation](#variant_annotation) 
     * [`--annotDb`](#--annotDb)
-    * [`--ffpe`](#--ffpe)
+  * [Biomarkers](#biomarkers)
+    * [`--tmbFilters`](#--tmbFilters)
+	* [`--msiBaselineConfig`](#--msiBaselineConfig)
+  * [Export](#export)
+    * [`--maf`](#--maf)
+	* [`--table`](#--table)
+  * [Copy Number](#copy_number)
+    * [`--facetsOpts`](#--facetsOpts)
   * [Reference genomes](#reference-genomes)
     * [`--genome`](#--genome)
     * [`--genomeAnnotationPath`](#--genomeAnnotationPath)
+  * [Working directory](#work)
+    * [`-w`](#-w)
+	* [`--cleanup`](#--cleanup)
   * [Other command line parameters](#other-command-line-parameters)
     * [`--skip*`](#--skip*)
     * [`-w`](#-w)
@@ -54,7 +75,7 @@
 * [Automatic resubmission](#automatic-resubmission)
 
 
-## General inforomation
+## General information
 
 Nextflow handles job submissions on SLURM or other environments, and supervises running the jobs. Thus the Nextflow process must run until the pipeline is finished. We recommend that you put the process running in the background through `screen` / `tmux` or similar tool. Alternatively you can run nextflow within a cluster job submitted to your job scheduler.
 
@@ -68,21 +89,23 @@ NXF_OPTS='-Xms1g -Xmx4g'
 
 ### Whole genome sequencing analysis
 
+Whole-genome sequencing usually represent large data file. Thus, `VEGAN` allows to split the data per chromosome and to run the analysis in parallel on a computational cluster.  
+In addition, the user can also split the input data in chunks to speed up the processing. To do so, look at the `--splitFastq` command.
 Here is a typical command line to analyse whole-genome analysis data.
 
 ```bash
 nextflow run main.nf -profile cluster,multiconda \
   --samplePlan splan.csv \
+  --splitFastq --fastqChunksSize 50000000 \
   --design design.csv \
   --step mapping \
-  --tools ascat,manta,mutect2,snpeff \
+  --tools ascat,manta,mutect2,snpeff,tmb \
   --genome h38 \
   --genomeAnnotationPath /PATH/TO/ANNOTATIONS \
   --condaCacheDir /PATH/TO/CONDA \
   --outDir /PATH/TO/RESULTS \
   -w /PATH/TO/WORK \
   -resume
-
 ```
 
 ### Whole exome sequencing analysis
@@ -95,7 +118,9 @@ nextflow run main.nf -profile cluster,multiconda \
   --design design.csv \
   --targetBed target.bed \
   --step mapping \
-  --tools facets,mutect2,snpeff \
+  --tools facets,mutect2,snpeff,oncodriver,sigprofiler \
+  --maf \
+  --table \
   --genome h38 \
   --genomeAnnotationPath /PATH/TO/ANNOTATIONS \
   --condaCacheDir /PATH/TO/CONDA \
@@ -228,7 +253,7 @@ This parameter specify the starting step of the pipeline. Several entry point ar
 
 Specify the tools to use for variant calling and downstream steps.
 
-**Available:** facets, ascat, haplotypecaller, mutect2, manta, snpeff, msisensor, tmb
+**Available:** facets, ascat, haplotypecaller, mutect2, manta, snpeff, msisensor, tmb, oncodriver, sigprofiler
 
 #### `--outDir`
 
@@ -261,6 +286,22 @@ By default, the pipeline expects paired-end data. If you have single-end data, y
 ```
 
 It is not possible to run a mixture of single-end and paired-end files in one run.
+
+#### `--splitFastq`
+
+For large data file, it is possible to split the input data into chunks to speed up the processing. The `--fastqChunksSize` allows to control the number of reads to put into a single chunk (default: 20000000). For instance:
+
+```
+--splitFastq --fastqChunksSize 50000000
+```
+
+#### `--rna`
+
+Specify that the data are from RNA sequencing. In this case, `VEGAN` wll run the RNA-seq sub-workflow.
+
+```
+--rna
+```
 
 ### `Alignment`
 
@@ -350,6 +391,14 @@ Specify to use the orientation biais filter for Mutect2 calls in order to reduce
 --orientationBiais
 ```
 
+#### `--pon`
+
+Path to vcf file with a **panel of normal** samples. Those variants will be considered as normal ones and filtered by Mutect2.
+
+```bash
+--pon path/to/pon --ponIndex path/to/pon.index 
+```
+
 #### `--saveVcfIntermediates`
 
 Save intermediate vcf files for Manta, Mutect2 and HaplotypeCaller.
@@ -358,9 +407,83 @@ Save intermediate vcf files for Manta, Mutect2 and HaplotypeCaller.
 
 Save complementary vcf metrics files for HaplotypeCaller and Mutect2.
 
-### Annotation
+### Variant Filtering
 
-#### `--annotDb`
+#### `--filterSomaticDP`
+
+Specify the minimum Sequencing Depth to use to filter the variants.  
+Of note, this filter has no direct impact on TMB calculation (see `--tmbFilters`).
+
+**Default: 20**
+
+```bash
+--filterSomaticDP 20
+```
+
+#### `--filterSomaticMAF`
+
+Specify the Minimum Allele Frequency to consider (and filter) a variant as a polymorphism.  
+Of note, this filter has no direct impact on TMB calculation (see `--tmbFilters`). 
+
+**Default: 0.001**
+
+```bash
+--filterSomaticMAF 0.001
+```
+
+#### `--filterSomaticVAF`
+
+Specify the minimum Variant Allele Frequency to consider a variant.  
+Of note, this filter has no direct impact on TMB calculation (see `--tmbFilters`). 
+
+**Default: 0.01**
+
+```bash
+--filterSomaticVAF 0.01
+```
+
+#### `--rescueVariants`
+
+For some specific cases, it could be useful to rescue some variants which have been filtered by Mutect2.  
+One typical application would be to rescue variants supported by only a few reads in the normal samples which could be due to circular tumoral DNA contamination.  
+
+This option will rescue the variants defined through `--rescueVariantsType`, and merge them with the list of filtered variants.
+
+```bash
+--rescueVariants
+```
+
+#### `--rescueVariantsType`
+
+Regular expression defining the variants to rescue (ie. FILTER column in the VCF file).  
+By default, only `FILTER=='normal_artifact'` are rescued.
+
+```bash
+--rescueVariantsType "ILTER=='normal_artifact' | FILTER=='germline'"
+```
+
+#### `--rescueVariantsVAF`
+
+The **maximum** VAF to rescue a variant.
+
+**Default: 0.05**
+
+```bash
+--rescueVariantsVAF 0.05
+```
+
+#### `--driverConfig`
+
+Define the clinical algorithm uses to select the variants of clinical interest (both SNVs and CVNs).  
+
+
+```bash
+--driverConfig path/to/config
+```
+
+### Variant Annotation
+
+### `--annotDb`
 
 Specify the database to use for the annotation with SnpsSift.
 
@@ -368,13 +491,55 @@ Specify the database to use for the annotation with SnpsSift.
 
 **Default:** all
 
-#### `ffpe`
+### Biomarkers
 
-Specify to use the ffpe parameters and filters for TMB computation. This means a Variant Allele Frequency (VAF) of 10%.
+#### `--tmbFilters`
 
-Here the TMB is computed for WES samples (min coverage of 20X) and not for panels.
+The options to calculate the Tumor Mutational Burden (TMB) can be modified.  
+By default, these options are defined for frozen samples as follow:
 
-For more information about TMB compution: [documentation](https://github.com/bioinfo-pf-curie/TMB)
+```bash
+tmbFilters "--vaf 0.05 --maf 0.001 --minDepth 20 --minAltDepth 2 --filterLowQual --filterNonCoding --filterSyn --filterPolym --polymDb 1k,gnomad"
+```
+
+For FFPE samples, the following parameters are recommanded:
+
+```bash
+tmbFilters "--vaf 0.1 --maf 0.001 --minDepth 20 --minAltDepth 2 --filterLowQual --filterNonCoding --filterSyn --filterPolym --polymDb 1k,gnomad"
+```
+
+#### `--msiBaselineConfig`
+
+Configuration file for MSIsensor-pro to define a list of normal samples in tumour-only mode.
+
+
+### Export
+
+#### `--maf`
+
+Export VCF files in MAF format.
+
+```bash
+--maf
+```
+
+### `--table`
+
+Export VCF in tabular format
+
+```bash
+--table
+```
+
+### Copy Number
+
+#### `--facetsOpts`
+
+Modify the default options to run`facets` for copy number analysis.
+
+```
+--facetsOpts "--normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25"
+```
 
 ### Reference genomes
 
@@ -437,6 +602,28 @@ This parameter points to the folder containing all the annotations.
 ```bash
 --genomeAnnotationPath /PATH/TO/ANNOTATIONS
 ```
+
+### Working directory
+
+#### `-w`
+
+Specify the working directory which will contain all intermediate results. Of note, this folder **can take a lot of disk space !**. be sure to have enough disk before running the pipeline.
+
+#### `--cleanup`
+
+The `work` folder is mandatory to be able to `-resume` the pipeline. However, because of disk space usage, several options can be specified.
+
+- `--cleanup success`
+
+The `work` folder will be deleted at the end of the pipeline, and only of all steps have been run successfully. This is the default behavior.
+
+- `--cleanup auto`
+
+In this case, the `work` will be clean up on the fly. As soon as a file is no longer useful, it is deleted. In practice, it means that the `work` folder size should never be larger than two times the size of BAM files. **However, in the current version, the `--resume` option is no longer available !**
+
+- `--cleanup none`
+
+The `work` folder is never removed. This mode has to be used in development mode, to get access to the command lines and intermediate results. Be sure to manually clean the `work` if you activate this option.
 
 ### Other command line parameters
 

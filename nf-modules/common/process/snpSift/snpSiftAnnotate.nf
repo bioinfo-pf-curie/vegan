@@ -10,11 +10,11 @@ process snpSiftAnnotate {
   tag "${meta.id}"
 
   input:
-  tuple val(meta), path(vcf)
-  tuple path(db), path(tbi)
+  tuple val(meta), path(vcf), path(tbi)
+  tuple path(db), path(index)
 
   output:
-  tuple val(meta), path("*.vcf{.gz,.gz.tbi}"), emit: vcf
+  tuple val(meta), path("*.vcf.gz"), path("*.tbi"), emit: vcf
   path("versions.txt"), emit: versions
 
   when:
