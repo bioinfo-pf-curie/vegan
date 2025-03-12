@@ -17,7 +17,7 @@ process alleleCounter {
   path(fastaFai)
 
   output:
-  tuple val(meta), path("${meta.id}.alleleCount"), emit: alleleCounterOutCh
+  tuple val(meta), path("${meta.id}.alleleCount"), emit: counts
   path("versions.txt"),emit: version
 
   when:
@@ -31,7 +31,7 @@ process alleleCounter {
     -r ${fasta} \
     -b ${bam} \
     -o ${meta.id}.alleleCount;
-  alleleCounter --version &> versions.txt 2>&1 || true
-  echo "test"
+
+  alleleCounter --version &> versions.txt 2>&1
   """
 }

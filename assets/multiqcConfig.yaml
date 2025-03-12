@@ -185,9 +185,10 @@ custom_data:
             format: '{:,.2f}'
             save_file: true
 
-#    identitoClustering:
-#        section_name: 'Identito Clustering'
-#        description: ' from a list of know polymorphisms. Samples from the same patient are expected to be clustered together.'
+    identitoClustering:
+        file_format: "png"
+        section_name: 'Identito Clustering'
+        description: ' from a list of know polymorphisms. Samples from the same patient are expected to be clustered together.'
 
     mutect2:
         file_format: 'csv'
@@ -304,6 +305,8 @@ sp:
 #      fn: '*covdensity.mqc'
   identitoPolym:
       fn: '*_polym.tsv'
+  identitoClustering:
+      fn: '*identito.png'
   mutect2:
       fn: '*_callingMetrics.stats'
   hccaller:
@@ -318,7 +321,7 @@ sp:
       fn: '*.global.stats'
       fn_ignore_files: '*onTarget.stats'
 
-ignore_images: true
+ignore_images: false
 
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
@@ -404,6 +407,8 @@ report_section_order:
     order: 100
   identitoPolym:
     order: 90
+  identitoClustering:
+    order: 80
   mutect2:
     order: 50
   transition:

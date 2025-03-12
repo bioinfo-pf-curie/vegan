@@ -22,7 +22,7 @@ with open(args.input) as f:
 print ('''
 id: 'software_versions'
 section_name: 'Software Versions'
-section_href: 'https://gitlab.curie.fr/rnaseq'
+section_href: 'https://gitlab.curie.fr/vegan'
 plot_type: 'html'
 description: 'are collected at run time from the software output.'
 data: |

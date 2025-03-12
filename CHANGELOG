@@ -1,4 +1,15 @@
 ***********************************
+version-2.6.1
+
+BUG FIXES
+
+  - Fix issues with ASCAT results folder #228
+  - Reports Facets version number
+
+SIGNIFICANT USER-VISIBLE CHANGES
+  - Restore the identito clustering image in the MultiQC report
+
+***********************************
 version-2.6.0
 
 NEW FEATURES

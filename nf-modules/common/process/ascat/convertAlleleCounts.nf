@@ -23,7 +23,18 @@ process convertAlleleCounts {
 
   script:
   """
-  Rscript ${workflow.projectDir}/bin/convertAlleleCounts.r ${meta.tumor_id} ${alleleCountTumor} ${meta.normal_id} ${alleleCountNormal} ${meta.sex}
-  R -e "packageVersion('ASCAT')" > versions.txt
+  convertAlleleCounts.r \
+    ${meta.tumor_id} \
+    ${alleleCountTumor} \
+    ${meta.normal_id} \
+    ${alleleCountNormal} \
+    ${meta.sex}
+
+  for f in *BAF *LogR 
+  do
+  sed -i -e 's/chr//g' \$f
+  done
+
+  R --slave -e "message('Facets ', packageVersion('ASCAT'))" > versions.txt
   """
 }

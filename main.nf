@@ -600,7 +600,7 @@ workflow {
         //[meta], tumor_bam, tumor_bai
         chTumorBam = chPairBam
           .map{ it ->
-            def meta = [tumor_id:it[0].tumor_id,id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
+            def meta = [tumor_id:it[0].tumor_id, id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
             return [meta, it[1], it[2] ]
           }
 
@@ -861,17 +861,19 @@ workflow {
         chDbsnp,
         chGeneBed
       )
+      chVersions = chVersions.mix(facetsFlow.out.versions)
     }
 
     if('ascat' in tools){
       ascatFlow(
-        chSingleBam,
+        chPairBam,
         chAcLoci,
         chAcLociGC,
         chDict,
         chFasta,
         chFastaFai
       )
+      chVersions = chVersions.mix(ascatFlow.out.versions)
     }
     
     /*

@@ -1,6 +1,5 @@
 /*
-* STEP ASCAT.3 - ASCAT : infers tumour purity and ploidy and calculates allele-specific copy number propaths.
-
+* ASCAT : infers tumour purity and ploidy and calculates allele-specific copy number propaths.
 */
 
 process ascat {
@@ -8,7 +7,7 @@ process ascat {
   label 'lowMem'
   label 'minCpu'
 
-  tag "${meta.tumor_id}_vs_${meta.normal_id}"
+  tag "${meta.id}"
 
   input:
   tuple val(meta),
@@ -17,16 +16,16 @@ process ascat {
   path(acLociGC)
 
   output:
-  tuple val("ASCAT"), val(meta), path("${meta.tumor_id}.*.{png,txt}"),emit: ascatOutCh
-  path("versions.txt"),emit: versions
+  tuple val(meta), path("*.{png,txt}"), emit: results
+  path("versions.txt"), emit: versions
 
   when:
   task.ext.when == null || task.ext.when
 
   script:
-  purityPloidy = (params.ascatPurity && params.ascatPloidy) ? "--purity ${params.ascatPurity} --ploidy ${params.ascatPloidy}" : ""
+  def prefix = task.ext.prefix ?: "${meta.id}"
+  def args = task.ext.args ?: ""
   """
-  for f in *BAF *LogR; do sed 's/chr//g' \$f > tmppath; mv tmppath \$f;done
   runAscat.r \
     --tumorbaf ${bafTumor} \
     --tumorlogr ${logrTumor} \
@@ -36,7 +35,8 @@ process ascat {
     --basedir ${workflow.projectDir} \
     --gcfile ${acLociGC} \
     --gender ${meta.sex} \
-    ${purityPloidy}
-  R -e "packageVersion('ASCAT')" > versions.txt
+    ${args}
+
+  R --slave -e "message('Facets ', packageVersion('ASCAT'))" > versions.txt
   """
 }

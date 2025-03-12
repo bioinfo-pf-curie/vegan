@@ -29,6 +29,6 @@ process facets{
 	   --name ${prefix} \\
 	   --assembly \$genome \\
 	   ${args}
-  R -e "packageVersion('facets')" > versions.txt
+  R --slave -e "message('Facets ', packageVersion('facets'))" > versions.txt
   """
  }
