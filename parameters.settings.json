@@ -322,6 +322,18 @@
       "arity": 0,
       "group": "Mapping Filtering"
     },
+    {
+      "name": "extraBamFilters",
+      "label": "Extra filtering to apply to BAM file",
+      "usage": "Samtools extra filtering parameters",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--dont-use-soft-clipped-bases",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Mapping Filtering"
+    },
 
     {
       "name": "mutect2Opts",

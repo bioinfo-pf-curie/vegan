@@ -1,6 +1,10 @@
 ***********************************
 version-2.6.1
 
+NEW FEATURES
+
+  - New '--extraBamFilters' parameters to filter BAM file
+
 BUG FIXES
 
   - Fix issues with ASCAT results folder #228
