@@ -83,7 +83,7 @@ MANDATORY ARGUMENTS:
     --profile              STRING [test, multiconda, singularity, cluster, docker, conda, path, multipath]                           Configuration profile to use 
                                                                                                                                      Can use multiple (comma 
                                                                                                                                      separated).
-    --step                 STRING [mapping, markduplicates, filtering, calling, annotate]                                            Specify starting step
+    --step                 STRING [mapping, markduplicates, filtering, calling, annotateSomatic]                                     Specify starting step
     --tools                STRING [haplotypecaller, mutect2, manta, snpeff, oncodriver, facets, ascat, tmb, msisensor, sigprofiler]  Specify tools to use for variant calling
 
 INPUTS:

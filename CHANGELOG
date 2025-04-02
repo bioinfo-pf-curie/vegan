@@ -1,4 +1,15 @@
 ***********************************
+version-2.6.2
+
+BUG FIXES
+  - Fix bug when starting VEGAN from vcf files
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - By default, the somatic variants <5% are filtered. See `--filterSomaticVAF`
+  - Step 'annotate' now becomes 'annotateSomatic'
+
+***********************************
 version-2.6.1
 
 NEW FEATURES
@@ -11,6 +22,7 @@ BUG FIXES
   - Reports Facets version number
 
 SIGNIFICANT USER-VISIBLE CHANGES
+
   - Restore the identito clustering image in the MultiQC report
 
 ***********************************

@@ -250,11 +250,18 @@ if (params.step == "mapping"){
 }else if (params.step == "filtering" || params.step == "markduplicates" || params.step == "calling" ){
   chRawReads = Channel.empty()
   chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam|.cram'],  params).map{it ->[it[0], it[1][0]]}
-}else if (params.step == "annotate"){
+}else if (params.step == "annotateSomatic"){
   chRawReads = Channel.empty()
   chAlignedBam = Channel.empty()
+  chMarkedBam = Channel.empty()
   chFilteredBam = Channel.empty()
-  chAllVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+  chRawSomaticVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+  chRawSomaticVcf = chRawSomaticVcf
+    .map{meta, vcf, tbi ->
+      def new_meta = [id:meta.id, name:meta.name, singleEnd:meta.singleEnd, tumor_id:meta.id, status:'pair']
+      [new_meta, vcf, tbi]
+  }
+  chRawGermlineVcf = Channel.empty()
 }
 
 // Make samplePlan if not available
@@ -326,7 +333,6 @@ include { preseq } from './nf-modules/common/process/preseq/preseq'
 include { markDuplicates } from './nf-modules/common/process/gatk/markDuplicates'
 include { samtoolsFlagstat as samtoolsStatsMarkdup } from './nf-modules/common/process/samtools/samtoolsFlagstat'
 include { samtoolsIndex as samtoolsIndexMarkdup } from './nf-modules/common/process/samtools/samtoolsIndex'
-//include { rescueVariants } from './nf-modules/common/process/bcftools/rescueVariants'
 include { vcf2maf } from './nf-modules/local/process/vcf2maf'
 
 /*
@@ -417,7 +423,7 @@ workflow {
       )
       chRawSomaticVcf = Channel.empty()
       chFilteredSomaticVcf = Channel.empty()
-      chAllGermlineVcf = rnaFlow.out.vcf
+      chRawGermlineVcf = rnaFlow.out.vcf
       chMarkdupStatsMqc = Channel.empty()
 
     }else{
@@ -643,13 +649,13 @@ workflow {
       ================================================================================
       */
 
-      if (params.step != "annotate"){
+      if (params.step != "annotateSomatic"){
 
         //*******************************************
         //SUB-WORKFLOW : HaplotypeCaller
 
         chSingleBam = chSingleBam.unique()
-        chAllGermlineVcf=Channel.empty()
+        chRawGermlineVcf = Channel.empty()
 
         if('haplotypecaller' in tools){
           haplotypeCallerFlow(
@@ -662,7 +668,7 @@ workflow {
             chDict
           )
           chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-          chAllGermlineVcf = haplotypeCallerFlow.out.vcf
+          chRawGermlineVcf = haplotypeCallerFlow.out.vcf
         }
 
         //*******************************************
@@ -719,7 +725,6 @@ workflow {
       ================================================================================
       */
 
-      chFilteredSomaticVcf = Channel.empty()
       filterSomaticFlow(
         chRawSomaticVcf,
         chFasta,
@@ -758,7 +763,7 @@ workflow {
     */
 
     // Annotation somatic vcf
-    if('snpeff' in tools || params.step == 'annotate'){
+    if('snpeff' in tools || params.step == 'annotateSomatic'){
       annotateSomaticFlow(
         chFilteredSomaticVcf,
         chSnpeffDb,
@@ -776,9 +781,11 @@ workflow {
       )
       chSnpEffMqc = annotateSomaticFlow.out.snpEffReport
       chVersions = chVersions.mix(annotateSomaticFlow.out.versions)
+    }
 
+    if('snpeff' in tools){
       annotateGermlineFlow(
-        chAllGermlineVcf,
+        chRawGermlineVcf,
         chSnpeffDb,
         chSnpeffCache,
         chGnomadDb,

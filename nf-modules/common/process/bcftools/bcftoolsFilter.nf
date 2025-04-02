@@ -21,10 +21,18 @@ process bcftoolsFilter {
   script:
   def prefix = task.ext.prefix ?: "${meta.id}_filtered"
   def args = task.ext.args ?: ''
-  def id = 0
-  
+
   """
-  if [ ${meta.tumor_id} == \$(zgrep "#CHROM" ${vcf[0]} | cut -f10) ] ; then id=0; else id=1; fi
+  id=0
+  if [ "${meta.status}" == 'pair' ]; then
+    if [ "${meta.tumor_id}" == \$(zgrep "#CHROM" ${vcf[0]} | cut -f10) ]
+    then  
+      id=0 
+    else 
+      id=1 
+    fi 
+  fi
+
   bcftools view \
     -Oz -i "${args}" \
     ${vcf[0]} \
