@@ -2,7 +2,7 @@
 
 ## Tumor-only mode
 
-### CNVs with `Facets`
+#### CNVs with `Facets`
 
 `Facets` requires a normal to be run. However, the normal can be unmatch.  
 In this case, the easier would be to start from bam files, with a design file specifying 
@@ -10,7 +10,7 @@ unmatch pairs, and to run VEGAN with the option `--facetsOpts '--unmatch --hetTh
 In this mode, heterogygous SNPs are called using tumor reads only and logOR calculations are different.
 That's why it is recommanded to descrease the minimal VAF value to call a SNP heterozygous (`--hetThres`)
 
-### Running `MSIsensor-pro`
+#### Running `MSIsensor-pro`
 
 To run on a single tumor, MSIsensor-pro requires to build a baseline from a panel of normal samples.
 To do so, you have to specify a list of BAM files to use as baseline, by creating a configuration file as follow:
@@ -59,3 +59,34 @@ This could lead to the loss of some somatic variants on several cancer genes inc
 However, for compatibility reason, it is also possible to disable this mode by adding the parameter `-j` in the bwa-mem parameters `--bwaOpts`.
 
 ![Mapping with and without alt-aware mode](images/bamAltAware.png)
+
+## Summary of filtering steps
+
+VEGAN applies multiple filtering steps which could be a bit confusing. Here is a summary.
+
+- `BAM filtering`
+
+After alignment, reads are filtered to clean up the data and avoid false positive calling.  
+By default, a *mapQ threshold of 20* is applied. *Duplicated reads, singleton and multiple hits are discarded.*
+
+To modify the default behavior, please see `--mapq`, `--keepDups`, `--keepSingleton`, `--keepMultiHits`.  
+Additional filters can be manually set up using the option `--extraBamFilters`.
+
+Of note, the clean BAM file is then further processed using `GATK baseRecalibrator`, to generate a final BAM files used for all downstream analysis.  
+To not apply this step, please use `--skipBQSR`
+
+- `VCF filtering of somatic calls`
+
+The clean and recalibrated BAM file is then used to call somatic variants.  
+
+`Mutect2` is then applied following the GATK good practices including `learnReadOrientationModel`, `GetPileupSummaries`, and `CalculateContamination`.
+A final step (`FilterMutectCalls`) allows to remove somatic variants that Mutect2 will considered as false positive.
+
+The vcf files are then filtered again based on :
+- sequencing depth (`--filterSomaticDP`, default: 20)
+- min allele frequency in the general population (`--filterSomaticMAF`, default: 0.001)
+- variant allele frequency (`--filterSomaticVAF`, default: 0.05)
+
+This filtered vcf file will then be annotated using `snpEff` and used for all downstream analysis such as TMB, MSI, or `sigprofiler`.
+
+
