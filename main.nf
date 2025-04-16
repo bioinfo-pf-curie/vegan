@@ -549,7 +549,7 @@ workflow {
           chFastaFai.collect(),
           chPolyms.collect()
         )
-        chIdentitoMqc = identitoFlow.out.tsv
+        chIdentitoMqc = identitoFlow.out.tsv.mix(identitoFlow.out.results)
         chVersions = chVersions.mix(identitoFlow.out.versions)
       }
 
