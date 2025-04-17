@@ -234,7 +234,7 @@ custom_data:
               format: '{:,.0f}'
               placement: 7000
             nb_var_1:
-              title: 'SNVs > 0.05'
+              title: 'SNVs > 0.1'
               scale: false
               format: '{:,.0f}'
               placement: 8000                                                                                                                                                                                                                                                                                                                                                              
