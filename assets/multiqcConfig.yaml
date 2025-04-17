@@ -375,6 +375,8 @@ table_cond_formatting_rules:
 ## Modules
 
 module_order:
+  - cutadapt:
+     name: 'Trimming'
   - fastqc
   - samtools:
      name: 'Reads Mapping'

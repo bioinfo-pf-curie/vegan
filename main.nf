@@ -327,6 +327,7 @@ include { ascatFlow } from './nf-modules/local/subworkflow/ascat'
 include { checkDesign } from './nf-modules/local/process/checkDesign'
 include { getSoftwareVersions } from './nf-modules/common/process/utils/getSoftwareVersions'
 include { outputDocumentation } from './nf-modules/common/process/utils/outputDocumentation'
+include { trimGalore } from './nf-modules/common/process/trimGalore/trimGalore'
 include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq/preseq'
@@ -346,6 +347,7 @@ workflow {
 
   main:
     // Init MultiQC Channels
+    chTrimmingMqc = Channel.empty()
     chFastqcMqc = Channel.empty()
     chMappingStats = Channel.empty()
     chMappingFlagstat = Channel.empty()
@@ -390,6 +392,16 @@ workflow {
       chIntervalBeds = chTargetBed
     }else{
       chIntervalBeds = Channel.value([])
+    }
+
+    // PROCESS: trimming
+    if (params.trimming){
+      trimGalore(
+        chRawReads
+      )
+      chRawReads=trimGalore.out.fastq
+      chTrimmingMqc=trimGalore.out.logs.map{it->it[1]}
+      chVersions = chVersions.mix(trimGalore.out.versions)
     }
 
     // PROCESS: fastqc
@@ -963,6 +975,7 @@ workflow {
         chSplan.collect(),
         chMetadata.ifEmpty([]),
         chMultiqcConfig.ifEmpty([]),
+        chTrimmingMqc.ifEmpty([]),
         chFastqcMqc.collect().ifEmpty([]),
         chMappingStats.collect().ifEmpty([]),
         chMappingFlagstat.collect().ifEmpty([]),

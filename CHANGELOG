@@ -1,4 +1,15 @@
 ***********************************
+version-2.7.0
+
+NEW FEATURES
+
+  - New '--trimming' option running TrimGalore! on raw reads
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Restore the identito clustering image in the MultiQC report
+
+***********************************
 version-2.6.2
 
 BUG FIXES
@@ -20,10 +31,6 @@ BUG FIXES
 
   - Fix issues with ASCAT results folder #228
   - Reports Facets version number
-
-SIGNIFICANT USER-VISIBLE CHANGES
-
-  - Restore the identito clustering image in the MultiQC report
 
 ***********************************
 version-2.6.0

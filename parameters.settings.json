@@ -179,6 +179,19 @@
       "group": "Inputs"
     },
 
+    {
+      "name": "trimming",
+      "label": "trimming",
+      "usage": "Tim sequencing reads",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Trimming"
+    },
 
     {
       "name": "saveAlignedIntermediates",

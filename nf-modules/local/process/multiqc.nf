@@ -46,7 +46,7 @@ process multiqc {
   def designOpts= params.design ? "-d ${params.design}" : ""
   def splanOpts = params.samplePlan ? "--splan ${params.samplePlan}" : ""
   def isPE = params.singleEnd ? 0 : 1
-  def modulesList = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m picard -m mosdepth -m samtools"
+  def modulesList = "-m custom_content -m cutadapt -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m picard -m mosdepth -m samtools"
   def warn = warnings.name == 'warnings.txt' ? "--warn warnings.txt" : ""
   """
   stats2MultiQC.sh -s ${splan} ${designOpts} -p ${isPE}
