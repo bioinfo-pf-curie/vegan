@@ -100,6 +100,7 @@ OUTPUTS:
 
 TRIMMING:
     --trimming                 Trim sequencing reads
+    --trimmingOpts             Options for reads trimming
 
 ALIGNMENT:
     --aligner                  STRING [bwa-mem, bwa-mem2, dragmap]   Specify tools to use for mapping

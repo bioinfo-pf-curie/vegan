@@ -192,6 +192,18 @@
       "arity": 0,
       "group": "Trimming"
     },
+    {
+      "name": "trimmingOpts",
+      "label": "Options for reads trimming",
+      "usage": "Options for reads trimming",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--trim-n --2colour 20 --length 10",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Trimming"
+    },
 
     {
       "name": "saveAlignedIntermediates",
