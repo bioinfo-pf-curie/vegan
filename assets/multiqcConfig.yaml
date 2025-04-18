@@ -393,10 +393,12 @@ module_order:
 report_section_order:
   gstats:
     order: 1000
-  fastqc:
+  cutadapt:
     order: 900
-  Samtools:
+  fastqc:
     order: 800
+  Samtools:
+    order: 700
   picard:
     order: 600
   mosdepth:

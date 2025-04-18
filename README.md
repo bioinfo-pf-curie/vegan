@@ -64,7 +64,7 @@ Launching `main.nf` [magical_lovelace] DSL2 - revision: 6d760c486c
    |_| \_| |_|                \_/    |_____|  \____| /_/   \_\ |_| \_|
 
 
-                   VEGAN v2.6.0
+                   VEGAN v2.7.0
 ------------------------------------------------------------------------
 
     Usage:
@@ -97,6 +97,9 @@ INPUTS:
 OUTPUTS:
     --cleanup STRING [none, auto, success]  Cleaning strategy of the work/ directory
     --outDir  PATH                          The output directory where the results will be saved
+
+TRIMMING:
+    --trimming                 Trim sequencing reads
 
 ALIGNMENT:
     --aligner                  STRING [bwa-mem, bwa-mem2, dragmap]   Specify tools to use for mapping

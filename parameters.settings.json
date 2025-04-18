@@ -182,7 +182,7 @@
     {
       "name": "trimming",
       "label": "trimming",
-      "usage": "Tim sequencing reads",
+      "usage": "Trim sequencing reads",
       "type": "boolean",
       "nargs": 0,
       "choices": [],
