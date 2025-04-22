@@ -2,7 +2,6 @@ name: bcftools
 channels:
   - conda-forge
   - bioconda
-  - defaults
 dependencies:
   - conda-forge::libdeflate=1.13=h166bdaf_0
   - conda-forge::gsl=2.7=he838d99_0
