@@ -406,7 +406,7 @@ if __name__ == "__main__":
             wx = cyvcf2.Writer(re.sub(r'\.vcf$|\.vcf.gz$|\.bcf',
                                       '_oncoDriver.vcf.gz', os.path.basename(args.vcf)), vcf)
     else:
-        vcf = None
+        vcf = []
         
     for variant in vcf:
         __DEBUGINFO__ = None
@@ -536,47 +536,57 @@ if __name__ == "__main__":
                 variant.INFO['ONCODRIVER'] = __DRIVERINFO__
                 wx.write_record(variant)
 
+            wx.close()
+            vcf.close()  
+
         except:
             warnflag = str(variant.CHROM) + ":" + str(variant.start) + "-" + str(variant.end)
             warnings.warn("Warning : variant {} raises an error. Skipped so far ...".format(warnflag))
             raise
 
     if args.cnv is not None:
-        with open(args.cnv, "r", encoding="utf8") as csvfile:
-            csv_reader = csv.reader(csvfile, delimiter="\t")
-            header = ["chrom","loc.start","loc.end","ID","CNt","Geno","logratio","ploidy","call","LOH","gene","driver_status","gene_type"]
 
-            with open(args.outputcnv, mode='w', newline='') as outfile:
-                writer = csv.writer(outfile)
-                # Write the new header to the output file
-                writer.writerow(header)
+        ## open files
+        tsvfile = open(args.cnv, "r", encoding="utf8")
+        tsv_reader = csv.reader(tsvfile, delimiter="\t")
 
-                for row in csv_reader:
-                    cnv_counter += 1
-                    driver_status = 'NotDriver'
-                    gene_id = row[cnv_conf['gene_id']]
-                    gene_type = get_gene_type(gene_id, driver_genes)
-                    if gene_type is not None:
-                        if "chrom" not in row:
-                            var_class = row[cnv_conf['class']]
-                            length = int(row[cnv_conf['end']]) - int(row[cnv_conf['start']])
-                            is_driver_mut = is_driver_cnv(gene_type, var_class, length, select_algo[(gene_type, 'cnv' )])
+        if args.outputcnv:
+            outtsv = open(args.outputcnv, mode='w', newline='')
+        else:
+            outtsv = open(re.sub(r'\.txt$|\.tsv', '_oncoDriver.tsv', os.path.basename(args.cnv)), mode='w', newline='')
+        tsv_writer = csv.writer(outtsv)
+        header = ["chrom","loc.start","loc.end","ID","CNt","Geno","logratio","ploidy","call","LOH","gene","driver_status","gene_type"]  
+        tsv_writer.writerow(header)
+        
+        next(tsv_reader, None)
 
-                            if is_driver_mut:
-                                driver_status = 'Driver'
-                        row.append(driver_status)
-                        row.append(gene_type)
+        for row in tsv_reader:
+            cnv_counter += 1
+            driver_status = 'NotDriver'
+            gene_id = row[cnv_conf['gene_id']]
+            gene_type = get_gene_type(gene_id, driver_genes)
+            if gene_type is not None:
+                var_class = row[cnv_conf['class']]
+                start = int(row[cnv_conf['start']])
+                end = int(row[cnv_conf['end']])
+                length = end - start
 
-                        ######################
-                        # Export
-                        ######################
+                key = (gene_type, 'cnv')
+                if key in select_algo:
+                    is_driver_mut = is_driver_cnv(gene_type, var_class, length, select_algo[key])
+                    if is_driver_mut:
+                        driver_status = 'Driver'
 
-                        if ((driver_status == 'Driver') or (driver_status == 'NotDriver' and args.debug)) :
-                            driver_counter += 1
-                            writer.writerow(row)
+                ######################
+                # Export
+                ######################
 
-    wx.close()
-    vcf.close()
+                if ((driver_status == 'Driver') or (driver_status == 'NotDriver' and args.debug)) :
+                    driver_counter += 1
+                    row.append(driver_status)
+                    row.append(gene_type)
+                    tsv_writer.writerow(row)
+ 
 
     # Output
     print("## oncoDriver version=", __version__, file=sys.stderr)
@@ -594,5 +604,5 @@ if __name__ == "__main__":
     print_config(conf)
     print("")
     print("## Total SNVs variants=", snv_counter, file=sys.stderr)
-    print("## Total CNVs variants=", snv_counter, file=sys.stderr)
+    print("## Total CNVs variants=", cnv_counter, file=sys.stderr)
     print("## Driver variants=", driver_counter, file=sys.stderr)
