@@ -8,7 +8,8 @@ include { tabix } from '../../common/process/tabix/tabix'
 workflow driverSomaticFlow {
 
   take:
-  variants // [meta, vcf, tbi, cnv]
+  snv // [meta, vcf, tbi]
+  cnv // [meta, cnv]
   drivers
   decision
   canonicals
@@ -16,9 +17,23 @@ workflow driverSomaticFlow {
   main:
   chVersions = Channel.empty()
 
+  tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
+  if('oncodriver' in tools){
+    if('facets' in tools && 'snpEff' in tools){
+      chVariants = snv
+        .combine(cnv, by:0)
+    }else if ('snpEff' in tools){
+      chVariants = snv
+        .map{meta, vcf, tbi -> [meta, vcf, tbi, []]}
+    }else if ('facets' in tools){
+      chVariants = cnv
+        .map{meta, seg -> [meta, [], [], seg]}
+    }
+  }
+
   // Detect driver mutations
   oncoDriver(
-    variants,
+    chVariants,
     drivers,
     decision,
     canonicals

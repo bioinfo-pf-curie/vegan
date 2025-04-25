@@ -775,6 +775,7 @@ workflow {
     */
 
     // Annotation somatic vcf
+    chAnnotatedSomaticVcf = Channel.empty()
     if('snpeff' in tools || params.step == 'annotateSomatic'){
       annotateSomaticFlow(
         chFilteredSomaticVcf,
@@ -791,6 +792,7 @@ workflow {
         chDbnsfp,
         chDbnsfpIndex
       )
+      chAnnotatedSomaticVcf = annotateSomaticFlow.out.vcf
       chSnpEffMqc = annotateSomaticFlow.out.snpEffReport
       chVersions = chVersions.mix(annotateSomaticFlow.out.versions)
     }
@@ -817,7 +819,7 @@ workflow {
 
     if('tmb' in tools){
       tmbFlow(
-        annotateSomaticFlow.out.vcf,
+        chAnnotatedSomaticVcf,
         chTargetBed,
         chEffGenomeSize
       )
@@ -874,12 +876,14 @@ workflow {
     ================================================================================
     */
 
+    chAnnotatedCnvs = Channel.empty()
     if('facets' in tools){
       facetsFlow(
         chPairBam,
         chDbsnp,
         chGeneBed
       )
+      chAnnotatedCnvs = facetsFlow.out.segmentsAnnotated
       chVersions = chVersions.mix(facetsFlow.out.versions)
     }
 
@@ -901,18 +905,11 @@ workflow {
     ================================================================================
     */
 
-    chDriverSomaticVcf = Channel.empty()
+    chDriverSomaticVcf = Chanel.empty()
     if('oncodriver' in tools){
-      if('facets' in tools){
-        chSomaticVcfCnv = annotateSomaticFlow.out.vcf
-          .combine(facetsFlow.out.segmentsAnnotated, by:0)
-      }else{
-        chSomaticVcfCnv = annotateSomaticFlow.out.vcf
-          .map{meta, vcf, tbi -> [meta, vcf, tbi, []]}
-      }
-
       driverSomaticFlow(
-        chSomaticVcfCnv,
+        chAnnotatedSomaticVcf,
+        chAnnotatedCnvs,
         chDriverGenes,
         chDriverConfig,
         chCanonicalGtf
@@ -944,7 +941,7 @@ workflow {
     // TABLE REPORT FORMAT
     if(params.table){
       tableReportFlow(
-        annotateSomaticFlow.out.vcf.concat(chDriverSomaticVcf)
+        chAnnotatedSomaticVcf.concat(chDriverSomaticVcf)
       )
     }
 

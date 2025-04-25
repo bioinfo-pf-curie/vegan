@@ -314,7 +314,7 @@ Parse inputs
 def args_parse():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-i", "--vcf", required=True, help="Input file (.vcf, .vcf.gz, .bcf)")
+    parser.add_argument("-i", "--vcf", help="Input file (.vcf, .vcf.gz, .bcf)")
     parser.add_argument("--cnv", help="Input file for CNV (segments.transformed_annot_oncokb.txt)", default=None)
 
     # Configs
@@ -349,40 +349,12 @@ def args_parse():
 if __name__ == "__main__":
 
     args = args_parse()
+    if args.vcf is None and args.cnv is None:
+        print("Erreur : please provide at least a vcf ('-i') file or a cnv ('--cnv') file")
+        sys.exit(-1)
     if args.use_canonical and args.canonical_ids is None:
         print("Erreur : please provide a list of canonical ids with '--canonical_ids'")
         sys.exit(-1)
-    
-    # Load Data
-    if args.sample is not None:
-        vcf = cyvcf2.VCF(args.vcf)
-        count = 0
-        for sample in vcf.samples:
-            count = count + 1
-            if str(sample) == str(args.sample):
-                vcf = cyvcf2.VCF(args.vcf, samples=args.sample)
-            elif count == len(vcf.samples):
-                print("Error: Name of the sample incorrect\n")
-                sys.exit(-1)
-    else:
-        vcf = cyvcf2.VCF(args.vcf)
-
-    # Sample name
-    if len(vcf.samples) > 1:
-        sys.stderr.write("Error: " + str(len(vcf.samples)) +
-                         " sample detected. This version is designed for a single sample ! Use --sample argument.\n")
-        sys.exit(-1)
-        
-    # Outputs
-    vcf.add_info_to_header({'ID': 'ONCODRIVER', 'Description': 'Oncogenic driver decision',
-                            'Type': 'Character', 'Number': '1'})
-
-    if args.output:
-        wx = cyvcf2.Writer(args.output, vcf)
-    else:
-        wx = cyvcf2.Writer(re.sub(r'\.vcf$|\.vcf.gz$|\.bcf',
-                                  '_oncoDriver.vcf.gz', os.path.basename(args.vcf)), vcf)
-    
 
     # Load config
     conf = load_config(args.config)
@@ -397,18 +369,52 @@ if __name__ == "__main__":
     can_ids = None
     if args.use_canonical:
         can_ids = load_canonicals(args.canonical_ids, clean_ids=True)
-        
+
     # Init counter
     driver_counter = 0
-    var_counter = 0
+    snv_counter = 0
+    cnv_counter = 0
+    
+    # Load SNVs Data
+    if args.vcf is not None:
+        if args.sample is not None:
+            vcf = cyvcf2.VCF(args.vcf)
+            count = 0
+            for sample in vcf.samples:
+                count = count + 1
+                if str(sample) == str(args.sample):
+                    vcf = cyvcf2.VCF(args.vcf, samples=args.sample)
+                elif count == len(vcf.samples):
+                    print("Error: Name of the sample incorrect\n")
+                    sys.exit(-1)
+        else:
+            vcf = cyvcf2.VCF(args.vcf)
+
+        # Sample name
+        if len(vcf.samples) > 1:
+            sys.stderr.write("Error: " + str(len(vcf.samples)) +
+                             " sample detected. This version is designed for a single sample ! Use --sample argument.\n")
+            sys.exit(-1)
+        
+        # Outputs
+        vcf.add_info_to_header({'ID': 'ONCODRIVER', 'Description': 'Oncogenic driver decision',
+                                'Type': 'Character', 'Number': '1'})
+
+        if args.output:
+            wx = cyvcf2.Writer(args.output, vcf)
+        else:
+            wx = cyvcf2.Writer(re.sub(r'\.vcf$|\.vcf.gz$|\.bcf',
+                                      '_oncoDriver.vcf.gz', os.path.basename(args.vcf)), vcf)
+    else:
+        vcf = None
         
     for variant in vcf:
         __DEBUGINFO__ = None
         __DRIVERINFO__ = None
         DECISION = None
-        var_counter += 1
-        if (var_counter % 1000 == 0 and args.verbose):
-            print ("## ", var_counter)
+        snv_counter += 1
+        if (snv_counter % 1000 == 0 and args.verbose):
+            print ("## ", snv_counter)
  
         try:
             db_info = dict(variant.INFO)
@@ -542,11 +548,11 @@ if __name__ == "__main__":
 
             with open(args.outputcnv, mode='w', newline='') as outfile:
                 writer = csv.writer(outfile)
-
                 # Write the new header to the output file
                 writer.writerow(header)
 
                 for row in csv_reader:
+                    cnv_counter += 1
                     driver_status = 'NotDriver'
                     gene_id = row[cnv_conf['gene_id']]
                     gene_type = get_gene_type(gene_id, driver_genes)
@@ -561,11 +567,12 @@ if __name__ == "__main__":
                         row.append(driver_status)
                         row.append(gene_type)
 
-                ######################
-                # Export
-                ######################
+                        ######################
+                        # Export
+                        ######################
 
                         if ((driver_status == 'Driver') or (driver_status == 'NotDriver' and args.debug)) :
+                            driver_counter += 1
                             writer.writerow(row)
 
     wx.close()
@@ -575,8 +582,9 @@ if __name__ == "__main__":
     print("## oncoDriver version=", __version__, file=sys.stderr)
     print("## When=", date.today(), file=sys.stderr)
     print("")
-    print("## Input=", args.vcf, file=sys.stderr)
+    print("## SNVs=", args.vcf, file=sys.stderr)
     print("## Sample=", args.sample, file=sys.stderr)
+    print("## CNVs=", args.cnv, file=sys.stderr)
     print("")
     print("## Config=", args.config, file=sys.stderr)
     print("## Driver genes=", args.driver_genes, file=sys.stderr)
@@ -585,5 +593,6 @@ if __name__ == "__main__":
     print("")
     print_config(conf)
     print("")
-    print("## Total variants=", var_counter, file=sys.stderr)
+    print("## Total SNVs variants=", snv_counter, file=sys.stderr)
+    print("## Total CNVs variants=", snv_counter, file=sys.stderr)
     print("## Driver variants=", driver_counter, file=sys.stderr)
