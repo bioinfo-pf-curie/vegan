@@ -905,7 +905,7 @@ workflow {
     ================================================================================
     */
 
-    chDriverSomaticVcf = Chanel.empty()
+    chDriverSomaticVcf = Channel.empty()
     if('oncodriver' in tools){
       driverSomaticFlow(
         chAnnotatedSomaticVcf,
