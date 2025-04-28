@@ -397,7 +397,7 @@ report_section_order:
     order: 900
   fastqc:
     order: 800
-  Samtools:
+  samtools:
     order: 700
   picard:
     order: 600
