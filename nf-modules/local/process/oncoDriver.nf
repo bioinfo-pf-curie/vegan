@@ -11,8 +11,8 @@ process oncoDriver {
   path(gtf)
 
   output:
-  tuple val(meta), path("*oncodriver.vcf.gz"), emit: vcf, optional: true
-  tuple val(meta), path("*oncodriver.tsv"), emit: cnv, optional: true
+  tuple val(meta), path("*oncoDriver.vcf.gz"), emit: vcf, optional: true
+  tuple val(meta), path("*oncoDriver.tsv"), emit: cnv, optional: true
   tuple val(meta), path("*.log"), emit: log
   path ("versions.txt"), emit: versions
 
