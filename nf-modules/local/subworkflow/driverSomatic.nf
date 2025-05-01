@@ -19,7 +19,7 @@ workflow driverSomaticFlow {
 
   tools = params.tools ? params.tools.split(',').collect{it.trim().toLowerCase()} : []
   if('oncodriver' in tools){
-    if('facets' in tools && 'snpEff' in tools){
+    if('facets' in tools && 'snpeff' in tools){
       chVariants = snv
         .combine(cnv, by:0)
     }else if ('snpEff' in tools){

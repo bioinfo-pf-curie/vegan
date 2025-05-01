@@ -55,7 +55,7 @@ for sample in $all_samples; do
   #sname=$(echo $sname_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
   #sample=$(echo $sample_raw | sed -e 's/\-/_/g' -e 's/\./_/g' -e 's/\ /_/g')
 
-  header="Saple_ID,Sample_name"
+  header="Sample_ID,Sample_name"
   output="${sample},${sname}"
 
   #ALIGNMENT
