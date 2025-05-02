@@ -2,6 +2,7 @@ name: snpeff
 channels:
   - conda-forge
   - bioconda
+  - nodefaults
 dependencies:
   - bioconda::snpeff=5.1=hdfd78af_1
   - bioconda::tabix=1.11=hdfd78af_0

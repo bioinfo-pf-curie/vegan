@@ -2,6 +2,7 @@ name: picard
 channels:
   - conda-forge
   - bioconda
+  - nodefaults
 dependencies:
   - bioconda::picard=3.0.0=hdfd78af_1
   - bioconda::samtools=1.17=hd87286a_2

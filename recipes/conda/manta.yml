@@ -2,6 +2,7 @@ name: manta
 channels:
   - conda-forge
   - bioconda
+  - nodefaults
 dependencies:
   - bioconda::htslib=1.9=ha228f0b_7
   - bioconda::manta=1.6.0=py27_0
