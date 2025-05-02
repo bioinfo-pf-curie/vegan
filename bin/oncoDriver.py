@@ -403,16 +403,16 @@ if __name__ == "__main__":
         if args.output:
             wx = cyvcf2.Writer(args.output, vcf)
         else:
-            wx = cyvcf2.Writer(re.sub(r'\.vcf$|\.vcf.gz$|\.bcf',
-                                      '_oncoDriver.vcf.gz', os.path.basename(args.vcf)), vcf)
+            wx = cyvcf2.Writer(re.sub(r'\.vcf$|\.vcf.gz$|\.bcf','_oncoDriver.vcf.gz', os.path.basename(args.vcf)), vcf)
     else:
         vcf = []
-        
+
     for variant in vcf:
         __DEBUGINFO__ = None
         __DRIVERINFO__ = None
         DECISION = None
         snv_counter += 1
+
         if (snv_counter % 1000 == 0 and args.verbose):
             print ("## ", snv_counter)
  
@@ -536,13 +536,13 @@ if __name__ == "__main__":
                 variant.INFO['ONCODRIVER'] = __DRIVERINFO__
                 wx.write_record(variant)
 
-            wx.close()
-            vcf.close()  
-
         except:
             warnflag = str(variant.CHROM) + ":" + str(variant.start) + "-" + str(variant.end)
             warnings.warn("Warning : variant {} raises an error. Skipped so far ...".format(warnflag))
             raise
+
+    wx.close()
+    vcf.close()
 
     if args.cnv is not None:
 
@@ -586,8 +586,8 @@ if __name__ == "__main__":
                     row.append(driver_status)
                     row.append(gene_type)
                     tsv_writer.writerow(row)
- 
 
+                    
     # Output
     print("## oncoDriver version=", __version__, file=sys.stderr)
     print("## When=", date.today(), file=sys.stderr)
