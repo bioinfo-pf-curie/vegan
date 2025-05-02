@@ -2,6 +2,7 @@ name: sigprofiler
 channels:
   - conda-forge
   - bioconda
+  - nodefaults
 dependencies:
   - conda-forge::python=3.9.12=h2660328_1_cpython
   - pip=22.0.4=pyhd8ed1ab_0

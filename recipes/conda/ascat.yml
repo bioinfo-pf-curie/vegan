@@ -2,6 +2,7 @@ name: ascat
 channels:
   - conda-forge
   - bioconda
+  - nodefaults
 dependencies:
   - conda-forge::r-optparse=1.6.6=r36h6115d3f_1
   - bioconda::ascat=2.5.2=r36_1
