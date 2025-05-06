@@ -13,7 +13,7 @@
 #
 ##############################################################################
 
-__version__ = '1.2.0dev'
+__version__ = '1.3.0'
 
 """
 This script is designed to apply a decision tree on a VCF file
@@ -68,7 +68,8 @@ def load_config(infile):
             cfg['select'] = d
             return cfg
         except:
-            raise
+            println("Error - unable to read " + infile)
+            sys.exit(-1)
 
 """
 Print the decision algorithm in a human readable manner
@@ -138,7 +139,7 @@ def get_gene_type(gene_id, cancer_atlas):
     elif gene_id in cancer_atlas['unknown']:
         return "unknown"
     else:
-	    return None
+        return None
 
 """
 Load canonical transcripts from GTF file
@@ -339,6 +340,7 @@ def args_parse():
     parser.add_argument("--outputcnv", help="CNV output file name", type=str)
     parser.add_argument("--verbose", help="Active verbose mode", action="store_true")
     parser.add_argument("--debug", help="Export original VCF with ONCODRIVER tag", action="store_true")
+    parser.add_argument("--strict", help="Raise an error instead of warnings", action="store_true")
     parser.add_argument("--version", help="Version number", action='version', version="%(prog)s ("+__version__+")")
 
 
@@ -422,8 +424,7 @@ if __name__ == "__main__":
             # Get annotation INFO as a list of dict
             annot_info = get_INFO(variant.INFO.get(vcf_conf['tag']))
             if annot_info is None:
-                print("Annotations not detected in the VCF file. Please check if the vcf is well annotated !\n")
-                sys.exit(-1)
+                raise Exception("Annotation tag [" + vcf_conf['tag'] + "] not found !")
             
             ##############################
             # FORMAT - technical filters
@@ -438,6 +439,8 @@ if __name__ == "__main__":
                     tech_filtered = True
                     if not args.debug:
                         continue
+                elif fval is None:
+                    raise Exception("VAF tag [" + vcf_conf['vaf'] + "] not found !")
 
             # Sequencing Depth
             if args.min_depth is not None:
@@ -447,6 +450,8 @@ if __name__ == "__main__":
                     tech_filtered = True
                     if not args.debug:
                         continue
+                elif dval is None:
+                    raise Exception("DEPTH tag [" + vcf_conf['depth'] + "] not found !")
 
             # Alternative allele Depth
             if args.min_alt_depth is not None:
@@ -460,6 +465,8 @@ if __name__ == "__main__":
                     tech_filtered = True
                     if not args.debug:
                         continue
+                elif ad is None:
+                    raise Exception("ALT DEPTH tag [" + vcf_conf['alt_depth'] + "] not found !")
 
              # Polymorphisms
             if args.max_maf is not None:
@@ -500,7 +507,6 @@ if __name__ == "__main__":
                                 driver_counter += 1
                                 break
 
-                    
                     ## Driver genes from cancer gene list
                     elif gene_type is not None:
 
@@ -536,10 +542,12 @@ if __name__ == "__main__":
                 variant.INFO['ONCODRIVER'] = __DRIVERINFO__
                 wx.write_record(variant)
 
-        except:
-            warnflag = str(variant.CHROM) + ":" + str(variant.start) + "-" + str(variant.end)
-            warnings.warn("Warning : variant {} raises an error. Skipped so far ...".format(warnflag))
-            raise
+        except Exception as e:
+            warnflag = str(variant.CHROM) + ":" + str(variant.start+1) + "[" + str(variant.REF) + "/" + str(variant.ALT[0]) + "]"
+            warnings.warn("Warning : variant {} raises an error: \"{}\". Skipped ...".format(warnflag, e))
+            if args.strict:
+                print("Error - strict mode activated - exit")
+                sys.exit(-1)
 
     wx.close()
     vcf.close()
