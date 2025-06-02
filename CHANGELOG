@@ -3,11 +3,12 @@ version-2.7.1
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
-  - Update multiqc and fastq versions
+  - Update multiqc and fastqc versions
 
 BUG FIXES
 
   - Update oncoDriver to run with only CNVs data
+  - Run vcf2Maf on annotated VCF
 
 ***********************************
 version-2.7.0
