@@ -948,7 +948,7 @@ workflow {
     // MAF FORMAT
     if(params.maf){
       vcf2maf(
-        chFilteredSomaticVcf.concat(chDriverSomaticVcf),
+        chAnnotatedSomaticVcf.concat(chDriverSomaticVcf),
         chFasta
       )
     }
