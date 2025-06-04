@@ -255,8 +255,9 @@ if (params.step == "mapping"){
   chAlignedBam = Channel.empty()
   chMarkedBam = Channel.empty()
   chFilteredBam = Channel.empty()
-  chRawSomaticVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
-  chRawSomaticVcf = chRawSomaticVcf
+  chRawSomaticVcf = Channel.empty()
+  chFilteredSomaticVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+  chFilteredSomaticVcf = chFilteredSomaticVcf
     .map{meta, vcf, tbi ->
       def new_meta = [id:meta.id, name:meta.name, singleEnd:meta.singleEnd, tumor_id:meta.id, status:'pair']
       [new_meta, vcf, tbi]
@@ -360,6 +361,7 @@ workflow {
     chWgsMetricsMqc = Channel.empty()
     chHaplotypecallerMetricsMqc = Channel.empty()
     chMutect2MetricsMqc = Channel.empty()
+    chVcfMetricsMqc = Channel.empty()
     chTsTvMqc = Channel.empty()
     chSnpEffMqc = Channel.empty()
     chMSIMqc = Channel.empty()
@@ -381,7 +383,7 @@ workflow {
     //********************************************
     // SUB-WORKFLOW : Prepare intervals list
 
-    if (!params.noIntervals && !params.targetBed){
+    if (params.step == "mapping" && !params.noIntervals && !params.targetBed){
       prepareIntervalsFlow(
         chFastaFai.collect(),
         chIntervals
@@ -729,44 +731,43 @@ workflow {
           chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
           chRawSomaticVcf = chRawSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcf)
         }
-      }
 
-      /*
-      ================================================================================
+        /*
+        ================================================================================
                                      VCF FILTERING
-      ================================================================================
-      */
+        ================================================================================
+        */
 
-      filterSomaticFlow(
-        chRawSomaticVcf,
-        chFasta,
-        chGnomadDb,
-        chGnomadDbIndex
-      )
-      chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-      chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
-      chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
-    }
+        filterSomaticFlow(
+          chRawSomaticVcf,
+          chFasta,
+          chGnomadDb,
+          chGnomadDbIndex
+        )
+        chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+        chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
+        chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
 
-    /*
-    ================================================================================
+        /*
+        ================================================================================
                                    VCF QC
-    ================================================================================
-    */
+        ================================================================================
+        */
   
-    chVcfMetrics = chRawSomaticVcf.join(chFilteredSomaticVcf)
-    vcfQcFlow(
-      chVcfMetrics
-    )
-    chVcfMetricsMqc = vcfQcFlow.out.stats
-    chTsTvMqc = vcfQcFlow.out.transition
+        chVcfMetrics = chRawSomaticVcf.join(chFilteredSomaticVcf)
+        vcfQcFlow(
+          chVcfMetrics
+        )
+        chVcfMetricsMqc = vcfQcFlow.out.stats
+        chTsTvMqc = vcfQcFlow.out.transition
 
-    // Remove samples with two few SNVs
-    chFilteredSomaticVcf = chFilteredSomaticVcf
-      .join(vcfQcFlow.out.stats)
-      .filter{ meta, vcf, tbi, stats -> checkVarNumber(meta, stats) }
-      .map{ meta, vcf, tbi, stats -> [meta, vcf, tbi] }
-
+        // Remove samples with two few SNVs
+        chFilteredSomaticVcf = chFilteredSomaticVcf
+          .join(vcfQcFlow.out.stats)
+          .filter{ meta, vcf, tbi, stats -> checkVarNumber(meta, stats) }
+          .map{ meta, vcf, tbi, stats -> [meta, vcf, tbi] }
+      }
+    }
 
     /*
     ================================================================================
