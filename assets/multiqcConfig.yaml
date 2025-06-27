@@ -291,8 +291,8 @@ custom_data:
         description: 'MSI extracted from MSIsensor-pro'
         plot_type: 'bargraph'
         pconfig:
-            namespace: 'Somatic Sites (%)'
-            title: 'MSI'
+            namespace: 'msi'
+            title: 'Somatic Sites (%)'
             id: 'msi'
             scale: 'Reds'
 
