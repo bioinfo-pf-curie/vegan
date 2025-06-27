@@ -272,29 +272,29 @@ custom_data:
             namespace: 'transition'
             title: 'Transitions/Transversions/Indels'
             id: 'transition'
-            scale: 'Set1'
+            scale: 'OrRd'
 
     tmb:
         file_format: 'csv'
-        section_name: 'TMB'
-        description: 'Tumor Mutational Burden'
+        section_name: 'Tumor Mutational Burden'
+        description: 'TMB based on selected somatic variants.'
         plot_type: 'bargraph'
         pconfig:
             namespace: 'tmb'
-            title: 'TMB'
+            title: 'Tumor Mutational Burden (mutations/Mb)'
             id: 'tmb'
-            scale: 'Set1'
+            scale: 'Reds'
 
     msi:
         file_format: 'csv'
-        section_name: 'MSI'
-        description: 'Microsatellite instability extracted from MSIsensor-pro'
+        section_name: 'Microsatellite Instability'
+        description: 'MSI extracted from MSIsensor-pro'
         plot_type: 'bargraph'
         pconfig:
-            namespace: 'tmb'
-            title: 'TMB'
+            namespace: 'Somatic Sites (%)'
+            title: 'MSI'
             id: 'msi'
-            scale: 'Set1'
+            scale: 'Reds'
 
 sp:
   gstats:
@@ -314,9 +314,9 @@ sp:
   transition:
       fn: '*.table.tsv'
   tmb:
-      fn: 'tmb_scores.mqc'
+      fn: '*tmb_score.mqc'
   msi:
-      fn: 'msi_scores.mqc'
+      fn: '*msi_score.mqc'
   samtools_alignment_plot:
       fn: '*.global.stats'
       fn_ignore_files: '*onTarget.stats'
@@ -397,14 +397,14 @@ report_section_order:
     order: 900
   fastqc:
     order: 800
-  samtools:
+  Samtools:
     order: 700
   picard:
     order: 600
   mosdepth:
     order: 500
-  genes_cov:
-    order: 300
+#  genes_cov:
+#    order: 300
   preseq:
     order: 200
   identito:
@@ -448,6 +448,8 @@ fn_clean_exts:
   - '.mosdepth.region.dist.txt'
   - '_extrap_ccurve.txt'
   - '.global'
+  - '_tmb_score.mqc'
+  - '_msi_score.mqc'
 
 fn_ignore_files:
   - '*.onTarget.stats' 

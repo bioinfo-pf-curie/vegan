@@ -140,6 +140,27 @@ for sample in $all_samples; do
     output+=",${mean_depth},${cov30},${cov50},${cov100}"
   fi
 
+  ## Format MSI info
+  if [[ -d msi/ ]];
+  then
+      for i in $(ls msi/*_msi.txt)
+      do
+	  sname=$(basename $i | sed -e 's/_msi.txt//g')
+	  msi=$(awk 'NR==2{print $NF}' $i)
+	  echo "$sname,$msi" > msi/${sname}_msi_score.mqc
+      done
+  fi
+
+  ## Format TMB info
+  if [[ -d tmb/ ]];
+  then
+      for i in $(ls tmb/*_tmb.txt)
+      do
+          sname=$(basename $i | sed -e 's/_Mutect2.*$//g')
+          tmb=$(grep "TMB= " $i | sed -e 's/TMB= //')
+          echo "$sname,$tmb" > tmb/${sname}_tmb_score.mqc
+      done
+  fi                                                                                                                                                                                                          
   if [ $n_header == 0 ]; then
     echo -e $header > mqc.stats
     n_header=1
