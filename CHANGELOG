@@ -1,9 +1,18 @@
 ***********************************
+version-2.7.2
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - step 'annotateSomatic' now starts by filtering the vcf files
+  - update gnomAD reference to 4.1
+
+***********************************
 version-2.7.1
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
   - Update multiqc and fastqc versions
+  - Update reports
 
 BUG FIXES
 

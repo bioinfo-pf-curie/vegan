@@ -255,9 +255,8 @@ if (params.step == "mapping"){
   chAlignedBam = Channel.empty()
   chMarkedBam = Channel.empty()
   chFilteredBam = Channel.empty()
-  chRawSomaticVcf = Channel.empty()
-  chFilteredSomaticVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
-  chFilteredSomaticVcf = chFilteredSomaticVcf
+  chRawSomaticVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+  chRawSomaticVcf = chRawSomaticVcf
     .map{meta, vcf, tbi ->
       def new_meta = [id:meta.id, name:meta.name, singleEnd:meta.singleEnd, tumor_id:meta.id, status:'pair']
       [new_meta, vcf, tbi]
