@@ -382,6 +382,8 @@ workflow {
     //********************************************
     // SUB-WORKFLOW : Prepare intervals list
 
+
+
     if (params.step == "mapping" && !params.noIntervals && !params.targetBed){
       prepareIntervalsFlow(
         chFastaFai.collect(),
@@ -406,11 +408,13 @@ workflow {
     }
 
     // PROCESS: fastqc
-    fastqc(
-      chRawReads
-    )
-    chFastqcMqc = fastqc.out.results.collect()
-    chVersions = chVersions.mix(fastqc.out.versions)
+    if (!params.skipFastqc){
+    	fastqc(
+      	chRawReads
+    	)
+    	chFastqcMqc = fastqc.out.results.collect()
+    	chVersions = chVersions.mix(fastqc.out.versions)
+     }
 
     //*******************************************
     // SUB-WORFKLOW : RNA SEQ
@@ -447,7 +451,6 @@ workflow {
 
       if (params.step == "mapping"){
         chAlignerIndex = params.aligner == 'bwa-mem' ? chBwaIndex : params.aligner == 'bwa-mem2' ? chBwaMem2Index : chDragmapIndex
-    
         mappingFlow(
           chRawReads,
           chAlignerIndex,
@@ -498,6 +501,7 @@ workflow {
       //*******************************************
       // Process : markduplicates
 
+
       markDuplicates(
         chAlignedBam,
         chFasta,
@@ -510,6 +514,7 @@ workflow {
         markDuplicates.out.bam.mix(markDuplicates.out.cram)
       )
       chVersions = chVersions.mix(samtoolsIndexMarkdup.out.versions)
+
 
       if (params.step == "mapping" || params.step == "markduplicates"){
         chMarkedBam = markDuplicates.out.bam.mix(markDuplicates.out.cram)
@@ -525,6 +530,7 @@ workflow {
 
       //*******************************************
       // SUB-WORKFLOW : bamFiltering
+  
 
       bamFiltersFlow(
         chMarkedBam,
@@ -730,42 +736,42 @@ workflow {
           chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
           chRawSomaticVcf = chRawSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcf)
         }
-    }
 
-    /*
-     ================================================================================
-                                  VCF FILTERING
-     ================================================================================
-    */
+        /*
+        ================================================================================
+                                     VCF FILTERING
+        ================================================================================
+        */
 
-    filterSomaticFlow(
-      chRawSomaticVcf,
-      chFasta,
-      chGnomadDb,
-      chGnomadDbIndex
-    )
-    chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-    chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
-    chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
+        filterSomaticFlow(
+          chRawSomaticVcf,
+          chFasta,
+          chGnomadDb,
+          chGnomadDbIndex
+        )
+        chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+        chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
+        chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
 
-    /*
-    ================================================================================
-                               VCF QC
-    ================================================================================
-    */
+        /*
+        ================================================================================
+                                   VCF QC
+        ================================================================================
+        */
   
-    chVcfMetrics = chRawSomaticVcf.join(chFilteredSomaticVcf)
-    vcfQcFlow(
-      chVcfMetrics
-    )
-    chVcfMetricsMqc = vcfQcFlow.out.stats
-    chTsTvMqc = vcfQcFlow.out.transition
+        chVcfMetrics = chRawSomaticVcf.join(chFilteredSomaticVcf)
+        vcfQcFlow(
+          chVcfMetrics
+        )
+        chVcfMetricsMqc = vcfQcFlow.out.stats
+        chTsTvMqc = vcfQcFlow.out.transition
 
-    // Remove samples with two few SNVs
-    chFilteredSomaticVcf = chFilteredSomaticVcf
-      .join(vcfQcFlow.out.stats)
-      .filter{ meta, vcf, tbi, stats -> checkVarNumber(meta, stats) }
-      .map{ meta, vcf, tbi, stats -> [meta, vcf, tbi] }
+        // Remove samples with two few SNVs
+        chFilteredSomaticVcf = chFilteredSomaticVcf
+          .join(vcfQcFlow.out.stats)
+          .filter{ meta, vcf, tbi, stats -> checkVarNumber(meta, stats) }
+          .map{ meta, vcf, tbi, stats -> [meta, vcf, tbi] }
+      }
     }
 
     /*
