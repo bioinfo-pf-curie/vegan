@@ -1,4 +1,13 @@
+BUG FIXES
+
+  - set pypdf version to 4.3.1 needed by sigprofiler (PdfMerge removed in later versions)
+
+MISCELLANEOUS
+
+  - update .gitlab-ci,yml 
+
 ***********************************
+
 version-2.7.2
 
 SIGNIFICANT USER-VISIBLE CHANGES
