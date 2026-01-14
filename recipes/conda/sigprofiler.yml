@@ -12,3 +12,5 @@ dependencies:
       - pandas==1.5.3
       - SigProfilerAssignment==0.1.8
       - SigProfilerMatrixGenerator==1.2.30
+      - pypdf==4.3.1
+
