@@ -13,7 +13,7 @@
 #
 ##############################################################################
 
-__version__ = '1.2.0dev'
+__version__ = '1.3.0'
 
 """
 This script is designed to apply a decision tree on a VCF file
@@ -68,7 +68,8 @@ def load_config(infile):
             cfg['select'] = d
             return cfg
         except:
-            raise
+            println("Error - unable to read " + infile)
+            sys.exit(-1)
 
 """
 Print the decision algorithm in a human readable manner
@@ -138,7 +139,7 @@ def get_gene_type(gene_id, cancer_atlas):
     elif gene_id in cancer_atlas['unknown']:
         return "unknown"
     else:
-	    return None
+        return None
 
 """
 Load canonical transcripts from GTF file
@@ -314,7 +315,7 @@ Parse inputs
 def args_parse():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-i", "--vcf", required=True, help="Input file (.vcf, .vcf.gz, .bcf)")
+    parser.add_argument("-i", "--vcf", help="Input file (.vcf, .vcf.gz, .bcf)")
     parser.add_argument("--cnv", help="Input file for CNV (segments.transformed_annot_oncokb.txt)", default=None)
 
     # Configs
@@ -339,6 +340,7 @@ def args_parse():
     parser.add_argument("--outputcnv", help="CNV output file name", type=str)
     parser.add_argument("--verbose", help="Active verbose mode", action="store_true")
     parser.add_argument("--debug", help="Export original VCF with ONCODRIVER tag", action="store_true")
+    parser.add_argument("--strict", help="Raise an error instead of warnings", action="store_true")
     parser.add_argument("--version", help="Version number", action='version', version="%(prog)s ("+__version__+")")
 
 
@@ -349,40 +351,12 @@ def args_parse():
 if __name__ == "__main__":
 
     args = args_parse()
+    if args.vcf is None and args.cnv is None:
+        print("Erreur : please provide at least a vcf ('-i') file or a cnv ('--cnv') file")
+        sys.exit(-1)
     if args.use_canonical and args.canonical_ids is None:
         print("Erreur : please provide a list of canonical ids with '--canonical_ids'")
         sys.exit(-1)
-    
-    # Load Data
-    if args.sample is not None:
-        vcf = cyvcf2.VCF(args.vcf)
-        count = 0
-        for sample in vcf.samples:
-            count = count + 1
-            if str(sample) == str(args.sample):
-                vcf = cyvcf2.VCF(args.vcf, samples=args.sample)
-            elif count == len(vcf.samples):
-                print("Error: Name of the sample incorrect\n")
-                sys.exit(-1)
-    else:
-        vcf = cyvcf2.VCF(args.vcf)
-
-    # Sample name
-    if len(vcf.samples) > 1:
-        sys.stderr.write("Error: " + str(len(vcf.samples)) +
-                         " sample detected. This version is designed for a single sample ! Use --sample argument.\n")
-        sys.exit(-1)
-        
-    # Outputs
-    vcf.add_info_to_header({'ID': 'ONCODRIVER', 'Description': 'Oncogenic driver decision',
-                            'Type': 'Character', 'Number': '1'})
-
-    if args.output:
-        wx = cyvcf2.Writer(args.output, vcf)
-    else:
-        wx = cyvcf2.Writer(re.sub(r'\.vcf$|\.vcf.gz$|\.bcf',
-                                  '_oncoDriver.vcf.gz', os.path.basename(args.vcf)), vcf)
-    
 
     # Load config
     conf = load_config(args.config)
@@ -397,18 +371,52 @@ if __name__ == "__main__":
     can_ids = None
     if args.use_canonical:
         can_ids = load_canonicals(args.canonical_ids, clean_ids=True)
-        
+
     # Init counter
     driver_counter = 0
-    var_counter = 0
+    snv_counter = 0
+    cnv_counter = 0
+    
+    # Load SNVs Data
+    if args.vcf is not None:
+        if args.sample is not None:
+            vcf = cyvcf2.VCF(args.vcf)
+            count = 0
+            for sample in vcf.samples:
+                count = count + 1
+                if str(sample) == str(args.sample):
+                    vcf = cyvcf2.VCF(args.vcf, samples=args.sample)
+                elif count == len(vcf.samples):
+                    print("Error: Name of the sample incorrect\n")
+                    sys.exit(-1)
+        else:
+            vcf = cyvcf2.VCF(args.vcf)
+
+        # Sample name
+        if len(vcf.samples) > 1:
+            sys.stderr.write("Error: " + str(len(vcf.samples)) +
+                             " sample detected. This version is designed for a single sample ! Use --sample argument.\n")
+            sys.exit(-1)
         
+        # Outputs
+        vcf.add_info_to_header({'ID': 'ONCODRIVER', 'Description': 'Oncogenic driver decision',
+                                'Type': 'Character', 'Number': '1'})
+
+        if args.output:
+            wx = cyvcf2.Writer(args.output, vcf)
+        else:
+            wx = cyvcf2.Writer(re.sub(r'\.vcf$|\.vcf.gz$|\.bcf','_oncoDriver.vcf.gz', os.path.basename(args.vcf)), vcf)
+    else:
+        vcf = []
+
     for variant in vcf:
         __DEBUGINFO__ = None
         __DRIVERINFO__ = None
         DECISION = None
-        var_counter += 1
-        if (var_counter % 1000 == 0 and args.verbose):
-            print ("## ", var_counter)
+        snv_counter += 1
+
+        if (snv_counter % 1000 == 0 and args.verbose):
+            print ("## ", snv_counter)
  
         try:
             db_info = dict(variant.INFO)
@@ -416,8 +424,7 @@ if __name__ == "__main__":
             # Get annotation INFO as a list of dict
             annot_info = get_INFO(variant.INFO.get(vcf_conf['tag']))
             if annot_info is None:
-                print("Annotations not detected in the VCF file. Please check if the vcf is well annotated !\n")
-                sys.exit(-1)
+                raise Exception("Annotation tag [" + vcf_conf['tag'] + "] not found !")
             
             ##############################
             # FORMAT - technical filters
@@ -432,6 +439,8 @@ if __name__ == "__main__":
                     tech_filtered = True
                     if not args.debug:
                         continue
+                elif fval is None:
+                    raise Exception("VAF tag [" + vcf_conf['vaf'] + "] not found !")
 
             # Sequencing Depth
             if args.min_depth is not None:
@@ -441,6 +450,8 @@ if __name__ == "__main__":
                     tech_filtered = True
                     if not args.debug:
                         continue
+                elif dval is None:
+                    raise Exception("DEPTH tag [" + vcf_conf['depth'] + "] not found !")
 
             # Alternative allele Depth
             if args.min_alt_depth is not None:
@@ -454,6 +465,8 @@ if __name__ == "__main__":
                     tech_filtered = True
                     if not args.debug:
                         continue
+                elif ad is None:
+                    raise Exception("ALT DEPTH tag [" + vcf_conf['alt_depth'] + "] not found !")
 
              # Polymorphisms
             if args.max_maf is not None:
@@ -494,7 +507,6 @@ if __name__ == "__main__":
                                 driver_counter += 1
                                 break
 
-                    
                     ## Driver genes from cancer gene list
                     elif gene_type is not None:
 
@@ -530,53 +542,67 @@ if __name__ == "__main__":
                 variant.INFO['ONCODRIVER'] = __DRIVERINFO__
                 wx.write_record(variant)
 
-        except:
-            warnflag = str(variant.CHROM) + ":" + str(variant.start) + "-" + str(variant.end)
-            warnings.warn("Warning : variant {} raises an error. Skipped so far ...".format(warnflag))
-            raise
+        except Exception as e:
+            warnflag = str(variant.CHROM) + ":" + str(variant.start+1) + "[" + str(variant.REF) + "/" + str(variant.ALT[0]) + "]"
+            warnings.warn("Warning : variant {} raises an error: \"{}\". Skipped ...".format(warnflag, e))
+            if args.strict:
+                print("Error - strict mode activated - exit")
+                sys.exit(-1)
+
+    wx.close()
+    vcf.close()
 
     if args.cnv is not None:
-        with open(args.cnv, "r", encoding="utf8") as csvfile:
-            csv_reader = csv.reader(csvfile, delimiter="\t")
-            header = ["chrom","loc.start","loc.end","ID","CNt","Geno","logratio","ploidy","call","LOH","gene","driver_status","gene_type"]
 
-            with open(args.outputcnv, mode='w', newline='') as outfile:
-                writer = csv.writer(outfile)
+        ## open files
+        tsvfile = open(args.cnv, "r", encoding="utf8")
+        tsv_reader = csv.reader(tsvfile, delimiter="\t")
 
-                # Write the new header to the output file
-                writer.writerow(header)
+        if args.outputcnv:
+            outtsv = open(args.outputcnv, mode='w', newline='')
+        else:
+            outtsv = open(re.sub(r'\.txt$|\.tsv', '_oncoDriver.tsv', os.path.basename(args.cnv)), mode='w', newline='')
+        tsv_writer = csv.writer(outtsv)
+        header = ["chrom","loc.start","loc.end","ID","CNt","Geno","logratio","ploidy","call","LOH","gene","driver_status","gene_type"]  
+        tsv_writer.writerow(header)
+        
+        next(tsv_reader, None)
 
-                for row in csv_reader:
-                    driver_status = 'NotDriver'
-                    gene_id = row[cnv_conf['gene_id']]
-                    gene_type = get_gene_type(gene_id, driver_genes)
-                    if gene_type is not None:
-                        if "chrom" not in row:
-                            var_class = row[cnv_conf['class']]
-                            length = int(row[cnv_conf['end']]) - int(row[cnv_conf['start']])
-                            is_driver_mut = is_driver_cnv(gene_type, var_class, length, select_algo[(gene_type, 'cnv' )])
+        for row in tsv_reader:
+            cnv_counter += 1
+            driver_status = 'NotDriver'
+            gene_id = row[cnv_conf['gene_id']]
+            gene_type = get_gene_type(gene_id, driver_genes)
+            if gene_type is not None:
+                var_class = row[cnv_conf['class']]
+                start = int(row[cnv_conf['start']])
+                end = int(row[cnv_conf['end']])
+                length = end - start
 
-                            if is_driver_mut:
-                                driver_status = 'Driver'
-                        row.append(driver_status)
-                        row.append(gene_type)
+                key = (gene_type, 'cnv')
+                if key in select_algo:
+                    is_driver_mut = is_driver_cnv(gene_type, var_class, length, select_algo[key])
+                    if is_driver_mut:
+                        driver_status = 'Driver'
 
                 ######################
                 # Export
                 ######################
 
-                        if ((driver_status == 'Driver') or (driver_status == 'NotDriver' and args.debug)) :
-                            writer.writerow(row)
+                if ((driver_status == 'Driver') or (driver_status == 'NotDriver' and args.debug)) :
+                    driver_counter += 1
+                    row.append(driver_status)
+                    row.append(gene_type)
+                    tsv_writer.writerow(row)
 
-    wx.close()
-    vcf.close()
-
+                    
     # Output
     print("## oncoDriver version=", __version__, file=sys.stderr)
     print("## When=", date.today(), file=sys.stderr)
     print("")
-    print("## Input=", args.vcf, file=sys.stderr)
+    print("## SNVs=", args.vcf, file=sys.stderr)
     print("## Sample=", args.sample, file=sys.stderr)
+    print("## CNVs=", args.cnv, file=sys.stderr)
     print("")
     print("## Config=", args.config, file=sys.stderr)
     print("## Driver genes=", args.driver_genes, file=sys.stderr)
@@ -585,5 +611,6 @@ if __name__ == "__main__":
     print("")
     print_config(conf)
     print("")
-    print("## Total variants=", var_counter, file=sys.stderr)
+    print("## Total SNVs variants=", snv_counter, file=sys.stderr)
+    print("## Total CNVs variants=", cnv_counter, file=sys.stderr)
     print("## Driver variants=", driver_counter, file=sys.stderr)

@@ -69,7 +69,7 @@
       "usage": "Specify starting step",
       "type": "string",
       "nargs": 1,
-      "choices": ["mapping", "markduplicates", "filtering", "calling", "annotate"],
+      "choices": ["mapping", "markduplicates", "filtering", "calling", "annotateSomatic"],
       "default_value": "mapping",
       "pattern": ".*",
       "render": "textfield",
@@ -179,6 +179,31 @@
       "group": "Inputs"
     },
 
+    {
+      "name": "trimming",
+      "label": "trimming",
+      "usage": "Trim sequencing reads",
+      "type": "boolean",
+      "nargs": 0,
+      "choices": [],
+      "default_value": false,
+      "pattern": "",
+      "render": "check-box",
+      "arity": 0,
+      "group": "Trimming"
+    },
+    {
+      "name": "trimmingOpts",
+      "label": "Options for reads trimming",
+      "usage": "Options for reads trimming",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--trim-n --2colour 20 --length 10",
+      "pattern": ".*",
+      "render": "textfield",
+      "arity": 0,
+      "group": "Trimming"
+    },
 
     {
       "name": "saveAlignedIntermediates",
@@ -319,6 +344,18 @@
       "default_value": [],
       "pattern": "",
       "render": "check-box",
+      "arity": 0,
+      "group": "Mapping Filtering"
+    },
+    {
+      "name": "extraBamFilters",
+      "label": "Extra filtering to apply to BAM file",
+      "usage": "Samtools extra filtering parameters",
+      "type": "string",
+      "nargs": "1",
+      "default_value": "--dont-use-soft-clipped-bases",
+      "pattern": ".*",
+      "render": "textfield",
       "arity": 0,
       "group": "Mapping Filtering"
     },

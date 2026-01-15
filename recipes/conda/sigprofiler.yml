@@ -2,7 +2,7 @@ name: sigprofiler
 channels:
   - conda-forge
   - bioconda
-  - defaults
+  - nodefaults
 dependencies:
   - conda-forge::python=3.9.12=h2660328_1_cpython
   - pip=22.0.4=pyhd8ed1ab_0
@@ -12,3 +12,5 @@ dependencies:
       - pandas==1.5.3
       - SigProfilerAssignment==0.1.8
       - SigProfilerMatrixGenerator==1.2.30
+      - pypdf==4.3.1
+

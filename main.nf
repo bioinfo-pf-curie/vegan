@@ -250,11 +250,18 @@ if (params.step == "mapping"){
 }else if (params.step == "filtering" || params.step == "markduplicates" || params.step == "calling" ){
   chRawReads = Channel.empty()
   chInputBam = NFTools.getIntermediatesData(params.samplePlan, ['.bam|.cram'],  params).map{it ->[it[0], it[1][0]]}
-}else if (params.step == "annotate"){
+}else if (params.step == "annotateSomatic"){
   chRawReads = Channel.empty()
   chAlignedBam = Channel.empty()
+  chMarkedBam = Channel.empty()
   chFilteredBam = Channel.empty()
-  chAllVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+  chRawSomaticVcf = NFTools.getIntermediatesData(params.samplePlan, ['.vcf.gz','.tbi'],  params).map{it ->[it[0], it[1][0], it[1][1]]}
+  chRawSomaticVcf = chRawSomaticVcf
+    .map{meta, vcf, tbi ->
+      def new_meta = [id:meta.id, name:meta.name, singleEnd:meta.singleEnd, tumor_id:meta.id, status:'pair']
+      [new_meta, vcf, tbi]
+  }
+  chRawGermlineVcf = Channel.empty()
 }
 
 // Make samplePlan if not available
@@ -320,13 +327,13 @@ include { ascatFlow } from './nf-modules/local/subworkflow/ascat'
 include { checkDesign } from './nf-modules/local/process/checkDesign'
 include { getSoftwareVersions } from './nf-modules/common/process/utils/getSoftwareVersions'
 include { outputDocumentation } from './nf-modules/common/process/utils/outputDocumentation'
+include { trimGalore } from './nf-modules/common/process/trimGalore/trimGalore'
 include { fastqc } from './nf-modules/common/process/fastqc/fastqc'
 include { multiqc } from './nf-modules/local/process/multiqc'
 include { preseq } from './nf-modules/common/process/preseq/preseq'
 include { markDuplicates } from './nf-modules/common/process/gatk/markDuplicates'
 include { samtoolsFlagstat as samtoolsStatsMarkdup } from './nf-modules/common/process/samtools/samtoolsFlagstat'
 include { samtoolsIndex as samtoolsIndexMarkdup } from './nf-modules/common/process/samtools/samtoolsIndex'
-//include { rescueVariants } from './nf-modules/common/process/bcftools/rescueVariants'
 include { vcf2maf } from './nf-modules/local/process/vcf2maf'
 
 /*
@@ -340,6 +347,7 @@ workflow {
 
   main:
     // Init MultiQC Channels
+    chTrimmingMqc = Channel.empty()
     chFastqcMqc = Channel.empty()
     chMappingStats = Channel.empty()
     chMappingFlagstat = Channel.empty()
@@ -352,6 +360,7 @@ workflow {
     chWgsMetricsMqc = Channel.empty()
     chHaplotypecallerMetricsMqc = Channel.empty()
     chMutect2MetricsMqc = Channel.empty()
+    chVcfMetricsMqc = Channel.empty()
     chTsTvMqc = Channel.empty()
     chSnpEffMqc = Channel.empty()
     chMSIMqc = Channel.empty()
@@ -373,7 +382,7 @@ workflow {
     //********************************************
     // SUB-WORKFLOW : Prepare intervals list
 
-    if (!params.noIntervals && !params.targetBed){
+    if (params.step == "mapping" && !params.noIntervals && !params.targetBed){
       prepareIntervalsFlow(
         chFastaFai.collect(),
         chIntervals
@@ -384,6 +393,16 @@ workflow {
       chIntervalBeds = chTargetBed
     }else{
       chIntervalBeds = Channel.value([])
+    }
+
+    // PROCESS: trimming
+    if (params.trimming){
+      trimGalore(
+        chRawReads
+      )
+      chRawReads=trimGalore.out.fastq
+      chTrimmingMqc=trimGalore.out.logs.map{it->it[1]}
+      chVersions = chVersions.mix(trimGalore.out.versions)
     }
 
     // PROCESS: fastqc
@@ -417,7 +436,7 @@ workflow {
       )
       chRawSomaticVcf = Channel.empty()
       chFilteredSomaticVcf = Channel.empty()
-      chAllGermlineVcf = rnaFlow.out.vcf
+      chRawGermlineVcf = rnaFlow.out.vcf
       chMarkdupStatsMqc = Channel.empty()
 
     }else{
@@ -543,7 +562,7 @@ workflow {
           chFastaFai.collect(),
           chPolyms.collect()
         )
-        chIdentitoMqc = identitoFlow.out.tsv
+        chIdentitoMqc = identitoFlow.out.tsv.mix(identitoFlow.out.results)
         chVersions = chVersions.mix(identitoFlow.out.versions)
       }
 
@@ -600,7 +619,7 @@ workflow {
         //[meta], tumor_bam, tumor_bai
         chTumorBam = chPairBam
           .map{ it ->
-            def meta = [tumor_id:it[0].tumor_id,id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
+            def meta = [tumor_id:it[0].tumor_id, id:it[0].tumor_id, status: "tumor", sex:it[0].sex]
             return [meta, it[1], it[2] ]
           }
 
@@ -643,13 +662,13 @@ workflow {
       ================================================================================
       */
 
-      if (params.step != "annotate"){
+      if (params.step != "annotateSomatic"){
 
         //*******************************************
         //SUB-WORKFLOW : HaplotypeCaller
 
         chSingleBam = chSingleBam.unique()
-        chAllGermlineVcf=Channel.empty()
+        chRawGermlineVcf = Channel.empty()
 
         if('haplotypecaller' in tools){
           haplotypeCallerFlow(
@@ -662,7 +681,7 @@ workflow {
             chDict
           )
           chVersions = chVersions.mix(haplotypeCallerFlow.out.versions)
-          chAllGermlineVcf = haplotypeCallerFlow.out.vcf
+          chRawGermlineVcf = haplotypeCallerFlow.out.vcf
         }
 
         //*******************************************
@@ -711,29 +730,27 @@ workflow {
           chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
           chRawSomaticVcf = chRawSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcf)
         }
-      }
-
-      /*
-      ================================================================================
-                                     VCF FILTERING
-      ================================================================================
-      */
-
-      chFilteredSomaticVcf = Channel.empty()
-      filterSomaticFlow(
-        chRawSomaticVcf,
-        chFasta,
-        chGnomadDb,
-        chGnomadDbIndex
-      )
-      chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-      chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
-      chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
     }
 
     /*
+     ================================================================================
+                                  VCF FILTERING
+     ================================================================================
+    */
+
+    filterSomaticFlow(
+      chRawSomaticVcf,
+      chFasta,
+      chGnomadDb,
+      chGnomadDbIndex
+    )
+    chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+    chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
+    chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
+
+    /*
     ================================================================================
-                                   VCF QC
+                               VCF QC
     ================================================================================
     */
   
@@ -749,7 +766,7 @@ workflow {
       .join(vcfQcFlow.out.stats)
       .filter{ meta, vcf, tbi, stats -> checkVarNumber(meta, stats) }
       .map{ meta, vcf, tbi, stats -> [meta, vcf, tbi] }
-
+    }
 
     /*
     ================================================================================
@@ -758,7 +775,8 @@ workflow {
     */
 
     // Annotation somatic vcf
-    if('snpeff' in tools || params.step == 'annotate'){
+    chAnnotatedSomaticVcf = Channel.empty()
+    if('snpeff' in tools || params.step == 'annotateSomatic'){
       annotateSomaticFlow(
         chFilteredSomaticVcf,
         chSnpeffDb,
@@ -774,11 +792,14 @@ workflow {
         chDbnsfp,
         chDbnsfpIndex
       )
+      chAnnotatedSomaticVcf = annotateSomaticFlow.out.vcf
       chSnpEffMqc = annotateSomaticFlow.out.snpEffReport
       chVersions = chVersions.mix(annotateSomaticFlow.out.versions)
+    }
 
+    if('snpeff' in tools){
       annotateGermlineFlow(
-        chAllGermlineVcf,
+        chRawGermlineVcf,
         chSnpeffDb,
         chSnpeffCache,
         chGnomadDb,
@@ -798,7 +819,7 @@ workflow {
 
     if('tmb' in tools){
       tmbFlow(
-        annotateSomaticFlow.out.vcf,
+        chAnnotatedSomaticVcf,
         chTargetBed,
         chEffGenomeSize
       )
@@ -855,23 +876,27 @@ workflow {
     ================================================================================
     */
 
+    chAnnotatedCnvs = Channel.empty()
     if('facets' in tools){
       facetsFlow(
         chPairBam,
         chDbsnp,
         chGeneBed
       )
+      chAnnotatedCnvs = facetsFlow.out.segmentsAnnotated
+      chVersions = chVersions.mix(facetsFlow.out.versions)
     }
 
     if('ascat' in tools){
       ascatFlow(
-        chSingleBam,
+        chPairBam,
         chAcLoci,
         chAcLociGC,
         chDict,
         chFasta,
         chFastaFai
       )
+      chVersions = chVersions.mix(ascatFlow.out.versions)
     }
     
     /*
@@ -882,16 +907,9 @@ workflow {
 
     chDriverSomaticVcf = Channel.empty()
     if('oncodriver' in tools){
-      if('facets' in tools){
-        chSomaticVcfCnv = annotateSomaticFlow.out.vcf
-          .combine(facetsFlow.out.segmentsAnnotated, by:0)
-      }else{
-        chSomaticVcfCnv = annotateSomaticFlow.out.vcf
-          .map{meta, vcf, tbi -> [meta, vcf, tbi, []]}
-      }
-
       driverSomaticFlow(
-        chSomaticVcfCnv,
+        chAnnotatedSomaticVcf,
+        chAnnotatedCnvs,
         chDriverGenes,
         chDriverConfig,
         chCanonicalGtf
@@ -923,14 +941,14 @@ workflow {
     // TABLE REPORT FORMAT
     if(params.table){
       tableReportFlow(
-        annotateSomaticFlow.out.vcf.concat(chDriverSomaticVcf)
+        chAnnotatedSomaticVcf.concat(chDriverSomaticVcf)
       )
     }
 
     // MAF FORMAT
     if(params.maf){
       vcf2maf(
-        chFilteredSomaticVcf.concat(chDriverSomaticVcf),
+        chAnnotatedSomaticVcf.concat(chDriverSomaticVcf),
         chFasta
       )
     }
@@ -954,6 +972,7 @@ workflow {
         chSplan.collect(),
         chMetadata.ifEmpty([]),
         chMultiqcConfig.ifEmpty([]),
+        chTrimmingMqc.ifEmpty([]),
         chFastqcMqc.collect().ifEmpty([]),
         chMappingStats.collect().ifEmpty([]),
         chMappingFlagstat.collect().ifEmpty([]),

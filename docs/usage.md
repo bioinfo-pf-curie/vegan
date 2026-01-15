@@ -164,14 +164,15 @@ SAMPLE_ID | SAMPLE_NAME | PATH_TO_BAM_FILE | PATH_TO_BAM_INDEX
 
 #### Starting at the annotation step
 
-In order to start at the annotation step, so just after variant calling, you can use the option `--step 'annotate'` as follow :
+In order to start at the annotation step, so just after variant calling, you can use the option `--step 'annotateSomatic'` as follow :
 
 ```bash
-nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.vcf.csv] --design [DESIGN] \
-                     --step 'annotate' --genome 'hg38' --tools 'mutect2,ascat' \
+nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.vcf.csv] \
+                     --step 'annotateSomatic' --genome 'hg38' --tools 'snpeff' --maf \
                      -profile cluster,singularity --outDir [RESULTS_3] -w [RESULTS_3/work]
 ```
 
+Of note, the current version only supports somatic annotation sub-workflow.  
 The sample plan contains the following information :
 
 SAMPLE_ID | SAMPLE_NAME | PATH_TO_VCF_FILE | PATH_TO_VCF_TABIX_INDEX

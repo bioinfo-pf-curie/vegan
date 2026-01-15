@@ -2,6 +2,7 @@ name: bwa
 channels:
   - conda-forge
   - bioconda
+  - nodefaults
 dependencies:
   - bioconda::bwa=0.7.17=h7132678_9
   - bioconda::samtools=1.15.1=h6899075_1

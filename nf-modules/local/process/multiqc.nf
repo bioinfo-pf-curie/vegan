@@ -1,7 +1,5 @@
 /*
- * MultiQC for RNA-seq report
- * External parameters :
- * @ params.singleEnd :	is data	single-end sequencing ?
+ * MultiQC report
  */
 
 process multiqc {
@@ -13,6 +11,7 @@ process multiqc {
   path splan
   path metadata
   path multiqcConfig
+  path ('trimming/*')
   path ('fastqc/*')
   path ('mapping/*')
   path ('mapping/*')
@@ -46,7 +45,7 @@ process multiqc {
   def designOpts= params.design ? "-d ${params.design}" : ""
   def splanOpts = params.samplePlan ? "--splan ${params.samplePlan}" : ""
   def isPE = params.singleEnd ? 0 : 1
-  def modulesList = "-m custom_content -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m picard -m mosdepth -m samtools"
+  def modulesList = "-m custom_content -m cutadapt -m fastqc -m preseq -m picard -m gatk -m bcftools -m snpeff -m picard -m mosdepth -m samtools"
   def warn = warnings.name == 'warnings.txt' ? "--warn warnings.txt" : ""
   """
   stats2MultiQC.sh -s ${splan} ${designOpts} -p ${isPE}

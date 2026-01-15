@@ -15,9 +15,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool
 It comes with conda / singularity containers making installation easier and results highly reproducible. 
 The first version of `VEGAN` was inspired from the [nf-core Sarek pipeline](https://github.com/nf-core/sarek) with several common processes, additional modifications and new analysis steps.
 
-
 ![image](./assets/vegan_wkflow.png)
-
 
 ### Pipeline summary
 
@@ -64,7 +62,7 @@ Launching `main.nf` [magical_lovelace] DSL2 - revision: 6d760c486c
    |_| \_| |_|                \_/    |_____|  \____| /_/   \_\ |_| \_|
 
 
-                   VEGAN v2.6.0
+                   VEGAN v2.7.0
 ------------------------------------------------------------------------
 
     Usage:
@@ -83,7 +81,7 @@ MANDATORY ARGUMENTS:
     --profile              STRING [test, multiconda, singularity, cluster, docker, conda, path, multipath]                           Configuration profile to use 
                                                                                                                                      Can use multiple (comma 
                                                                                                                                      separated).
-    --step                 STRING [mapping, markduplicates, filtering, calling, annotate]                                            Specify starting step
+    --step                 STRING [mapping, markduplicates, filtering, calling, annotateSomatic]                                     Specify starting step
     --tools                STRING [haplotypecaller, mutect2, manta, snpeff, oncodriver, facets, ascat, tmb, msisensor, sigprofiler]  Specify tools to use for variant calling
 
 INPUTS:
@@ -97,6 +95,10 @@ INPUTS:
 OUTPUTS:
     --cleanup STRING [none, auto, success]  Cleaning strategy of the work/ directory
     --outDir  PATH                          The output directory where the results will be saved
+
+TRIMMING:
+    --trimming                 Trim sequencing reads
+    --trimmingOpts             Options for reads trimming
 
 ALIGNMENT:
     --aligner                  STRING [bwa-mem, bwa-mem2, dragmap]   Specify tools to use for mapping

@@ -1,3 +1,70 @@
+************************************
+version-2.7.3
+
+BUG FIXES
+
+  - set pypdf version to 4.3.1 needed by sigprofiler (PdfMerge removed in later versions)
+
+MISCELLANEOUS
+
+  - update .gitlab-ci.yml
+
+***********************************
+version-2.7.2
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - step 'annotateSomatic' now starts by filtering the vcf files
+  - update gnomAD reference to 4.1
+
+***********************************
+version-2.7.1
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Update multiqc and fastqc versions
+  - Update reports
+
+BUG FIXES
+
+  - Update oncoDriver to run with only CNVs data
+  - Run vcf2Maf on annotated VCF
+
+***********************************
+version-2.7.0
+
+NEW FEATURES
+
+  - New '--trimming' option running TrimGalore! on raw reads
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - Restore the identito clustering image in the MultiQC report
+
+***********************************
+version-2.6.2
+
+BUG FIXES
+
+  - Fix bug when starting VEGAN from vcf files
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - By default, the somatic variants <5% are filtered. See `--filterSomaticVAF`
+  - Step 'annotate' now becomes 'annotateSomatic'
+
+***********************************
+version-2.6.1
+
+NEW FEATURES
+
+  - New '--extraBamFilters' parameters to filter BAM file
+
+BUG FIXES
+
+  - Fix issues with ASCAT results folder #228
+  - Reports Facets version number
+
 ***********************************
 version-2.6.0
 

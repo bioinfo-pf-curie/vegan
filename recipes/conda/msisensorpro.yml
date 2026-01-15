@@ -2,6 +2,6 @@ name: msisensorpro
 channels:
   - conda-forge
   - bioconda
-  - defaults
+  - nodefaults
 dependencies:
   - msisensor-pro=1.2.0=hfc31af2_0
