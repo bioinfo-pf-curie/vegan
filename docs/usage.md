@@ -2,39 +2,68 @@
 
 ## Table of contents
 
-* [Introduction](#general-nextflow-info)
-* [Running the pipeline](#running-the-pipeline)
-* [Main arguments](#main-arguments)
-    * [`--reads`](#--reads)
-	* [`--samplePlan`](#--samplePlan)
-    * [`--design`](#--design)
-	* [`--noIntervals`](#--noIntervals)
-	* [`--tools`](#--tools)
-* [Inputs](#inputs)
-    * [`--singleEnd`](#--singleend)
-    * [`--step`](#--step)
-* [Alignment](#alignment)
-    * [`--bwaOptions`](#--bwaOptions)
-	* [`--saveAlignedIntermediates`](#--saveAlignedIntermediates)
-* [Filtering](#filtering)
-    * [`--targetBed`](#--targetBed)
-    * [`--SNVFilters`](#--SNVFilters)
-    * [`--SVFilters`](#--SVFilters)
-* [Variant calling](#variant_calling)
-    * [`--baseQual`](#--baseQual)
-	* [`--saveGVF`](#--saveGVCF)
-* [Reference genomes](#reference-genomes)
-    * [`--genome`](#--genome)
+* [General information](#general-information)
 * [Use case](#use-case)
-    * [Whole genome sequencing analysis](#whole-genome-sequencing-analysis)
-    * [Whole exome sequencing analysis](#whole-exome-sequencing-analysis)
-	* [Starting from intermediates results](#starting-from-intermediates-results)
-* [Nextflow profiles](#nextflow-profiles) 
-* [Job resources](#job-resources)
-* [Automatic resubmission](#automatic-resubmission)
-* [Other command line parameters](#other-command-line-parameters)
+  * [Whole genome sequencing analysis](#whole-genome-sequencing-analysis)
+  * [Whole exome sequencing analysis](#whole-exome-sequencing-analysis)
+  * [Starting from intermediates results](#starting-from-intermediates-results)
+* [Nextflow profiles](#nextflow-profiles)
+* [Running the pipeline](#running-the-pipeline)
+  * [Mandatory arguments](#mandatory-arguments)
+    * [`--samplePlan`](#--samplePlan)
+    * [`--design`](#--design)
+    * [`--profile`](docs/profiles.md)
+    * [`--step`](#--step)
+    * [`--tools`](#--tools)
+    * [`--outDir`](#--outDir)
+  * [Inputs](#inputs)
+    * [`--reads`](#--reads)
+    * [`--singleEnd`](#--singleend)
+	* [`--splitFastq`](#--splitFastq)
+	* [`--rna`](#--rna)
+  * [Alignment](#alignment)
+    * [`--aligner`](#--aligner)
+    * [`--mapQual`](#--mapQual)
+    * [`--bwaOpts`](#--bwaOpts)
+    * [`--saveAlignedIntermediates`](#--saveAlignedIntermediates)
+  * [Filtering](#filtering)
+    * [`--targetBed`](#--targetBed)
+    * [`--keepDups`](#--kepDups)
+    * [`--keepMultiHits`](#--keepMultiHits)
+    * [`--keepSingleton`](#--keepSingleton)
+  * [Variant calling](#variant_calling)
+    * [`--baseQual`](#--baseQual)
+    * [`--orientationBiais`](#--orientationBiais)
+	* [`--pon`](#--pon)
+    * [`--saveVcfIntermediates`](#--saveVcfIntermediates)
+    * [`--saveVcfMetrics`](#--saveVcfMetrics)
+  * [Variant filtering](#variant_filtering)
+    * [`--filterSomaticDP`](#--filterSomaticsDP)
+	* [`--filterSomaticMAF`](#--filterSomaticsMAF)
+	* [`--filterSomaticVAF`](#--filterSomaticsVAF)
+	* [`--rescueVariants`](#--rescueVariants)
+	* [`--rescueVariantsType`](#--rescueVariantsType)
+	* [`--rescueVariantsVAF`](#--rescueVariantsVAF)
+	* [`--driverConfig`](#--driverConfig)
+  * [Variant annotation](#variant_annotation) 
+    * [`--annotDb`](#--annotDb)
+  * [Biomarkers](#biomarkers)
+    * [`--tmbFilters`](#--tmbFilters)
+	* [`--msiBaselineConfig`](#--msiBaselineConfig)
+  * [Export](#export)
+    * [`--maf`](#--maf)
+	* [`--table`](#--table)
+  * [Copy Number](#copy_number)
+    * [`--facetsOpts`](#--facetsOpts)
+  * [Reference genomes](#reference-genomes)
+    * [`--genome`](#--genome)
+    * [`--genomeAnnotationPath`](#--genomeAnnotationPath)
+  * [Working directory](#work)
+    * [`-w`](#-w)
+	* [`--cleanup`](#--cleanup)
+  * [Other command line parameters](#other-command-line-parameters)
     * [`--skip*`](#--skip*)
-	* [`--outDir`](#--outDir)
+    * [`-w`](#-w)
     * [`-name`](#-name-single-dash)
     * [`-resume`](#-resume-single-dash)
     * [`-c`](#-c-single-dash)
@@ -42,10 +71,13 @@
     * [`--maxTime`](#--maxTime)
     * [`--maxCpus`](#--maxCpus)
     * [`--multiqcConfig`](#--multiqcConfig)
+* [Job resources](#job-resources)
+* [Automatic resubmission](#automatic-resubmission)
 
-## General Nextflow info
 
-Nextflow handles job submissions on SLURM or other environments, and supervises running the jobs. Thus the Nextflow process must run until the pipeline is finished. We recommend that you put the process running in the background through `screen` / `tmux` or similar tool. Alternatively you can run nextflow within a cluster job submitted your job scheduler.
+## General information
+
+Nextflow handles job submissions on SLURM or other environments, and supervises running the jobs. Thus the Nextflow process must run until the pipeline is finished. We recommend that you put the process running in the background through `screen` / `tmux` or similar tool. Alternatively you can run nextflow within a cluster job submitted to your job scheduler.
 
 It is recommended to limit the Nextflow Java virtual machines memory. We recommend adding the following line to your environment (typically in `~/.bashrc` or `~./bash_profile`):
 
@@ -53,14 +85,121 @@ It is recommended to limit the Nextflow Java virtual machines memory. We recomme
 NXF_OPTS='-Xms1g -Xmx4g'
 ```
 
+## Use case
+
+### Whole genome sequencing analysis
+
+Whole-genome sequencing usually represent large data file. Thus, `VEGAN` allows to split the data per chromosome and to run the analysis in parallel on a computational cluster.  
+In addition, the user can also split the input data in chunks to speed up the processing. To do so, look at the `--splitFastq` command.
+Here is a typical command line to analyse whole-genome analysis data.
+
+```bash
+nextflow run main.nf -profile cluster,multiconda \
+  --samplePlan splan.csv \
+  --splitFastq --fastqChunksSize 50000000 \
+  --design design.csv \
+  --step mapping \
+  --tools ascat,manta,mutect2,snpeff,tmb \
+  --genome h38 \
+  --genomeAnnotationPath /PATH/TO/ANNOTATIONS \
+  --condaCacheDir /PATH/TO/CONDA \
+  --outDir /PATH/TO/RESULTS \
+  -w /PATH/TO/WORK \
+  -resume
+```
+
+### Whole exome sequencing analysis
+
+Here is a typical command line to analyse whole-exome analysis data, thus focusing the analysis on a targetBed file.
+
+```bash
+nextflow run main.nf -profile cluster,multiconda \
+  --samplePlan splan.csv \
+  --design design.csv \
+  --targetBed target.bed \
+  --step mapping \
+  --tools facets,mutect2,snpeff,oncodriver,sigprofiler \
+  --maf \
+  --table \
+  --genome h38 \
+  --genomeAnnotationPath /PATH/TO/ANNOTATIONS \
+  --condaCacheDir /PATH/TO/CONDA \
+  --outDir /PATH/TO/RESULTS \
+  -w /PATH/TO/WORK \
+  -resume
+```
+
+### Starting from intermediates results
+
+`VEGAN` offers the possibility to start the pipeline from intermediate files.
+In this case, the sample plan must be adapted.
+
+#### Starting at Bam filtering step
+
+In order to start at the filtering step, so just after reads mapping, you can use the option `--step 'filtering'` as follow :
+
+```bash
+nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.filtered.csv] --design [DESIGN] \
+                     --step 'filtering' --genome 'hg38' --tools 'mutect2,ascat' \
+                     -profile cluster,singularity --outDir [RESULTS_2] -w [RESULTS_2/work]
+```
+
+The sample plan contains the following information :
+
+SAMPLE_ID | SAMPLE_NAME | PATH_TO_BAM_FILE | PATH_TO_BAM_INDEX
+
+#### Starting at variant calling step
+
+In order to start at the variant calling step, so just after BAM recalibration, you can use the option `--step 'calling'` as follow :
+
+```bash
+nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.recal.csv] --design [DESIGN] \
+                     --step 'calling' --genome 'hg38' --tools 'mutect2,ascat' \
+                     -profile cluster,singularity --outDir [RESULTS_3] -w [RESULTS_3/work]
+```
+
+The sample plan contains the following information :
+
+SAMPLE_ID | SAMPLE_NAME | PATH_TO_BAM_FILE | PATH_TO_BAM_INDEX
+
+#### Starting at the annotation step
+
+In order to start at the annotation step, so just after variant calling, you can use the option `--step 'annotateSomatic'` as follow :
+
+```bash
+nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.vcf.csv] \
+                     --step 'annotateSomatic' --genome 'hg38' --tools 'snpeff' --maf \
+                     -profile cluster,singularity --outDir [RESULTS_3] -w [RESULTS_3/work]
+```
+
+Of note, the current version only supports somatic annotation sub-workflow.  
+The sample plan contains the following information :
+
+SAMPLE_ID | SAMPLE_NAME | PATH_TO_VCF_FILE | PATH_TO_VCF_TABIX_INDEX
+
+## Nextflow profiles
+
+Different Nextflow profiles can be used. See [Profiles](profiles.md) for details.
+
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:
 ```bash
-nextflow run main.nf --reads '*_R{1,2}.fastq.gz' -profile 'singularity' --genome 'hg19'
+nextflow run main.nf -profile cluster,multiconda \
+  --samplePlan splan.csv \
+  --design design.csv \
+  --targetBed target.bed \
+  --step mapping \
+  --tools facets,mutect2,snpeff \
+  --genome h38 \
+  --genomeAnnotationPath /PATH/TO/ANNOTATIONS \
+  --condaCacheDir /PATH/TO/CONDA \
+  --outDir /PATH/TO/RESULTS \
+  -w /PATH/TO/WORK \
+  -resume
 ```
 
-This will launch the pipeline with the `singularity` configuration profile. See below for more information about profiles.
+This will launch the pipeline with the `multiconda` configuration profile. See below for more information about profiles.
 
 Note that the pipeline will create the following files in your working directory:
 
@@ -71,11 +210,59 @@ results         # Finished results (configurable, see below)
 # Other nextflow hidden files, eg. history of pipeline runs and old logs.
 ```
 
-You can change the output director using the `--outDir/-w` options.
+You can change the output director and the work directory using respectively `--outDir` and `-w` options.
 
-## Main arguments
+### Mandatory arguments
 
-### `--reads`
+#### `--samplePlan`
+
+Use this to specify a sample plan file instead of a regular expression to find fastq files. This is the preferred solution for Vegan pipeline. For example :
+
+```bash
+--samplePlan 'path/to/data/sample_plan.csv'
+```
+
+The sample plan is a csv file with the following information (no header):
+
+SAMPLE_ID | SAMPLE_NAME | PATH_TO_R1_FASTQ_FILE | PATH_TO_R2_FASTQ_FILE
+
+#### `--design`
+
+Use this to specify a design file to list all experimental samples, their IDs, the associated germinal sample, the sex of the patient and the status (tumor / normal). For example :
+
+```bash
+--design 'path/to/design.csv'
+```
+
+The design file is a csv file with the following header :
+
+GERMLINE_ID | TUMOR_ID | PAIR_ID | SEX
+
+This file is mandatory in order to run the variant calling and annotation parts of the pipeline
+
+#### `--profile`
+
+see documentation about [profiles](docs/profiles.md)
+
+#### `--step`
+
+This parameter specify the starting step of the pipeline. Several entry point are available. Each step requires a specific sample_plan.
+
+**Available:** mapping, filtering, calling, annotate.
+
+#### `--tools`
+
+Specify the tools to use for variant calling and downstream steps.
+
+**Available:** facets, ascat, haplotypecaller, mutect2, manta, snpeff, msisensor, tmb, oncodriver, sigprofiler
+
+#### `--outDir`
+
+The output directory where the results will be saved.
+
+### `Inputs`
+
+#### `--reads`
 
 Use this to specify the location of your input FastQ files. For example:
 
@@ -91,47 +278,7 @@ Please note the following requirements:
 
 If left unspecified, a default pattern is used: `data/*{1,2}.fastq.gz`
 
-### `--samplePlan`
-
-Use this to specify a sample plan file instead of a regular expression to find fastq files. For example :
-
-```bash
---samplePlan 'path/to/data/sample_plan.csv'
-```
-
-The sample plan is a csv file with the following information (no header):
-
-SAMPLE_ID | SAMPLE_NAME | PATH_TO_R1_FASTQ_FILE | PATH_TO_R2_FASTQ_FILE
-
-### `--design`
-
-Use this to specify a design file to list all experimental samples, their IDs, the associated germinal sample, the sex of the patient and the status (tumor / normal). For example :
-
-```bash
---design 'path/to/design.csv'
-```
-
-The design file is a csv file with the following header :
-
-GERMLINE_ID | TUMOR_ID | PAIR_ID | SEX
-
-### `--noIntervals`
-Disable usage of intervals file, and disable automatic generation of intervals file when none are provided.
-
-For WGS samples, splitting in interval is advised to reduce running time.
-
->**NB:** Running the pipeline with or without intervals can results in small differences in the variant calling due to some heuristics in the algorithms
-
-### `--tools`
-
-Specify the tools to use for variant calling and downstream steps.
-
-**Available:** facets, ascat, haplotypecaller, manta, mutect2, snpeff
-
-
-## `Inputs`
-
-### `--singleEnd`
+#### `--singleEnd`
 
 By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--reads`. For example:
 
@@ -141,23 +288,45 @@ By default, the pipeline expects paired-end data. If you have single-end data, y
 
 It is not possible to run a mixture of single-end and paired-end files in one run.
 
-### `--step`
+#### `--splitFastq`
 
-This parameter specify the starting step of the pipeline. Several entry point are available. Each step requires a specific sample_plan.
+For large data file, it is possible to split the input data into chunks to speed up the processing. The `--fastqChunksSize` allows to control the number of reads to put into a single chunk (default: 20000000). For instance:
 
-**Available:** mapping, recalibrate, variantcalling, annotate.
+```
+--splitFastq --fastqChunksSize 50000000
+```
 
-## `Alignment`
+#### `--rna`
 
-### `--bwaOptions`
+Specify that the data are from RNA sequencing. In this case, `VEGAN` wll run the RNA-seq sub-workflow.
+
+```
+--rna
+```
+
+### `Alignment`
+
+#### `--aligner`
+
+Change the aligner tool used for mapping step.
+
+**Available:** bwa-mem (default), bwa-mem2 and dragmap   
+
+#### `--mapQual`
+
+Minimum mapping quality to consider for an alignment
+
+**Default:** 20
+
+#### `--bwaOpts`
 
 Change default BWA-mem options ("-k 19 -T 30 -M") for reads alignment.
 
 ```bash
---bwaOptions "[NEW OPTIONS]"
+--bwaOpts "[NEW OPTIONS]"
 ```
 
-### `--saveAlignedIntermediates`
+#### `--saveAlignedIntermediates`
 
 By default, only alignment files in BAM format after filtering are saved in the `--outDir` directory.  
 Using this option, all intermediate BAM files are saved, including BWA-mem outputs, sambambam outputs, intersection with targets (for WES).
@@ -167,9 +336,9 @@ Note that activating this option usually consumes a large amount of disk space.
 --saveAlignedIntermediates
 ```
 
-## `Filtering`
+### `Filtering`
 
-### `--targetBed`
+#### `--targetBed`
 
 Specify a target BED file for targeted or whole exome sequencing
 
@@ -177,33 +346,33 @@ Specify a target BED file for targeted or whole exome sequencing
 --targetBed
 ```
 
-### `--SNVFilters`
+#### `--keepDups`
 
-Specify which filters to apply on aligned reads before SNV calling (comma separated)
-
-**Available:** mapq,duplicates,singleton,multihits
-
-**Default:** mapq,duplicates
+Specify to keep duplicate reads when filtering the alignment
 
 ```bash
---SNVFilters 'mapq,duplicates'
+--keepDups
 ```
 
-### `--SVFilters`
+#### `--keepMultiHits`
 
-Specify which filters to apply on aligned reads before SV calling (comma separated).
-
-**Available:** mapq,duplicates,singleton,multihits
-
-**Default:** duplicates
+Specify to keep multi hit reads when filtering the alignment
 
 ```bash
---SVFilters 'duplicates'
+--keepMultiHits
 ```
 
-## Variants calling
+#### `--keepSingleton`
 
-### `--baseQual`
+Specify to keep singleton reads when filtering the alignment
+
+```bash
+--keepSingleton
+```
+
+### Variants calling
+
+#### `--baseQual`
 
 Define the base quality for `Facets` copy number analyis.
 
@@ -213,19 +382,171 @@ Define the base quality for `Facets` copy number analyis.
 --baseQual 13
 ```
 
-### `--saveGVCF`
+#### `--orientationBiais`
 
-Save intermediate gvcf file generated by `HaplotyCaller`
+Specify to use the orientation biais filter for Mutect2 calls in order to reduce the number of false positives calls emerging from artifactual alterations in FFPE samples.
+
+**Default:** true
 
 ```bash
---saveGVCF
+--orientationBiais
 ```
 
-## Reference genomes
+#### `--pon`
+
+Path to vcf file with a **panel of normal** samples. Those variants will be considered as normal ones and filtered by Mutect2.
+
+```bash
+--pon path/to/pon --ponIndex path/to/pon.index 
+```
+
+#### `--saveVcfIntermediates`
+
+Save intermediate vcf files for Manta, Mutect2 and HaplotypeCaller.
+
+#### `--saveVcfMetrics`
+
+Save complementary vcf metrics files for HaplotypeCaller and Mutect2.
+
+### Variant Filtering
+
+#### `--filterSomaticDP`
+
+Specify the minimum Sequencing Depth to use to filter the variants.  
+Of note, this filter has no direct impact on TMB calculation (see `--tmbFilters`).
+
+**Default: 20**
+
+```bash
+--filterSomaticDP 20
+```
+
+#### `--filterSomaticMAF`
+
+Specify the Minimum Allele Frequency to consider (and filter) a variant as a polymorphism.  
+Of note, this filter has no direct impact on TMB calculation (see `--tmbFilters`). 
+
+**Default: 0.001**
+
+```bash
+--filterSomaticMAF 0.001
+```
+
+#### `--filterSomaticVAF`
+
+Specify the minimum Variant Allele Frequency to consider a variant.  
+Of note, this filter has no direct impact on TMB calculation (see `--tmbFilters`). 
+
+**Default: 0.01**
+
+```bash
+--filterSomaticVAF 0.01
+```
+
+#### `--rescueVariants`
+
+For some specific cases, it could be useful to rescue some variants which have been filtered by Mutect2.  
+One typical application would be to rescue variants supported by only a few reads in the normal samples which could be due to circular tumoral DNA contamination.  
+
+This option will rescue the variants defined through `--rescueVariantsType`, and merge them with the list of filtered variants.
+
+```bash
+--rescueVariants
+```
+
+#### `--rescueVariantsType`
+
+Regular expression defining the variants to rescue (ie. FILTER column in the VCF file).  
+By default, only `FILTER=='normal_artifact'` are rescued.
+
+```bash
+--rescueVariantsType "ILTER=='normal_artifact' | FILTER=='germline'"
+```
+
+#### `--rescueVariantsVAF`
+
+The **maximum** VAF to rescue a variant.
+
+**Default: 0.05**
+
+```bash
+--rescueVariantsVAF 0.05
+```
+
+#### `--driverConfig`
+
+Define the clinical algorithm uses to select the variants of clinical interest (both SNVs and CVNs).  
+
+
+```bash
+--driverConfig path/to/config
+```
+
+### Variant Annotation
+
+### `--annotDb`
+
+Specify the database to use for the annotation with SnpsSift.
+
+**Available:** cosmic, icgc, cancerhotspots, gnomad, dbnsfp
+
+**Default:** all
+
+### Biomarkers
+
+#### `--tmbFilters`
+
+The options to calculate the Tumor Mutational Burden (TMB) can be modified.  
+By default, these options are defined for frozen samples as follow:
+
+```bash
+tmbFilters "--vaf 0.05 --maf 0.001 --minDepth 20 --minAltDepth 2 --filterLowQual --filterNonCoding --filterSyn --filterPolym --polymDb 1k,gnomad"
+```
+
+For FFPE samples, the following parameters are recommanded:
+
+```bash
+tmbFilters "--vaf 0.1 --maf 0.001 --minDepth 20 --minAltDepth 2 --filterLowQual --filterNonCoding --filterSyn --filterPolym --polymDb 1k,gnomad"
+```
+
+#### `--msiBaselineConfig`
+
+Configuration file for MSIsensor-pro to define a list of normal samples in tumour-only mode.
+
+
+### Export
+
+#### `--maf`
+
+Export VCF files in MAF format.
+
+```bash
+--maf
+```
+
+### `--table`
+
+Export VCF in tabular format
+
+```bash
+--table
+```
+
+### Copy Number
+
+#### `--facetsOpts`
+
+Modify the default options to run`facets` for copy number analysis.
+
+```
+--facetsOpts "--normalDepth 25 --maxDepth 1000 --ampCopy 5 --hetThres 0.25"
+```
+
+### Reference genomes
 
 The pipeline config files come bundled with paths to the genomes reference files.
 
-### `--genome`
+#### `--genome`
 
 There are different species supported in the genomes references file. To run the pipeline, you must specify which to use with the `--genome` flag.
 
@@ -234,6 +555,8 @@ You can find the keys to specify the genomes in the [genomes config file](../con
 * Human
   * `--genome hg19`
   * `--genome hg38`
+  * `--genome hg19_base` and `--genome hg38_base` (contains mitochondrial chromosome but extra contigs are removed)
+
 * Mouse
   * `--genome mm10`
 
@@ -273,80 +596,39 @@ Note that all these paths can be updated on the command line using for example t
 - `gtf` - Path to GTF file
 - ...
 
-## Use case
+#### `--genomeAnnotationPath`
 
-### Whole genome sequencing analysis
-
-Here is a typical command line to analyse whole-genome analysis data.
+This parameter points to the folder containing all the annotations.
 
 ```bash
-nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \
-                     --genome 'hg38' --tools haplotyCaller,mutect2,snpeff,ascat,manta \
-                     -profile cluster,singularity --outDir [RESULTS] -w [RESULTS_work]
+--genomeAnnotationPath /PATH/TO/ANNOTATIONS
 ```
 
-### Whole exome sequencing analysis
+### Working directory
 
-Here is a typical command line to analyse whole-exome analysis data, thus focusing the analysis on a targetBed file.
+#### `-w`
 
-```bash
-nextflow run main.nf --samplePlan [SAMPLE_PLAN] --design [DESIGN] \
-                     --genome 'hg38' --tools 'haplotyCaller,mutect2,snpeff,facets' \
-                     -profile cluster,singularity --outDir [RESULTS] -w [RESULTS/work]
-```
+Specify the working directory which will contain all intermediate results. Of note, this folder **can take a lot of disk space !**. be sure to have enough disk before running the pipeline.
 
-### Starting from intermediates results
+#### `--cleanup`
 
-`VEGAN` offers the possibility to start the pipeline from intermediate files.
-In this case, the sample plan must be adapted. When it runs, `VEGAN` generates intermediate sample plan files in the `resume` output directory, 
-which can then be reused as starting point of another analysis.
+The `work` folder is mandatory to be able to `-resume` the pipeline. However, because of disk space usage, several options can be specified.
 
-#### Starting at GATK recalibration step
+- `--cleanup success`
 
-In order to start at the GATK recalibration step, so just after reads filtering, you can use the option `--step 'recalibrate'` as follow :
+The `work` folder will be deleted at the end of the pipeline, and only of all steps have been run successfully. This is the default behavior.
 
-```bash
-nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.filtered.csv] --design [DESIGN] \
-                     --step 'recalibrate' --genome 'hg38' --tools 'mutect2,ascat' \
-                     -profile cluster,singularity --outDir [RESULTS_2] -w [RESULTS_2/work]
-```
+- `--cleanup auto`
 
-The sample plan contains the following information :
+In this case, the `work` will be clean up on the fly. As soon as a file is no longer useful, it is deleted. In practice, it means that the `work` folder size should never be larger than two times the size of BAM files. **However, in the current version, the `--resume` option is no longer available !**
 
-SAMPLE_ID | SAMPLE_NAME | VARIANT_TYPE | PATH_TO_BAM_FILE | PATH_TO_BAM_INDEX
+- `--cleanup none`
 
-The `VARIANT_TYPE` must be either `SV` or `SNV` to define which BAM files as to be used for which type of analysis
+The `work` folder is never removed. This mode has to be used in development mode, to get access to the command lines and intermediate results. Be sure to manually clean the `work` if you activate this option.
 
-#### Starting at variant calling step
+### Other command line parameters
 
-In order to start at the variant calling step, so just after BAM recalibration, you can use the option `--step 'variantcalling'` as follow : 
-
-```bash
-nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.recal.csv] --design [DESIGN] \
-                     --step 'variantcalling' --genome 'hg38' --tools 'mutect2,ascat' \
-                     -profile cluster,singularity --outDir [RESULTS_3] -w [RESULTS_3/work]
-```
-
-The sample plan contains the following information :
-
-SAMPLE_ID | SAMPLE_NAME | VARIANT_TYPE | PATH_TO_BAM_FILE | PATH_TO_BAM_INDEX
-
-The `VARIANT_TYPE` must be either `SV` or `SNV` to define which BAM files as to be used for which type of analysis
-
-## Nextflow profiles
-
-Different Nextflow profiles can be used. See [Profiles](profiles.md) for details.
-
-## Job resources
-
-### Automatic resubmission
-
-Each step in the pipeline has a default set of requirements for number of CPUs, memory and time (see the `conf/process.conf` file).
-For most of the steps in the pipeline, if the job exits with an error code of `143` (exceeded requested resources) it will automatically resubmit with higher requests (2 x original, then 3 x original). If it still fails after three times then the pipeline is stopped.
-
-## Other command line parameters
-
-### `--skip*`
+#### `--skip*`
 
 The pipeline is made with a few *skip* options that allow to skip optional steps in the workflow.
 The following options can be used:
@@ -355,14 +637,10 @@ The following options can be used:
 - `--skipIdentito` Disable Identito vigilance
 - `--skipMultiqc` Disable MultiQC
 - `--skipPreseq` Disable Preseq
-- `--skipQC` Specify which QC tools to skip from bamqc, fastqc, multiqc, samtoolsstats, versions
+- `--skipQC` Disable all QC tools
 - `--skipMutectContamination` Disable mutect2 `CalculateContamination` step
 
-### `--outDir`
-
-The output directory where the results will be saved.
-
-### `-name`
+#### `-name`
 
 Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic.
 
@@ -370,14 +648,14 @@ This is used in the MultiQC report (if not default) and in the summary HTML / e-
 
 **NB:** Single hyphen (core Nextflow option)
 
-### `-resume`
+#### `-resume`
 
 Specify this when restarting a pipeline. Nextflow will used cached results from any pipeline steps where the inputs are the same, continuing from where it got to previously.
 You can also supply a run name to resume a specific run: `-resume [run-name]`. Use the `nextflow log` command to show previous run names.
 
 **NB:** Single hyphen (core Nextflow option)
 
-### `-c`
+#### `-c`
 
 Specify the path to a specific config file (this is a core NextFlow command).
 
@@ -385,21 +663,28 @@ Specify the path to a specific config file (this is a core NextFlow command).
 
 Note - you can use this to override pipeline defaults.
 
-### `--maxMemory`
+#### `--maxMemory`
 
 Use to set a top-limit for the default memory requirement for each process.
 Should be a string in the format integer-unit. eg. `--max_memory '8.GB'`
 
-### `--maxTime`
+#### `--maxTime`
 
 Use to set a top-limit for the default time requirement for each process.
 Should be a string in the format integer-unit. eg. `--max_time '2.h'`
 
-### `--maxCpus`
+#### `--maxCpus`
 
 Use to set a top-limit for the default CPU requirement for each process.
 Should be a string in the format integer-unit. eg. `--max_cpus 1`
 
-### `--multiqcConfig`
+#### `--multiqcConfig`
 
 Specify a path to a custom MultiQC configuration file.
+
+## Job resources
+
+## Automatic resubmission
+
+Each step in the pipeline has a default set of requirements for number of CPUs, memory and time (see the `conf/process.conf` file).
+For most of the steps in the pipeline, if the job exits with an error code of `143` (exceeded requested resources) it will automatically resubmit with higher requests (2 x original, then 3 x original). If it still fails after three times then the pipeline is stopped.

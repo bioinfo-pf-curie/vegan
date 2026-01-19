@@ -1,0 +1,34 @@
+Bootstrap: docker
+From: 4geniac/almalinux:9.3_conda-py311_23.10.0-1
+
+%labels
+    gitUrl https://gitlab-ci-token:64_H4txhYSN_Gya4RJTC_Gr@gitlab.curie.fr/data-analysis/vegan.git
+    gitCommit 9d62c26c025ae92eba1fef22186357f0203e93fb/devel
+
+%environment
+    export R_LIBS_USER="-"
+    export R_PROFILE_USER="-"
+    export R_ENVIRON_USER="-"
+    export PYTHONNOUSERSITE=1
+    export PATH=$PATH
+    export LC_ALL=en_US.utf-8
+    export LANG=en_US.utf-8
+    source /opt/etc/bashrc
+
+
+# real path from projectDir: fastqc.yml
+%files
+    fastqc.yml /opt/fastqc.yml
+
+%post
+    dnf clean all \
+    && CONDA_ROOT=$(conda info --system | grep CONDA_ROOT | awk '{print $2}') \
+    && micromamba env create --root-prefix ${CONDA_ROOT} -f /opt/fastqc.yml \
+    && mkdir -p /opt/etc \
+    && echo -e "#! /bin/bash\n\n# script to activate the conda environment fastqc" > ~/.bashrc \
+    && conda init bash \
+    && echo "conda activate fastqc" >> ~/.bashrc \
+    && cp ~/.bashrc /opt/etc/bashrc \
+    && conda clean -y -a \
+    && micromamba clean -y -a 
+

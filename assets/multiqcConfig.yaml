@@ -4,6 +4,8 @@
 #################################################################
 
 skip_generalstats: true
+skip_versions_section: true
+disable_version_detection: true
 read_count_multiplier: 0.000001
 read_count_prefix: 'M'
 read_count_desc: 'millions'
@@ -13,14 +15,14 @@ log_filesize_limit: 2000000000
 ## Custom content
 
 custom_data:
-    my_stats:
+    gstats:
         file_format: 'csv'
         section_name: 'General Metrics'
-        description: ' of sequenced data. High (low)-quality alignments show the number of aligned reads with a mapping quality higher (lower) than 20. Reads are filtered according to the specified parameters (for SNV calling by default), keeping only those overlapping the targets file (if any). The fragment length, overlapping bases and sequencing depth are calculated after reads filtering.'
+        description: ' General metrics of sequenced data. Reads are filtered according to the specified parameters (PCR duplicates, mapping quality, singleton, multi-hits). The fraction of reads on target, fragment length, overlapping bases and sequencing depth are calculated after reads filtering.'
         plot_type: 'table'
         pconfig:
-            namespace: 'stats'
-            id: 'stats'
+            namespace: 'gstats'
+            id: 'gstats'
             title: 'General Statistics'
             save_file: true
             col1_header: 'Sample_ID'
@@ -30,7 +32,7 @@ custom_data:
               scale: false
               format: '{:.0f}'
               placement: 1000
-            Number_of_reads:
+            Number_of_fragments:
               title: 'Total Fragments'
               scale: 'RdYlGn'
               format: '{:,.0f}'
@@ -54,39 +56,6 @@ custom_data:
               suffix: '%'
               format: '{:,.1f}'
               placement: 4000
-            Number_of_hq_mapped_reads:
-              title: 'High-Quality Alignment'
-              description: 'High-Quality Mapped Reads (mapQ > 20)'
-              scale: 'RdYlGn'
-              format: '{:,.0f}'
-              hidden: true
-              placement: 5000
-            Percent_of_hq_mapped_reads:
-              title: 'High-Quality Alignment (%)'
-              description: 'High-Quality Mapped Reads (mapQ > 20)'
-              min: 0
-              max: 100
-              scale: 'RdYlGn'
-              format: '{:,.1f}'
-              suffix: '%'
-              placement: 6000
-            Number_of_lq_mapped_reads:
-              title: 'Low-Quality Alignment'
-              description: 'Low-Quality Mapped Reads (mapQ < 20)'
-              scale: 'RdYlGn'
-              format: '{:,.0f}'
-              hidden: true
-              placement: 7000
-            Percent_of_lq_mapped_reads:
-              title: 'Low-Quality Alignment (%)'
-              description: 'Low-Quality Mapped Reads (mapQ < 20)'
-              min: 0
-              max: 100
-              scale: 'RdYlGn'
-              format: '{:,.1f}'
-              suffix: '%'
-              hidden: true
-              placement: 8000
             Number_of_duplicates:
               title: 'Duplicates'
               scale: 'RdYlGn'
@@ -101,20 +70,6 @@ custom_data:
               format: '{:,.1f}'
               suffix: '%'
               placement: 10000
-            Number_reads_ontarget:
-              title: 'On target'
-              scale: 'RdYlGn'
-              format: '{:,.0f}'
-              hidden: true
-              placement: 10500
-            Percent_reads_ontarget:
-              title: 'On target (%)'
-              min: 0
-              max: 100
-              scale: 'RdYlBu'
-              format: '{:,.1f}'
-              suffix: '%'
-              placement: 10600
             Number_reads_after_filt:
               title: 'After Filtering'
               scale: 'RdYlGn'
@@ -129,6 +84,20 @@ custom_data:
               format: '{:,.1f}'
               suffix: '%'
               placement: 12000
+            Number_reads_ontarget:
+              title: 'On target'
+              scale: 'RdYlGn'
+              format: '{:,.0f}'
+              hidden: true
+              placement: 12100
+            Percent_reads_ontarget:
+              title: 'On target (%)'
+              min: 0
+              max: 100
+              scale: 'RdYlBu'
+              format: '{:,.1f}'
+              suffix: '%'
+              placement: 12200
             Percent_of_overlap:
               title: 'Overlapping Bases (%)'
               description: 'In a read pair, reference bases covered by both R1 and R2'
@@ -169,30 +138,30 @@ custom_data:
               suffix: '%'
               placement: 16000
 
-    bwa_logs:
-        file_format: 'tsv'
-        section_name: 'Bwa-mem'
-        description: 'statistics on aligned data. Number of unique and multiple mapped reads, as well unmapped reads are reported.'
-        plot_type: 'bargraph'
-        pconfig:
-            namespace: 'bwalogs'
-            title: 'Reads Alignment'
-            id: 'bwalogs'
-            scale: 'Set1'
+#    bwa_logs:
+#        file_format: 'tsv'
+#        section_name: 'Bwa-mem'
+#        description: 'Statistics on aligned data. Number of unique and multiple mapped reads, as well unmapped reads are reported.'
+#        plot_type: 'bargraph'
+#        pconfig:
+#            namespace: 'bwalogs'
+#            title: 'Reads Alignment'
+#            id: 'bwalogs'
+#            scale: 'Set1'
 
-    genes_cov:
-        file_format: 'tsv'
-        section_name: 'Genes Coverage'
-        description: 'distribution calculed from exonic regions overlapping the capture regions (if any).'
-        plot_type: 'linegraph'
-        pconfig:
-            namescape: 'genescov'
-            title: 'Genes Coverage'
-            id: 'genescov'
-            scale: 'Set1'
-            ylab: 'Cumulative Genes Fraction (%)'
-            xlab: 'Mean coverage (X)'
-            xmax: 1000
+#    genes_cov:
+#        file_format: 'tsv'
+#        section_name: 'Genes Coverage'
+#        description: 'Distribution calculed from exonic regions overlapping the capture regions (if any).'
+#        plot_type: 'linegraph'
+#        pconfig:
+#            namescape: 'genescov'
+#            title: 'Genes Coverage'
+#            id: 'genescov'
+#            scale: 'Set1'
+#            ylab: 'Cumulative Genes Fraction (%)'
+#            xlab: 'Mean coverage (X)'
+#            xmax: 1000
 
 #    identito:
 #        file_format: 'csv'
@@ -207,7 +176,7 @@ custom_data:
     identitoPolym:
         file_format: 'tsv'
         section_name: 'Identito Monitoring'
-        description: ' from a list of know polymorphisms.'
+        description: ' Identito monitoring from a list of know polymorphisms.'
         plot_type: 'table'
         pconfig:
             title: 'Polymorphisms'
@@ -216,14 +185,15 @@ custom_data:
             format: '{:,.2f}'
             save_file: true
 
-#    identitoClustering:
-#        section_name: 'Identito Clustering'
-#        description: ' from a list of know polymorphisms. Samples from the same patient are expected to be clustered together.'
+    identitoClustering:
+        file_format: "png"
+        section_name: 'Identito Clustering'
+        description: ' from a list of know polymorphisms. Samples from the same patient are expected to be clustered together.'
 
     mutect2:
         file_format: 'csv'
         section_name: 'Mutect2'
-        description: ' variant calling. Total number of variants detected by the Mutect2 workflow before and after filtering with the FilterMutectCalls function. The cross-contamination values have been calculated with the GATK CalculateContamination software.'
+        description: ' Variant calling. Total number of variants detected by the Mutect2 workflow before and after filtering on DP/VAF/MAF.'
         plot_type: 'table'
         pconfig:
             title: 'Mutect2 Variant Calling'
@@ -238,11 +208,6 @@ custom_data:
               scale: false
               format: '{:.0f}'
               placement: 1000
-            conta:
-              title: 'Cross-contamination (%)'
-              scale: false
-              format: '{:,.2f}'
-              placement: 2000
             nb_var:
               title: 'Total Variants'
               scale: false
@@ -258,11 +223,26 @@ custom_data:
               scale: false
               format: '{:,.2f}'
               placement: 5000
+            nb_var_01:
+              title: 'SNVs > 0.01'
+              scale: false
+              format: '{:,.0f}'
+              placement: 6000
+            nb_var_05:
+              title: 'SNVs > 0.05'
+              scale: false
+              format: '{:,.0f}'
+              placement: 7000
+            nb_var_1:
+              title: 'SNVs > 0.1'
+              scale: false
+              format: '{:,.0f}'
+              placement: 8000                                                                                                                                                                                                                                                                                                                                                              
 
     hccaller:
         file_format: 'csv'
         section_name: 'HaplotypeCaller'
-        description: ' variant calling. Total number of variants detected by the HaplotypeCaller workflow (GATK4).'
+        description: ' Variant calling. Total number of variants detected by the HaplotypeCaller workflow (GATK4).'
         plot_type: 'table'
         pconfig:
             title: 'HaplotypeCaller Variant Calling'
@@ -286,39 +266,67 @@ custom_data:
     transition:
         file_format: 'tsv'
         section_name: 'Transition/Transversion'
-        description: 'from variants called with HaplotypeCaller. The number of transitions (A>G,T>C,C>T,G>A), transversions (A>C,T>G,C>A,G>T,A>T,T>A,C>G,G>C) and short insertions/delations (indels) was extracted for each sample.'
+        description: 'Transition/Transversion from filtered variants. The number of transitions (A>G,T>C,C>T,G>A), transversions (A>C,T>G,C>A,G>T,A>T,T>A,C>G,G>C) and short insertions/delations (indels) was extracted for each sample.'
         plot_type: 'bargraph'
         pconfig:
             namespace: 'transition'
             title: 'Transitions/Transversions/Indels'
             id: 'transition'
-            scale: 'Set1'
+            scale: 'OrRd'
+
+    tmb:
+        file_format: 'csv'
+        section_name: 'Tumor Mutational Burden'
+        description: 'TMB based on selected somatic variants.'
+        plot_type: 'bargraph'
+        pconfig:
+            namespace: 'tmb'
+            title: 'Tumor Mutational Burden (mutations/Mb)'
+            id: 'tmb'
+            scale: 'Reds'
+
+    msi:
+        file_format: 'csv'
+        section_name: 'Microsatellite Instability'
+        description: 'MSI extracted from MSIsensor-pro'
+        plot_type: 'bargraph'
+        pconfig:
+            namespace: 'msi'
+            title: 'Somatic Sites (%)'
+            id: 'msi'
+            scale: 'Reds'
 
 sp:
-  my_stats:
-      fn: '*.stats'
+  gstats:
+      fn: 'mqc.stats'
   bwa_logs:
       fn: '*bwa.mqc'
-  genes_cov:
-      fn: '*covdensity.mqc'
-#  identito:
-#      fn: '*_identito.csv'
+#  genes_cov:
+#      fn: '*covdensity.mqc'
   identitoPolym:
       fn: '*_polym.tsv'
-#  identitoClustering:
-#      fn: '*_mqc.png'
+  identitoClustering:
+      fn: '*identito.png'
   mutect2:
-      fn: '*_Mutect2_callingMetrics.mqc'
+      fn: '*_callingMetrics.stats'
   hccaller:
-      fn: '*_HaplotypeCaller_callingMetrics.mqc'
+      fn: '*_HaplotypeCaller_callingMetrics.stats'
   transition:
       fn: '*.table.tsv'
-ignore_images: true
+  tmb:
+      fn: '*tmb_score.mqc'
+  msi:
+      fn: '*msi_score.mqc'
+  samtools_alignment_plot:
+      fn: '*.global.stats'
+      fn_ignore_files: '*onTarget.stats'
+
+ignore_images: false
 
 table_cond_formatting_rules:
     Percent_of_aligned_reads:
         pass:
-          - gt: 80
+          - gt: 79.9
         warn:
           - lt: 80
         fail:
@@ -332,33 +340,33 @@ table_cond_formatting_rules:
         pass:
           - lt: 25
         warn:
-          - gt: 25
+          - gt: 24.9
         fail:
           - gt: 50
     Percent_reads_ontarget:
         pass:
-          - gt: 70
+          - gt: 69.9
         warn:
           - lt: 70
         fail:
           - lt: 50
     Percent_reads_after_filt:
         pass:
-          - gt: 60
+          - gt: 59.9
         warn:
           - lt: 60
         fail:
           - lt: 50
     Mean_depth:
         pass:
-          - gt: 75
+          - gt: 74.9
         warn:
           - lt: 75
         fail:
           - lt: 30
     Fragment_length:
         pass:
-          - gt: 150
+          - gt: 149
         warn:
           - lt: 150
 
@@ -367,7 +375,11 @@ table_cond_formatting_rules:
 ## Modules
 
 module_order:
+  - cutadapt:
+     name: 'Trimming'
   - fastqc
+  - samtools:
+     name: 'Reads Mapping'
   - picard:
      name: 'Fragment Size'
   - mosdepth:
@@ -379,28 +391,36 @@ module_order:
   - snpeff
 
 report_section_order:
-  my_stats:
+  gstats:
     order: 1000
-  fastqc:
+  cutadapt:
     order: 900
-  bwa_logs:
+  fastqc:
     order: 800
+  Samtools:
+    order: 700
   picard:
     order: 600
   mosdepth:
     order: 500
-  genes_cov:
-    order: 300
+#  genes_cov:
+#    order: 300
   preseq:
     order: 200
   identito:
     order: 100
   identitoPolym:
     order: 90
+  identitoClustering:
+    order: 80
   mutect2:
     order: 50
   transition:
     order: 40
+  msi:
+    order: -900
+  tmb:
+    order: -1000
   software_versions:
     order: -2000
   summary:
@@ -414,15 +434,24 @@ remove_sections:
   - fastqc_per_sequence_quality_scores
   - fastqc_overrepresented_sequences
   - fastqc_status_checks
-  - mosdepth-coverage-cov
+  - mosdepth-coverage-dist-cov
+  - mosdepth-xy-coverage
   - picard-wgsmetrics-cov
   - picard-wgsmetrics-bases
+  - samtools-stats
+  - samtools-flagstat
 
 fn_clean_exts:
-    - '_bwa.log'
-    - '_bwa.mqc'
-    - '_covdensity.mqc'
-    - '.filtered.SNV.txt'
-    - '.filtered.SNV.bam'
+  - '_covdensity.mqc'
+  - '_callls_norm_GnomAD_filtered_snpEff_stats'
+  - '_snpEff_stats'
+  - '.mosdepth.region.dist.txt'
+  - '_extrap_ccurve.txt'
+  - '.global'
+  - '_tmb_score.mqc'
+  - '_msi_score.mqc'
+
+fn_ignore_files:
+  - '*.onTarget.stats' 
 
 plots_force_interactive: True

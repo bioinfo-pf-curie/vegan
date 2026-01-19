@@ -1,7 +1,7 @@
-name: fastqc-0.11.8
+name: fastqc
 channels:
   - conda-forge
   - bioconda
-  - defaults
+  - nodefaults
 dependencies:
-  - bioconda::fastqc=0.11.8=2
+  - bioconda::fastqc=0.11.9=hdfd78af_1

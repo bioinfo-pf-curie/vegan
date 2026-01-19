@@ -22,7 +22,10 @@ Nextflow runs on most POSIX systems (Linux, Mac OSX etc). It can be installed by
 java -version
 
 # Install Nextflow
-curl -fsSL get.nextflow.io | bash
+curl -s https://get.nextflow.io | bash
+
+# Test Nextflow
+./nextflow run hello
 
 # Add Nextflow binary to your PATH:
 mv nextflow ~/bin/
@@ -41,8 +44,6 @@ First, clone the repository using `git clone http://repository_url`
 Note that the current repo contains a test dataset managed with `git lfs`.
 Be sure that `git lfs` is instaled and run `git lfs pull` to pull the test datasets.
 
-In order to run the pipeline out-of-the box, you will have to move the `*.config.example` files into `*.config` files, edit them and set the expected path compliant with your setup.
-
 
 ## 3) Pipeline configuration
 
@@ -53,7 +54,7 @@ on a simple (if powerful!) local server.
 Be warned of two important points about this default configuration:
 
 1. The default profile uses the `local` executor
-    * All jobs are run in the login session. If you're using a simple server, this may be fine. 
+    * All jobs are run in the login session. If you're using a simple server, this may be fine.
 	If you're using a compute cluster, take care of not running all jobs on the head node.
     * See the [nextflow docs](https://www.nextflow.io/docs/latest/executor.html) for information about running with other hardware backends.
 	Most job scheduler systems are natively supported.
@@ -68,9 +69,9 @@ Please, edit the `cluster.config` file to set up your own cluster configuration.
 #### 3.2) Software deps: Singularity
 
 Using [Singularity](http://singularity.lbl.gov/) is in general a great idea to manage environment and ensure reproducibility.
-The process is very similar: running the pipeline with the option `-profile singularity` tells Nextflow to enable singularity for this run. 
+The process is very similar: running the pipeline with the option `-profile singularity` tells Nextflow to enable singularity for this run.
 Images containing all of the software requirements can be automatically fetched as explained in the folder [`utils/singularity`](../utils/singularity/README.md).
-In addition the `containerPath` variable from the `containers.config` file has to be modified to set the path to the singularity images.
+In addition the `singularityImagePath` variable from the `geniac.config` file has to be modified to set the path to the singularity images.
 
 #### 3.3) Software deps: Conda
 
@@ -79,6 +80,7 @@ This is slower and less reproducible than the above, but is still better than ha
 The pipeline ships with a conda environment file and nextflow has built-in support for this.
 To use it first ensure that you have conda installed (we recommend [miniconda](https://conda.io/miniconda.html)), then follow the same pattern as above and use the flag `-profile conda`
 Note that in this case, the environment will be created in the `cache/work` folder.
+Otherwise, the `condaCacheDir` variable from the `base.config` file has to be modified to set the path to the existing conda environments
 
 ### 3.4) Software deps: Tools Path
 
@@ -87,4 +89,4 @@ which allows to simply set the `PATH` environment from which all dependancies mu
 
 ## 4) Reference genomes
 
-See [`docs/reference_genomes.md`](reference_genomes.md)
+See [`docs/referenceGenomes.md`](referenceGenomes.md)
