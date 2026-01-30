@@ -1,7 +1,9 @@
 ************************************
 version-2.7.4
 
+BUG FIXES
 
+  - fix bug in trimming when a sample has multiple fastq files
 
 ************************************
 version-2.7.3
