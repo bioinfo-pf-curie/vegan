@@ -408,13 +408,11 @@ workflow {
     }
 
     // PROCESS: fastqc
-    if (!params.skipFastqc){
-    	fastqc(
-      	chRawReads
-    	)
-    	chFastqcMqc = fastqc.out.results.collect()
-    	chVersions = chVersions.mix(fastqc.out.versions)
-     }
+   	fastqc(
+     	chRawReads
+   	)
+   	chFastqcMqc = fastqc.out.results.collect()
+   	chVersions = chVersions.mix(fastqc.out.versions)
 
     //*******************************************
     // SUB-WORFKLOW : RNA SEQ
