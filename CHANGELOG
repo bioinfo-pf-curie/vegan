@@ -3,7 +3,9 @@ version-2.7.4
 
 BUG FIXES
 
-  - fix bug in trimming when a sample has multiple fastq files
+  - fix bug in trimming when a sample has multiple fastq files #239
+  - Update Mouse genome annotations #235
+  - Update Bmori genome #243
 
 ************************************
 version-2.7.3
