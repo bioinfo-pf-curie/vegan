@@ -7,6 +7,10 @@ BUG FIXES
   - Update Mouse genome annotations #235
   - Update Bmori genome #243
 
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - BQSR is run only if there is a variant calling tools is specified 
+
 ************************************
 version-2.7.3
 
