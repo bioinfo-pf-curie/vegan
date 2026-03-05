@@ -588,7 +588,6 @@ workflow {
       )
       chVersions = chVersions.mix(bqsrFlow.out.versions)
       chProcBam = params.skipBQSR ? chFilteredBam : bqsrFlow.out.bam.mix(bqsrFlow.out.cram)
-  
 
       /*
       ================================================================================
