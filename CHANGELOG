@@ -9,7 +9,8 @@ BUG FIXES
 
 SIGNIFICANT USER-VISIBLE CHANGES
 
-  - BQSR is run only if there is a variant calling tools is specified 
+  - oncodriver update (1.3.0)
+  - BQSR is run only if there is a variant calling tools is specified
 
 ************************************
 version-2.7.3
