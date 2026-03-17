@@ -25,13 +25,13 @@ process tmb {
   def prefix = task.ext.prefix ?: "${meta.id}"
   def bedOpts = bed ? "--bed ${bed}" : "--effGenomeSize ${effgsize}"
   """
-  pyTMB.py -i $vcf \
+  pyTMB -i $vcf \
       ${args} \
       --dbConfig ${dbconfig} \
       --varConfig ${varconfig} \
       ${bedOpts} > ${prefix}_tmb.txt
 
 
-  pyTMB.py --version > versions.txt
+  pyTMB --version > versions.txt
   """
 }
