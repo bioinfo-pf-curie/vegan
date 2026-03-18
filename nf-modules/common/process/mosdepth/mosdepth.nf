@@ -21,10 +21,8 @@ process mosdepth {
   tuple val(meta), path('*.regions.bed*')         , optional:true, emit: regionsBed
   tuple val(meta), path('*.quantized.bed*')       , optional:true, emit: quantizedBed
   tuple val(meta), path('*.thresholds.bed*')      , optional:true, emit: thresholdsBed
-
-  path("*.*.txt"), emit: metrics
-  path("*{.bed.gz,.bed.gz.csi}"), emit: bedcov
-  path("versions.txt"), emit: versions
+  path("*{.bed.gz,.bed.gz.csi}")                  , emit: bedcov
+  path("versions.txt")                            , emit: versions
 
   when:
   task.ext.when == null || task.ext.when

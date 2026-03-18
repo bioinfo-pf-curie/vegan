@@ -20,9 +20,7 @@ vcf:
   gene_id: 3
   transcript_id : 6
   cancer_db:
-    - 'ICGC'
     - 'CancerHotspots'
-    - 'COSMIC'
   polym_db:
     gnomAD:
       - AF
@@ -65,6 +63,7 @@ select:
       - splice_donor_variant
       - splice_acceptor_variant
       - frameshift_variant
+    is_hotspot: false
 
   ## Copy Number Variants
   
@@ -73,6 +72,12 @@ select:
     var_classes:
       - AMP
     maxsize: 10000000
+    copy: 5
+
+  - var_type: 'cnv'
+    gene_id: 'SOX2|PIK3CA|TP63'
+    var_classes:
+      - AMP
     copy: 5
 
   - var_type: 'cnv'
