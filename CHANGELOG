@@ -1,4 +1,19 @@
 ************************************
+version-2.7.4
+
+BUG FIXES
+
+  - fix bug in trimming when a sample has multiple fastq files #239
+  - Update Mouse genome annotations #235
+  - Update Bmori genome #243
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - pyTMB update (1.6.0)
+  - oncodriver update (1.3.0)
+  - BQSR is run only if there is a variant calling tools is specified
+
+************************************
 version-2.7.3
 
 BUG FIXES
