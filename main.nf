@@ -733,42 +733,42 @@ workflow {
           chVersions = chVersions.mix(mutect2TumorOnlyFlow.out.versions)
           chRawSomaticVcf = chRawSomaticVcf.mix(mutect2TumorOnlyFlow.out.vcf)
         }
-
-        /*
-        ================================================================================
-                                     VCF FILTERING
-        ================================================================================
-        */
-
-        filterSomaticFlow(
-          chRawSomaticVcf,
-          chFasta,
-          chGnomadDb,
-          chGnomadDbIndex
-        )
-        chVersions = chVersions.mix(filterSomaticFlow.out.versions)
-        chRawSomaticVcf = filterSomaticFlow.out.vcfRaw
-        chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
-
-        /*
-        ================================================================================
-                                   VCF QC
-        ================================================================================
-        */
-  
-        chVcfMetrics = chRawSomaticVcf.join(chFilteredSomaticVcf)
-        vcfQcFlow(
-          chVcfMetrics
-        )
-        chVcfMetricsMqc = vcfQcFlow.out.stats
-        chTsTvMqc = vcfQcFlow.out.transition
-
-        // Remove samples with two few SNVs
-        chFilteredSomaticVcf = chFilteredSomaticVcf
-          .join(vcfQcFlow.out.stats)
-          .filter{ meta, vcf, tbi, stats -> checkVarNumber(meta, stats) }
-          .map{ meta, vcf, tbi, stats -> [meta, vcf, tbi] }
       }
+
+      /*
+      ================================================================================
+                                   VCF FILTERING
+      ================================================================================
+      */
+
+      filterSomaticFlow(
+        chRawSomaticVcf,
+        chFasta,
+        chGnomadDb,
+        chGnomadDbIndex
+      )
+      chVersions = chVersions.mix(filterSomaticFlow.out.versions)
+      chRawSomaticVcf = filterSomaticFlow.out.vcfRawNorm
+      chFilteredSomaticVcf = filterSomaticFlow.out.vcfFiltered
+      
+      /*
+      ================================================================================
+                                 VCF QC
+      ================================================================================
+      */
+  
+      chVcfMetrics = chRawSomaticVcf.join(chFilteredSomaticVcf)
+      vcfQcFlow(
+        chVcfMetrics
+      )
+      chVcfMetricsMqc = vcfQcFlow.out.stats
+      chTsTvMqc = vcfQcFlow.out.transition
+
+      // Remove samples with two few SNVs
+      chFilteredSomaticVcf = chFilteredSomaticVcf
+        .join(vcfQcFlow.out.stats)
+        .filter{ meta, vcf, tbi, stats -> checkVarNumber(meta, stats) }
+        .map{ meta, vcf, tbi, stats -> [meta, vcf, tbi] }
     }
 
     /*
