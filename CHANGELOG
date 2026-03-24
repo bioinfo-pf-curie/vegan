@@ -1,4 +1,11 @@
 ************************************
+version-2.7.5
+
+BUG FIXES
+
+  - fix bug in sigProfiler for wgs data #249
+
+************************************
 version-2.7.4
 
 BUG FIXES
