@@ -55,6 +55,6 @@ workflow filterSomaticFlow {
 
   emit:
   versions = chVersions
-  vcfRaw = bcftoolsNorm.out.vcf
+  vcfRawNorm = bcftoolsNorm.out.vcf
   vcfFiltered = vcfFiltered
 }

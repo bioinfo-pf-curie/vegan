@@ -1,4 +1,15 @@
 ************************************
+version-2.7.5
+
+BUG FIXES
+
+  - fix bug in sigProfiler for wgs data #249
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+  - The step `--step annotationSomatic` now include VCF filtering and metrics
+
+************************************
 version-2.7.4
 
 BUG FIXES

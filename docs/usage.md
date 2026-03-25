@@ -164,7 +164,7 @@ SAMPLE_ID | SAMPLE_NAME | PATH_TO_BAM_FILE | PATH_TO_BAM_INDEX
 
 #### Starting at the annotation step
 
-In order to start at the annotation step, so just after variant calling, you can use the option `--step 'annotateSomatic'` as follow :
+In order to start with VCF files, you can use the option `--step 'annotateSomatic'` as follow :
 
 ```bash
 nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.vcf.csv] \
@@ -172,6 +172,7 @@ nextflow run main.nf --samplePlan [RESULTS/resume/samplePlan.vcf.csv] \
                      -profile cluster,singularity --outDir [RESULTS_3] -w [RESULTS_3/work]
 ```
 
+In this case, the vcf files will be first filtered according to the specified threshold (VAF, MAF, etc.), and check for quality before being annotated.  
 Of note, the current version only supports somatic annotation sub-workflow.  
 The sample plan contains the following information :
 
